@@ -3,11 +3,74 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
-import { getSql } from "@/lib/db";
+import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession } from "@/lib/auth";
-import type { Project } from "@/lib/projects";
+import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string };
+
+async function ensureTables() {
+  const sql = getSql();
+  await sql`
+    CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      name TEXT NOT NULL DEFAULT 'Admin',
+      password_hash TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  await sql`
+    CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY,
+      slug TEXT UNIQUE NOT NULL,
+      color TEXT NOT NULL DEFAULT '#303030',
+      logo TEXT NOT NULL DEFAULT '',
+      year TEXT NOT NULL DEFAULT '',
+      data JSONB NOT NULL DEFAULT '{}'::jsonb,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+}
+
+// First-run setup from the web (no terminal): creates the tables, the first
+// admin account, and imports the seed projects. Becomes inert once any user
+// exists, so it needs no secret.
+export async function setupFirstUser(formData: FormData) {
+  if (!isDbEnabled()) redirect("/admin/setup?error=nodb");
+  if (!process.env.AUTH_SECRET) redirect("/admin/setup?error=nosecret");
+
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "");
+  const name = String(formData.get("name") || "Admin").trim() || "Admin";
+  if (!email || password.length < 8) redirect("/admin/setup?error=invalid");
+
+  await ensureTables();
+  const sql = getSql();
+
+  const users = (await sql`SELECT count(*)::int AS n FROM users`) as unknown as { n: number }[];
+  if (users[0].n > 0) redirect("/admin/login");
+
+  const hash = await bcrypt.hash(password, 10);
+  await sql`INSERT INTO users (email, name, password_hash) VALUES (${email}, ${name}, ${hash})`;
+
+  const proj = (await sql`SELECT count(*)::int AS n FROM projects`) as unknown as { n: number }[];
+  if (proj[0].n === 0) {
+    for (let i = 0; i < SEED_PROJECTS.length; i++) {
+      const r = toRow(SEED_PROJECTS[i]);
+      const json = JSON.stringify(r.data);
+      await sql`
+        INSERT INTO projects (slug, color, logo, year, data, sort_order)
+        VALUES (${r.slug}, ${r.color}, ${r.logo}, ${r.year}, ${json}::jsonb, ${i})
+      `;
+    }
+  }
+
+  revalidatePath("/");
+  redirect("/admin/login?setup=1");
+}
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();

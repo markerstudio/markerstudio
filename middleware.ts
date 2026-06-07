@@ -6,7 +6,9 @@ import { SESSION_COOKIE } from "@/lib/auth";
 // verifies the JWT — no DB or bcrypt here.
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (pathname.startsWith("/admin/login")) return NextResponse.next();
+  if (pathname.startsWith("/admin/login") || pathname.startsWith("/admin/setup")) {
+    return NextResponse.next();
+  }
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const ok = token ? await verify(token) : false;
