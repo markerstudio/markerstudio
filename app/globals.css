@@ -1,0 +1,95 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #faf7f0;
+  --ink: #101014;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: var(--paper);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection {
+    background-color: #ffe600;
+    color: #101014;
+  }
+}
+
+@layer components {
+  /* Hand-drawn highlighter swipe behind text */
+  .highlight {
+    position: relative;
+    display: inline;
+    background-image: linear-gradient(
+      120deg,
+      var(--hl, #ffe600) 0%,
+      var(--hl, #ffe600) 100%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 42%;
+    background-position: 0 78%;
+    padding: 0 0.1em;
+    border-radius: 2px 8px 4px 10px;
+  }
+
+  /* Animated swipe-in highlight used on scroll/hover */
+  .highlight-animate {
+    background-size: 0% 42%;
+    transition: background-size 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .highlight-animate.is-on,
+  .group:hover .highlight-animate {
+    background-size: 100% 42%;
+  }
+
+  /* Marker-drawn underline */
+  .underline-marker {
+    position: relative;
+  }
+  .underline-marker::after {
+    content: "";
+    position: absolute;
+    left: -2px;
+    right: -2px;
+    bottom: -6px;
+    height: 8px;
+    background: var(--hl, #ff3d81);
+    border-radius: 60% 40% 70% 30% / 80% 60% 90% 50%;
+    transform: rotate(-1deg);
+  }
+
+  .btn-pop {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-ink px-7 py-3.5 font-display text-lg font-bold transition-all duration-150;
+    box-shadow: 4px 4px 0 0 #101014;
+  }
+  .btn-pop:hover {
+    transform: translate(-2px, -2px);
+    box-shadow: 7px 7px 0 0 #101014;
+  }
+  .btn-pop:active {
+    transform: translate(2px, 2px);
+    box-shadow: 1px 1px 0 0 #101014;
+  }
+
+  .card-pop {
+    @apply rounded-3xl border-2 border-ink bg-white transition-all duration-150;
+    box-shadow: 6px 6px 0 0 #101014;
+  }
+  .card-pop:hover {
+    transform: translate(-3px, -3px);
+    box-shadow: 10px 10px 0 0 #101014;
+  }
+}
+
+/* Dotted paper texture */
+.paper-dots {
+  background-image: radial-gradient(#10101412 1.2px, transparent 1.2px);
+  background-size: 22px 22px;
+}
