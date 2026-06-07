@@ -298,6 +298,75 @@ body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 6
 .ms-footer__contact { margin-top: 20px; display: grid; gap: 6px; font-size: 13px; }
 .ms-footer__bottom { display: flex; justify-content: space-between; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); font-size: 12px; color: rgba(255,255,255,.5); gap: 16px; flex-wrap: wrap; }
 
+/* ---- Scroll reveal ---- */
+.ms-reveal { opacity: 0; transform: translateY(24px); transition: opacity 620ms var(--ease-out), transform 620ms var(--ease-out); will-change: opacity, transform; }
+.ms-reveal.is-visible { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) {
+  .ms-reveal { opacity: 1; transform: none; transition: none; }
+  .ms-marquee__track { animation: none; }
+}
+
+/* ---- Clients marquee ---- */
+.ms-clients { padding: 56px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--marker-paper); overflow: hidden; }
+.ms-clients__head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
+.ms-clients__title { font: 700 28px/1.15 var(--font-display); letter-spacing: -0.01em; color: var(--marker-ink); margin: 0; max-width: 22ch; }
+.ms-marquee { position: relative; width: 100%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ms-marquee__track { display: flex; gap: 16px; width: max-content; animation: ms-scroll 32s linear infinite; }
+.ms-marquee:hover .ms-marquee__track { animation-play-state: paused; }
+body.ar .ms-marquee__track { animation-direction: reverse; }
+@keyframes ms-scroll { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.ms-chip { display: inline-flex; align-items: center; gap: 12px; padding: 14px 22px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-pill); white-space: nowrap; transition: border-color 180ms, box-shadow 180ms, transform 180ms; }
+.ms-chip:hover { border-color: var(--marker-orange); box-shadow: var(--shadow-2); transform: translateY(-2px); }
+.ms-chip__mark { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 34px; padding: 0 8px; border-radius: 50%; background: var(--marker-orange-50); color: var(--marker-orange); font: 800 13px/1 var(--font-display); }
+.ms-chip__name { font: 600 16px/1 var(--font-display); color: var(--marker-charcoal); }
+
+/* ---- Studio ---- */
+.ms-studio { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center; }
+.ms-studio__title { font: 800 52px/1.05 var(--font-display); letter-spacing: -0.025em; color: var(--marker-ink); margin: 14px 0 24px; }
+body.ar .ms-studio__title { font-family: var(--font-arabic-display); }
+.ms-studio__p { font: 400 18px/1.6 var(--font-body); color: var(--fg-muted); margin: 0 0 16px; max-width: 52ch; }
+.ms-studio__marks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.ms-mark { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 36px 24px; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; transition: transform 220ms var(--ease-out), box-shadow 220ms; }
+.ms-mark:hover { transform: translateY(-4px); box-shadow: var(--shadow-3); }
+.ms-mark--dark { background: var(--marker-charcoal); border-color: var(--marker-charcoal); }
+.ms-mark img { height: 52px; width: auto; max-width: 100%; object-fit: contain; }
+.ms-mark__label { font: 600 11px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; color: var(--fg-muted); }
+.ms-mark--dark .ms-mark__label { color: rgba(255,255,255,.6); }
+
+/* ---- Testimonials ---- */
+.ms-quotes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.ms-quote { position: relative; padding: 32px 28px 28px; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; display: flex; flex-direction: column; gap: 18px; overflow: hidden; transition: border-color 200ms, box-shadow 200ms, transform 200ms; }
+.ms-quote::before { content: ''; position: absolute; top: 0; left: 0; width: 4px; height: 100%; background: var(--marker-orange); transform: scaleY(0); transform-origin: top; transition: transform 280ms var(--ease-out); }
+body.ar .ms-quote::before { left: auto; right: 0; }
+.ms-quote:hover { transform: translateY(-4px); box-shadow: var(--shadow-3); border-color: transparent; }
+.ms-quote:hover::before { transform: scaleY(1); }
+.ms-quote__mark { font: 800 56px/0.5 var(--font-display); color: var(--marker-orange-200); height: 24px; }
+.ms-quote__text { font: 500 18px/1.55 var(--font-body); color: var(--marker-ink); margin: 0; flex: 1; }
+.ms-quote__by { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; border-top: 1px solid var(--border); }
+.ms-quote__name { font: 700 15px/1.2 var(--font-display); color: var(--marker-charcoal); }
+.ms-quote__role { font: 600 11px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-subtle); }
+
+/* ---- FAQ accordion ---- */
+.ms-faq { display: grid; gap: 12px; max-width: 880px; }
+.ms-faq__item { border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; overflow: hidden; transition: border-color 180ms, box-shadow 180ms; }
+.ms-faq__item.is-open { border-color: var(--marker-orange); box-shadow: var(--shadow-2); }
+.ms-faq__q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; background: transparent; border: none; cursor: pointer; text-align: start; font: 600 19px/1.35 var(--font-display); color: var(--marker-ink); }
+body.ar .ms-faq__q { font-family: var(--font-arabic-display); }
+.ms-faq__q:hover { color: var(--marker-orange); }
+.ms-faq__sign { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--marker-orange-50); color: var(--marker-orange); font: 700 20px/1 var(--font-display); transition: background 180ms, color 180ms; }
+.ms-faq__item.is-open .ms-faq__sign { background: var(--marker-orange); color: #fff; }
+.ms-faq__a { padding: 0 24px 24px; }
+.ms-faq__a p { margin: 0; font: 400 16px/1.6 var(--font-body); color: var(--fg-muted); max-width: 62ch; }
+
+/* ---- CTA banner ---- */
+.ms-cta-banner__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+.ms-cta-banner__title { font: 800 64px/0.98 var(--font-display); letter-spacing: -0.03em; color: #fff; margin: 0; }
+body.ar .ms-cta-banner__title { font-family: var(--font-arabic-display); font-size: 56px; }
+.ms-cta-banner__side { display: flex; flex-direction: column; gap: 24px; align-items: start; }
+.ms-cta-banner__sub { font: 400 20px/1.55 var(--font-body); color: rgba(255,255,255,.92); margin: 0; max-width: 40ch; }
+.ms-btn-dark { background: var(--marker-ink); color: #fff; }
+.ms-btn-dark:hover { background: #000; transform: translateY(-1px); box-shadow: var(--shadow-3); }
+
 /* RTL adjustments */
 body.ar .ms-hero__eyebrow::before { order: 1; }
 body.ar .ms-service__link svg { transform: scaleX(-1); }
@@ -312,6 +381,11 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
   .ms-contact__big { font-size: 56px; }
   .ms-metrics { grid-template-columns: repeat(2, 1fr); gap: 40px 24px; }
   .ms-footer__top { grid-template-columns: 1fr 1fr; gap: 40px; }
+  .ms-studio { grid-template-columns: 1fr; gap: 40px; }
+  .ms-studio__title { font-size: 40px; }
+  .ms-quotes { grid-template-columns: 1fr; }
+  .ms-cta-banner__inner { grid-template-columns: 1fr; gap: 28px; }
+  .ms-cta-banner__title { font-size: 52px; }
 }
 @media (max-width: 768px) {
   .ms-container { padding: 0 20px; }
@@ -330,6 +404,13 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
   .ms-contact { grid-template-columns: 1fr; gap: 40px; }
   .ms-contact__big { font-size: 44px; }
   .ms-footer__top { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .ms-clients__title { font-size: 22px; }
+  .ms-studio__title { font-size: 34px; }
+  .ms-quote__text { font-size: 16px; }
+  .ms-faq__q { font-size: 17px; padding: 18px 18px; }
+  .ms-cta-banner__title { font-size: 40px; }
+  body.ar .ms-cta-banner__title { font-size: 38px; }
+  .ms-cta-banner__sub { font-size: 18px; }
 }
 @media (max-width: 480px) {
   .ms-footer__top { grid-template-columns: 1fr; }

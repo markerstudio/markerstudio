@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 
 const LOGO = "/assets/logo-primary-transparent.png";
@@ -10,6 +10,52 @@ function ArrowIcon() {
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
       <path d="M5 12h14M13 5l7 7-7 7" />
     </svg>
+  );
+}
+
+/* Scroll-reveal wrapper — fades + lifts a section into view once. */
+function Reveal({
+  children,
+  className = "",
+  delay = 0,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  delay?: number;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            setShown(true);
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -8% 0px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      className={`ms-reveal ${shown ? "is-visible" : ""} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
   );
 }
 
@@ -88,6 +134,31 @@ function Hero({ t }: { t: SiteContent }) {
   );
 }
 
+/* Infinite logo/client marquee — the brands we've marked, on loop. */
+function ClientsMarquee({ t }: { t: SiteContent }) {
+  const row = [...t.clients.items, ...t.clients.items];
+  return (
+    <section className="ms-clients" aria-label={t.clients.title}>
+      <div className="ms-container">
+        <div className="ms-clients__head">
+          <span className="ms-section__eyebrow">{t.clients.eyebrow}</span>
+          <h2 className="ms-clients__title">{t.clients.title}</h2>
+        </div>
+      </div>
+      <div className="ms-marquee">
+        <div className="ms-marquee__track">
+          {row.map((c, i) => (
+            <div className="ms-chip" key={`${c.name}-${i}`}>
+              <span className="ms-chip__mark">{c.initials}</span>
+              <span className="ms-chip__name">{c.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function WorkGrid({ t }: { t: SiteContent }) {
   const layout = ["lg", "sm", "sm", "md", "md"];
   return (
@@ -105,7 +176,11 @@ function WorkGrid({ t }: { t: SiteContent }) {
         </div>
         <div className="ms-work-grid">
           {t.work.items.map((item, i) => (
-            <div key={i} className={`ms-work-card ms-work-card--${layout[i] || "md"}`}>
+            <Reveal
+              key={i}
+              delay={i * 60}
+              className={`ms-work-card ms-work-card--${layout[i] || "md"}`}
+            >
               <div
                 className="ms-work-card__media"
                 style={{
@@ -119,7 +194,7 @@ function WorkGrid({ t }: { t: SiteContent }) {
                 <span className="ms-work-card__tag">{item.tag}</span>
                 <h3 className="ms-work-card__title">{item.title}</h3>
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -138,8 +213,8 @@ function ServicesGrid({ t }: { t: SiteContent }) {
           </div>
         </div>
         <div className="ms-services">
-          {t.services.items.map((s) => (
-            <div key={s.num} className="ms-service">
+          {t.services.items.map((s, i) => (
+            <Reveal key={s.num} delay={i * 80} className="ms-service">
               <div className="ms-service__num">{s.num}</div>
               <h3 className="ms-service__title">{s.title}</h3>
               <p className="ms-service__desc">{s.desc}</p>
@@ -147,8 +222,45 @@ function ServicesGrid({ t }: { t: SiteContent }) {
                 {t.services.link}
                 <ArrowIcon />
               </a>
-            </div>
+            </Reveal>
           ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Studio story + a small showcase of the live logo marks. */
+function StudioBlock({ t }: { t: SiteContent }) {
+  return (
+    <section className="ms-section ms-section--cream" id="studio">
+      <div className="ms-container">
+        <div className="ms-studio">
+          <Reveal className="ms-studio__copy">
+            <span className="ms-section__eyebrow">{t.studio.eyebrow}</span>
+            <h2 className="ms-studio__title">
+              {t.studio.title[0]}{" "}
+              <span className="brushed brushed--bold">{t.studio.title[1]}</span>{" "}
+              {t.studio.title[2]}
+            </h2>
+            {t.studio.body.map((p, i) => (
+              <p key={i} className="ms-studio__p">
+                {p}
+              </p>
+            ))}
+          </Reveal>
+          <Reveal className="ms-studio__marks" delay={120}>
+            {t.studio.logos.map((l) => (
+              <div
+                key={l.label}
+                className={`ms-mark ${l.dark ? "ms-mark--dark" : ""}`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={l.src} alt={l.label} />
+                <span className="ms-mark__label">{l.label}</span>
+              </div>
+            ))}
+          </Reveal>
         </div>
       </div>
     </section>
@@ -167,12 +279,40 @@ function MetricStrip({ t }: { t: SiteContent }) {
           </div>
         </div>
         <div className="ms-metrics">
-          {t.metrics.items.map((m) => (
-            <div key={m.label} className="ms-metric">
+          {t.metrics.items.map((m, i) => (
+            <Reveal key={m.label} delay={i * 80} className="ms-metric">
               <div className="ms-metric__label">{m.label}</div>
               <div className="ms-metric__value">{m.value}</div>
               <div className="ms-metric__delta">{m.delta}</div>
-            </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Testimonials — what it's like to be marked. */
+function Testimonials({ t }: { t: SiteContent }) {
+  return (
+    <section className="ms-section">
+      <div className="ms-container">
+        <div className="ms-section__header">
+          <div>
+            <span className="ms-section__eyebrow">{t.testimonials.eyebrow}</span>
+            <h2 className="ms-section__title">{t.testimonials.title}</h2>
+          </div>
+        </div>
+        <div className="ms-quotes">
+          {t.testimonials.items.map((q, i) => (
+            <Reveal key={i} delay={i * 90} className="ms-quote">
+              <div className="ms-quote__mark">”</div>
+              <p className="ms-quote__text">{q.quote}</p>
+              <div className="ms-quote__by">
+                <span className="ms-quote__name">{q.name}</span>
+                <span className="ms-quote__role">{q.role}</span>
+              </div>
+            </Reveal>
           ))}
         </div>
       </div>
@@ -182,7 +322,7 @@ function MetricStrip({ t }: { t: SiteContent }) {
 
 function ProcessSteps({ t }: { t: SiteContent }) {
   return (
-    <section className="ms-section">
+    <section className="ms-section ms-section--cream">
       <div className="ms-container">
         <div className="ms-section__header">
           <div>
@@ -191,15 +331,77 @@ function ProcessSteps({ t }: { t: SiteContent }) {
           </div>
         </div>
         <div className="ms-process">
-          {t.process.items.map((s) => (
-            <div key={s.num} className="ms-step">
+          {t.process.items.map((s, i) => (
+            <Reveal key={s.num} delay={i * 80} className="ms-step">
               <div className="ms-step__num">{s.num}</div>
               <h3 className="ms-step__title">{s.title}</h3>
               <p className="ms-step__desc">{s.desc}</p>
               <span className="ms-step__bar" />
-            </div>
+            </Reveal>
           ))}
         </div>
+      </div>
+    </section>
+  );
+}
+
+/* FAQ — interactive accordion. */
+function FaqAccordion({ t }: { t: SiteContent }) {
+  const [open, setOpen] = useState(0);
+  return (
+    <section className="ms-section" id="faq">
+      <div className="ms-container">
+        <div className="ms-section__header">
+          <div>
+            <span className="ms-section__eyebrow">{t.faq.eyebrow}</span>
+            <h2 className="ms-section__title">{t.faq.title}</h2>
+            <p className="ms-section__sub">{t.faq.sub}</p>
+          </div>
+        </div>
+        <div className="ms-faq">
+          {t.faq.items.map((item, i) => {
+            const isOpen = open === i;
+            return (
+              <div key={i} className={`ms-faq__item ${isOpen ? "is-open" : ""}`}>
+                <button
+                  className="ms-faq__q"
+                  aria-expanded={isOpen}
+                  onClick={() => setOpen(isOpen ? -1 : i)}
+                >
+                  <span>{item.q}</span>
+                  <span className="ms-faq__sign" aria-hidden>
+                    {isOpen ? "−" : "+"}
+                  </span>
+                </button>
+                <div className="ms-faq__a" hidden={!isOpen}>
+                  <p>{item.a}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* Full-bleed orange call-to-action before contact. */
+function CtaBanner({ t }: { t: SiteContent }) {
+  return (
+    <section className="ms-section ms-section--orange ms-cta-banner">
+      <div className="ms-container">
+        <Reveal className="ms-cta-banner__inner">
+          <h2 className="ms-cta-banner__title">
+            {t.ctaBanner.title[0]} <br />
+            {t.ctaBanner.title[1]}
+          </h2>
+          <div className="ms-cta-banner__side">
+            <p className="ms-cta-banner__sub">{t.ctaBanner.sub}</p>
+            <a href="#contact" className="ms-btn ms-btn-dark">
+              {t.ctaBanner.button} <span>{t.cta.arrow}</span>
+            </a>
+          </div>
+        </Reveal>
       </div>
     </section>
   );
@@ -315,10 +517,15 @@ export default function MarkerSite() {
       <SiteHeader lang={lang} setLang={setLang} t={t} />
       <main>
         <Hero t={t} />
+        <ClientsMarquee t={t} />
         <WorkGrid t={t} />
         <ServicesGrid t={t} />
+        <StudioBlock t={t} />
         <MetricStrip t={t} />
+        <Testimonials t={t} />
         <ProcessSteps t={t} />
+        <FaqAccordion t={t} />
+        <CtaBanner t={t} />
         <ContactBlock t={t} />
       </main>
       <SiteFooter t={t} />
