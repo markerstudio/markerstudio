@@ -1,12 +1,37 @@
 // Marker Studio site — bilingual content (single source of truth, EN/AR).
 // Ported from the design system's content.js.
 
-export type WorkItem = { tag: string; title: string; media: string; size: string };
+export type WorkItem = { tag: string; title: string; logo: string; color: string; size: string };
 export type MetaItem = { num: string; label: string };
 export type NumberedItem = { num: string; title: string; desc: string };
 export type MetricItem = { label: string; value: string; delta: string };
 export type FooterCol = { title: string; items: string[] };
-export type ClientItem = { name: string; initials: string };
+export type ClientItem = { name: string; logo: string };
+
+// Real client brand logos, pulled from the Marker Studio (marker.ps) Wix Media
+// Manager and hot-linked from the Wix CDN. Shared across both languages.
+const W = "https://static.wixstatic.com/media/";
+export const CLIENT_BRANDS: ClientItem[] = [
+  { name: "Gardenia", logo: `${W}cf380e_a9afa6eeeb4e4339b92b1600ed878e37~mv2.png` },
+  { name: "Naji Photography", logo: `${W}cf380e_82b0607306e34f4aad85883fab2bb6ea~mv2.png` },
+  { name: "Issa House", logo: `${W}12283c_f62235bfa0ea4695bf7fe8681a5893c5~mv2.png` },
+  { name: "Michael", logo: `${W}12283c_7081be7ddff846cb8f7cb212c038f27d~mv2.png` },
+  { name: "Luis", logo: `${W}12283c_60c6fae314c84865a607d7146c2e7238~mv2.png` },
+  { name: "Rani Odeh", logo: `${W}12283c_55c4ddcbc64844e79b743212894692d1~mv2.png` },
+  { name: "Double Shake", logo: `${W}12283c_ff3e7bc38ccf4483938053e559787b7f~mv2.png` },
+  { name: "Canaan Hotel", logo: `${W}12283c_d440d9b568954fbe897be8e0afb50355~mv2.png` },
+  { name: "Touch of Grace", logo: `${W}12283c_da3a0bc6ebe64e54a22d99f94b076aab~mv2.png` },
+  { name: "Yalla Talk", logo: `${W}12283c_601e21549c9346269ed3d75da70b1470~mv2.png` },
+  { name: "SOAP Palestine", logo: `${W}12283c_b72c18d2c15747fa81962b11389ec7ac~mv2.png` },
+  { name: "Chocolatji", logo: `${W}12283c_a743ed71fef7466f86fb26143b665db8~mv2.png` },
+  { name: "ENG PRO", logo: `${W}12283c_ba1e2a13358c4a559fb7142f8c39e6d0~mv2.png` },
+  { name: "Mariana", logo: `${W}12283c_f6d933c8f8fa4543bd42a2b809ddfa4d~mv2.png` },
+  { name: "Nailed It", logo: `${W}12283c_73f8d395fd034eeaa857852c55fed1b3~mv2.png` },
+  { name: "Boutique Hotel", logo: `${W}12283c_1a1da3c67fb348cfba5b5be91855c8b8~mv2.png` },
+  { name: "AOCC", logo: `${W}12283c_972076d8314745f8b4e74c4a14b382c3~mv2.png` },
+  { name: "Eveleen", logo: `${W}12283c_b6a60ce942bf40239b20b5f6b726edba~mv2.png` },
+  { name: "Taha", logo: `${W}12283c_d0da7775037c4d5bb1df1b8b2df0fe4f~mv2.png` },
+];
 export type QuoteItem = { quote: string; name: string; role: string };
 export type FaqItem = { q: string; a: string };
 
@@ -69,24 +94,18 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     clients: {
       eyebrow: "Trusted by",
       title: "Brands that asked us to leave a mark.",
-      items: [
-        { name: "Dr. Jack Sabat", initials: "JS" },
-        { name: "Beit Café", initials: "BC" },
-        { name: "Aurora Goods", initials: "AG" },
-        { name: "JIAD ISEAD", initials: "JI" },
-        { name: "Marker Studio®", initials: "M" },
-      ],
+      items: CLIENT_BRANDS,
     },
     work: {
       eyebrow: "Recent work",
       title: "Brands we've left a mark on.",
       sub: "A mix of identity, content, and campaign work from the past year.",
       items: [
-        { tag: "Identity · Healthcare", title: "Dr. Jack Sabat", media: "JS", size: "lg" },
-        { tag: "Social · F&B", title: "Beit Café", media: "BC", size: "sm" },
-        { tag: "Campaign · Retail", title: "Aurora Goods", media: "AG", size: "sm" },
-        { tag: "Content · Education", title: "JIAD ISEAD", media: "JI", size: "md" },
-        { tag: "Identity · Studio", title: "Marker Studio®", media: "M", size: "md" },
+        { tag: "Identity · Hospitality", title: "Canaan Hotel", logo: `${W}12283c_d440d9b568954fbe897be8e0afb50355~mv2.png`, color: "#3B4043", size: "lg" },
+        { tag: "Identity · Photography", title: "Naji Photography", logo: `${W}cf380e_82b0607306e34f4aad85883fab2bb6ea~mv2.png`, color: "#423891", size: "sm" },
+        { tag: "Identity · App", title: "Yalla Talk", logo: `${W}12283c_601e21549c9346269ed3d75da70b1470~mv2.png`, color: "#8238EB", size: "sm" },
+        { tag: "Identity · Retail", title: "SOAP Palestine", logo: `${W}12283c_b72c18d2c15747fa81962b11389ec7ac~mv2.png`, color: "#522F8D", size: "md" },
+        { tag: "Identity · F&B", title: "Chocolatji", logo: `${W}12283c_a743ed71fef7466f86fb26143b665db8~mv2.png`, color: "#133832", size: "md" },
       ],
     },
     services: {
@@ -224,24 +243,18 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     clients: {
       eyebrow: "وثقوا بنا",
       title: "علامات طلبت منّا أن نترك أثراً.",
-      items: [
-        { name: "د. جاك صبات", initials: "ج ص" },
-        { name: "بيت كافيه", initials: "ب ك" },
-        { name: "أورورا", initials: "أ" },
-        { name: "جياد إسعاد", initials: "ج إ" },
-        { name: "ماركر®", initials: "م" },
-      ],
+      items: CLIENT_BRANDS,
     },
     work: {
       eyebrow: "أحدث الأعمال",
       title: "علامات تركنا أثرنا عليها.",
       sub: "مزيج من الهويات والمحتوى والحملات خلال العام الماضي.",
       items: [
-        { tag: "هوية · رعاية صحية", title: "د. جاك صبات", media: "ج ص", size: "lg" },
-        { tag: "محتوى · مأكولات", title: "بيت كافيه", media: "ب ك", size: "sm" },
-        { tag: "حملة · تجزئة", title: "أورورا", media: "أ", size: "sm" },
-        { tag: "محتوى · تعليم", title: "جياد إسعاد", media: "ج إ", size: "md" },
-        { tag: "هوية · استديو", title: "ماركر®", media: "م", size: "md" },
+        { tag: "هوية · ضيافة", title: "كنعان", logo: `${W}12283c_d440d9b568954fbe897be8e0afb50355~mv2.png`, color: "#3B4043", size: "lg" },
+        { tag: "هوية · تصوير", title: "ناجي للتصوير", logo: `${W}cf380e_82b0607306e34f4aad85883fab2bb6ea~mv2.png`, color: "#423891", size: "sm" },
+        { tag: "هوية · تطبيق", title: "يلا توك", logo: `${W}12283c_601e21549c9346269ed3d75da70b1470~mv2.png`, color: "#8238EB", size: "sm" },
+        { tag: "هوية · تجزئة", title: "صابون فلسطين", logo: `${W}12283c_b72c18d2c15747fa81962b11389ec7ac~mv2.png`, color: "#522F8D", size: "md" },
+        { tag: "هوية · مأكولات", title: "تشوكولاتجي", logo: `${W}12283c_a743ed71fef7466f86fb26143b665db8~mv2.png`, color: "#133832", size: "md" },
       ],
     },
     services: {
