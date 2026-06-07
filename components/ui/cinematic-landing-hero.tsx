@@ -40,11 +40,22 @@ const INJECTED_STYLES = `
   .ch-text-ink { color: var(--marker-ink); }
   .ch-text-card-silver { color: #fff; }
 
-  /* Flat charcoal card, crisp edge, one sparse shadow */
+  /* Frosted-glass charcoal card — frosts the paper + grid behind it */
   .ch-depth-card {
-      background: var(--marker-charcoal);
-      border: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(150deg, rgba(48,48,48,0.86) 0%, rgba(26,26,26,0.90) 100%);
+      backdrop-filter: blur(22px) saturate(1.15);
+      -webkit-backdrop-filter: blur(22px) saturate(1.15);
+      border: 1px solid rgba(255,255,255,0.08);
       box-shadow: 0 12px 28px rgba(48,48,48,0.10), 0 2px 6px rgba(48,48,48,0.04);
+  }
+  /* Barely-visible grid woven into the card */
+  .ch-card-grid {
+      background-image:
+          linear-gradient(to right, rgba(255,255,255,0.045) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255,255,255,0.045) 1px, transparent 1px);
+      background-size: 48px 48px;
+      mask-image: radial-gradient(ellipse at center, black 0%, transparent 88%);
+      -webkit-mask-image: radial-gradient(ellipse at center, black 0%, transparent 88%);
   }
 
   /* Phone — flat hardware, crisp bezel */
@@ -54,20 +65,6 @@ const INJECTED_STYLES = `
       box-shadow: 0 14px 30px rgba(0,0,0,0.18);
   }
   .ch-hardware-btn { background: #0C0C0C; }
-
-  /* Frosted glass — only for the plain "unmarked" phone state */
-  .ch-glass {
-      background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%);
-      backdrop-filter: blur(8px) saturate(1.1);
-      -webkit-backdrop-filter: blur(8px) saturate(1.1);
-  }
-  /* Barely-visible grid sitting behind the glass */
-  .ch-glass-grid {
-      background-image:
-          linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
-          linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
-      background-size: 22px 22px;
-  }
 
   /* Flat widget row + flat floating chip */
   .ch-widget { background: var(--marker-paper); border: 1px solid var(--marker-charcoal-10); }
@@ -346,6 +343,8 @@ export function CinematicHero({
         <div
           className="main-card ch-depth-card relative overflow-hidden gsap-reveal flex items-center justify-center pointer-events-auto w-[92vw] md:w-[85vw] h-[92vh] md:h-[85vh] rounded-[32px] md:rounded-[40px]"
         >
+          {/* barely-visible grid woven into the card */}
+          <div className="ch-card-grid absolute inset-0 z-0 pointer-events-none" aria-hidden="true" />
           <div className="relative w-full h-full max-w-7xl mx-auto px-4 lg:px-12 flex flex-col justify-evenly lg:grid lg:grid-cols-3 items-center lg:gap-8 z-10 py-6 lg:py-0">
             {/* TOP (mobile) / RIGHT (desktop): brand name */}
             <div className="card-right-text gsap-reveal order-1 lg:order-3 flex justify-center lg:justify-end z-20 w-full">
@@ -368,45 +367,43 @@ export function CinematicHero({
                   <div className="absolute top-[170px] -right-[3px] w-[3px] h-[70px] ch-hardware-btn rounded-r-md z-0 scale-x-[-1]" aria-hidden="true" />
 
                   {/* screen */}
-                  <div className="absolute inset-[6px] bg-[#1E1E1E] rounded-[2.4rem] overflow-hidden z-10">
-                    {/* barely-visible grid sitting behind the plain glass */}
-                    <div className="ch-glass-grid absolute inset-0 z-0 pointer-events-none" aria-hidden="true" />
+                  <div className="absolute inset-[6px] bg-white rounded-[2.4rem] overflow-hidden text-ink z-10">
                     {/* dynamic island */}
                     <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[96px] h-[26px] bg-[#0C0C0C] rounded-full z-50 flex items-center justify-end px-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-orange animate-pulse" />
                     </div>
 
-                    {/* PLAIN (unbranded) state — frosted glass blank slate */}
-                    <div className="phone-plain ch-glass absolute inset-0 pt-11 px-4 pb-6 flex flex-col text-white">
+                    {/* PLAIN (unbranded) state */}
+                    <div className="phone-plain absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-md bg-white/10" />
+                          <span className="w-7 h-7 rounded-md bg-charcoal-10" />
                           <div className="flex flex-col gap-1.5">
-                            <span className="h-2 w-8 bg-white/10 rounded-full" />
-                            <span className="text-sm font-bold text-white/35">{phonePlainTitle}</span>
+                            <span className="h-2 w-8 bg-charcoal-10 rounded-full" />
+                            <span className="text-sm font-bold text-charcoal-20">{phonePlainTitle}</span>
                           </div>
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-white/10" />
+                        <div className="w-8 h-8 rounded-full bg-charcoal-10" />
                       </div>
                       <div className="relative w-28 h-28 mx-auto my-3 flex items-center justify-center">
                         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160" aria-hidden="true">
-                          <circle cx="80" cy="80" r="64" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="12" />
+                          <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="12" />
                         </svg>
-                        <span className="text-3xl font-extrabold text-white/25">—</span>
+                        <span className="text-3xl font-extrabold text-charcoal-20">—</span>
                       </div>
                       <div className="flex items-end justify-between gap-1 h-10 mb-1">
                         {PLAIN_BARS.map((h, i) => (
-                          <span key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
+                          <span key={i} className="flex-1 rounded-sm bg-charcoal-10" style={{ height: `${h}%` }} />
                         ))}
                       </div>
-                      <div className="h-2 w-20 bg-white/10 rounded-full mb-4" />
+                      <div className="h-2 w-20 bg-charcoal-10 rounded-full mb-4" />
                       <div className="space-y-2 mt-auto">
                         {[0, 1].map((i) => (
-                          <div key={i} className="rounded-lg p-2.5 flex items-center gap-2.5 bg-white/5 border border-white/10">
-                            <span className="w-7 h-7 rounded-md bg-white/10" />
+                          <div key={i} className="ch-widget rounded-lg p-2.5 flex items-center gap-2.5">
+                            <span className="w-7 h-7 rounded-md bg-charcoal-10" />
                             <div className="flex-1">
-                              <div className="h-2 w-16 bg-white/10 rounded-full mb-2" />
-                              <div className="h-2 w-10 bg-white/10 rounded-full" />
+                              <div className="h-2 w-16 bg-charcoal-10 rounded-full mb-2" />
+                              <div className="h-2 w-10 bg-charcoal-10 rounded-full" />
                             </div>
                           </div>
                         ))}
@@ -414,7 +411,7 @@ export function CinematicHero({
                     </div>
 
                     {/* BRANDED (Marker) analytics dashboard */}
-                    <div className="phone-branded absolute inset-0 pt-11 px-4 pb-6 flex flex-col bg-white text-ink">
+                    <div className="phone-branded absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
                       <div className="brand-stamp flex justify-between items-center mb-3">
                         <div className="flex items-center gap-2">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
