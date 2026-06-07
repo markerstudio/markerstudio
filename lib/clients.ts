@@ -15,6 +15,7 @@ export type Campaign = {
 };
 export type StoryCard = { tag: string; value: string; desc: string };
 export type Vital = { label: string; pct: number; note: string };
+export type DocItem = { title: string; type: string; url: string };
 
 export type ClientData = {
   hero: LocalizedText; // hero subtitle
@@ -39,6 +40,7 @@ export type ClientData = {
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
   };
   invoices: Invoice[];
+  documents: DocItem[];
 };
 
 export type Client = {
@@ -195,6 +197,10 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       { cycle: "Cycle 01 · Feb 26 → Mar 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 02 · Mar 26 → Apr 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 03 · Apr 26 → May 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
+    ],
+    documents: [
+      { title: "Proposal", type: "PDF", url: "" },
+      { title: "Service agreement", type: "PDF", url: "" },
     ],
   },
 };
