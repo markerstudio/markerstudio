@@ -1,5 +1,7 @@
 import type { Config } from "tailwindcss";
 
+// Marker Studio brand palette — sampled from the official logo.
+// A disciplined two-color system: Orange + Charcoal on warm neutrals.
 const config: Config = {
   content: [
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
@@ -8,52 +10,36 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        ink: "#101014",
-        paper: "#FAF7F0",
-        marker: {
-          yellow: "#FFE600",
-          lime: "#C6FF3D",
-          pink: "#FF3D81",
-          coral: "#FF5C35",
-          blue: "#3D5AFF",
-          sky: "#37C2FF",
-          purple: "#8A5CFF",
+        orange: {
+          DEFAULT: "#FF9100",
+          deep: "#E07E00",
+          soft: "#FFB347",
+          50: "#FFF4E5",
+          100: "#FFE3BF",
+          200: "#FFCB80",
         },
+        charcoal: {
+          DEFAULT: "#303030",
+          90: "#424242",
+          80: "#525252",
+          60: "#757575",
+          40: "#A8A8A8",
+          20: "#D4D4D4",
+          10: "#E8E8E8",
+        },
+        cream: "#F5F2EC",
+        paper: "#FAF8F4",
+        ink: "#1A1A1A",
       },
       fontFamily: {
-        display: ["var(--font-display)", "system-ui", "sans-serif"],
-        sans: ["var(--font-sans)", "system-ui", "sans-serif"],
+        display: ["Poppins", "Thmanyah Serif Display", "system-ui", "sans-serif"],
+        body: ["Poppins", "Thmanyah Serif Text", "system-ui", "sans-serif"],
+        arabic: ["Thmanyah Serif Text", "Poppins", "Tahoma", "sans-serif"],
+        "arabic-display": ["Thmanyah Serif Display", "Poppins", "serif"],
+        mono: ["JetBrains Mono", "SFMono-Regular", "Menlo", "monospace"],
       },
-      borderRadius: {
-        blob: "42% 58% 63% 37% / 41% 44% 56% 59%",
-      },
-      boxShadow: {
-        pop: "6px 6px 0 0 #101014",
-        "pop-lg": "10px 10px 0 0 #101014",
-      },
-      keyframes: {
-        "marquee": {
-          "0%": { transform: "translateX(0)" },
-          "100%": { transform: "translateX(-50%)" },
-        },
-        "swipe-in": {
-          "0%": { transform: "scaleX(0)", transformOrigin: "left" },
-          "100%": { transform: "scaleX(1)", transformOrigin: "left" },
-        },
-        "float": {
-          "0%, 100%": { transform: "translateY(0) rotate(0deg)" },
-          "50%": { transform: "translateY(-12px) rotate(2deg)" },
-        },
-        "wiggle": {
-          "0%, 100%": { transform: "rotate(-3deg)" },
-          "50%": { transform: "rotate(3deg)" },
-        },
-      },
-      animation: {
-        marquee: "marquee 28s linear infinite",
-        "swipe-in": "swipe-in 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards",
-        float: "float 6s ease-in-out infinite",
-        wiggle: "wiggle 0.4s ease-in-out infinite",
+      maxWidth: {
+        container: "1280px",
       },
     },
   },

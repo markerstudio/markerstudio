@@ -2,21 +2,27 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Marker — Branding & Creative Studio",
+  metadataBase: new URL("https://marker.ps"),
+  title: "Marker Studio® — Creative & Marketing Studio",
   description:
-    "Marker is a bold, playful creative studio. We make brands, websites, and campaigns that refuse to blend in.",
+    "Marker is a bilingual creative & marketing studio in Beit Sahour, Palestine. We ship branding, social, and campaigns that move the numbers — not the goalposts.",
   keywords: [
+    "Marker Studio",
     "creative studio",
+    "marketing studio",
     "branding",
-    "design agency",
-    "web design",
-    "Marker",
+    "social media",
+    "Palestine",
+    "Beit Sahour",
+    "bilingual",
   ],
+  icons: { icon: "/assets/logo-favicon.png" },
   openGraph: {
-    title: "Marker — Branding & Creative Studio",
+    title: "Marker Studio® — Creative & Marketing Studio",
     description:
-      "A bold, playful creative studio making brands that refuse to blend in.",
+      "We mark the brands that matter. Branding, social, and campaigns from Beit Sahour, Palestine.",
     type: "website",
+    locale: "en",
   },
 };
 
@@ -26,26 +32,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Inter:wght@400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
-        <style>{`
-          :root {
-            --font-display: 'Bricolage Grotesque', system-ui, sans-serif;
-            --font-sans: 'Inter', system-ui, sans-serif;
-          }
-        `}</style>
-      </head>
-      <body className="font-sans antialiased">{children}</body>
+    <html lang="en" dir="ltr">
+      <body>{children}</body>
     </html>
   );
 }
