@@ -122,7 +122,7 @@ export default function PortalView({
                 {(d.dashboard?.cards ?? []).map((c, i) => (
                   <div key={i} className="ms-pcard ms-pcard--story pc-3">
                     {del(() => up((x) => x.dashboard.cards.splice(i, 1)))}
-                    <span className={`ms-portal-pill ${i % 2 ? "ms-portal-pill--orange" : ""}`}>{f(c.tag, (v) => up((x) => (x.dashboard.cards[i].tag = v)), false, "Tag")}</span>
+                    <span className="ms-portal-pill">{f(c.tag, (v) => up((x) => (x.dashboard.cards[i].tag = v)), false, "Tag")}</span>
                     <div>
                       <div className="ms-portal-big">{f(c.value, (v) => up((x) => (x.dashboard.cards[i].value = v)), false, "Value")}</div>
                       <p className="ms-pmuted">{f(c.desc, (v) => up((x) => (x.dashboard.cards[i].desc = v)), true, "Description")}</p>
@@ -229,7 +229,7 @@ export default function PortalView({
               {(d.social?.items ?? []).map((s, i) => (
                 <div key={i} className="ms-pcard ms-pcard--story pc-3">
                   {del(() => up((c) => c.social.items.splice(i, 1)))}
-                  <span className="ms-portal-pill ms-portal-pill--orange">{f(s.tag ?? "", (v) => up((c) => (c.social.items[i].tag = v)), false, "Tag")}</span>
+                  <span className="ms-portal-pill">{f(s.tag ?? "", (v) => up((c) => (c.social.items[i].tag = v)), false, "Tag")}</span>
                   <div>
                     <h3 className="ms-pcard__h">{f(s.title, (v) => up((c) => (c.social.items[i].title = v)), false, "Title")}</h3>
                     <p className="ms-pmuted">{f(s.desc, (v) => up((c) => (c.social.items[i].desc = v)), true, "Description")}</p>
