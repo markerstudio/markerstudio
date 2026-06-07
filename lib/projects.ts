@@ -215,20 +215,34 @@ function rowToProject(r: ProjectRow): Project {
 
 export async function getProjects(): Promise<Project[]> {
   if (!isDbEnabled()) return SEED_PROJECTS;
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT slug, color, logo, year, data FROM projects ORDER BY sort_order ASC, created_at ASC
-  `) as unknown as ProjectRow[];
-  return rows.map(rowToProject);
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT slug, color, logo, year, data FROM projects ORDER BY sort_order ASC, created_at ASC
+    `) as unknown as ProjectRow[];
+    // Before setup runs the table is empty/missing — fall back to seed so the
+    // public site never breaks.
+    return rows.length ? rows.map(rowToProject) : SEED_PROJECTS;
+  } catch (err) {
+    console.error("[projects] DB read failed, using seed data:", err);
+    return SEED_PROJECTS;
+  }
 }
 
 export async function getProject(slug: string): Promise<Project | undefined> {
   if (!isDbEnabled()) return SEED_PROJECTS.find((p) => p.slug === slug);
-  const sql = getSql();
-  const rows = (await sql`
-    SELECT slug, color, logo, year, data FROM projects WHERE slug = ${slug} LIMIT 1
-  `) as unknown as ProjectRow[];
-  return rows[0] ? rowToProject(rows[0]) : undefined;
+  try {
+    const sql = getSql();
+    const rows = (await sql`
+      SELECT slug, color, logo, year, data FROM projects WHERE slug = ${slug} LIMIT 1
+    `) as unknown as ProjectRow[];
+    if (rows[0]) return rowToProject(rows[0]);
+    // Table reachable but row missing — fall back to seed (covers pre-setup).
+    return SEED_PROJECTS.find((p) => p.slug === slug);
+  } catch (err) {
+    console.error("[projects] DB read failed, using seed data:", err);
+    return SEED_PROJECTS.find((p) => p.slug === slug);
+  }
 }
 
 export async function getProjectSlugs(): Promise<string[]> {
