@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { getProjects } from "@/lib/projects";
-import { isDbEnabled } from "@/lib/db";
+import { isDbEnabled, getSql } from "@/lib/db";
 import { deleteProject } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHome() {
   const dbOff = !isDbEnabled();
-  const projects = dbOff ? [] : await getProjects();
+  let needsSetup = false;
+  let projects: Awaited<ReturnType<typeof getProjects>> = [];
+  if (!dbOff) {
+    try {
+      await getSql()`SELECT 1 FROM users LIMIT 1`;
+      projects = await getProjects();
+    } catch {
+      needsSetup = true; // tables not created yet
+    }
+  }
 
   return (
     <div>
@@ -20,8 +29,14 @@ export default async function AdminHome() {
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
-          No database configured (<code>DATABASE_URL</code> is unset). The public site is showing seed data.
-          Set up the database and run <code>/api/setup</code> to manage projects here.
+          No database configured. The public site is showing seed data. Connect a database to manage projects here.
+        </p>
+      )}
+
+      {needsSetup && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
+          Database connected, but it hasn&apos;t been initialised yet.{" "}
+          <Link href="/admin/setup" className="font-semibold underline">Run setup →</Link>
         </p>
       )}
 
