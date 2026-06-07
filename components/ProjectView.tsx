@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useLang } from "@/lib/useLang";
 import { MARKER_CONTENT } from "@/lib/content";
-import { getNextProject, type Project } from "@/lib/projects";
+import { type Project } from "@/lib/projects";
 
 const LOGO = "/assets/logo-primary-transparent.png";
 
-export default function ProjectView({ project }: { project: Project }) {
+export default function ProjectView({ project, next }: { project: Project; next: Project }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
-  const next = getNextProject(project.slug);
 
   const labels = {
     en: { back: "All work", overview: "Overview", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project" },

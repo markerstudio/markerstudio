@@ -10,6 +10,7 @@
 // named clients — swap in real briefs, results, and imagery when available.
 
 import type { Lang } from "@/lib/content";
+import { getSql, isDbEnabled } from "@/lib/db";
 
 const W = "https://static.wixstatic.com/media/";
 
@@ -34,7 +35,9 @@ export type Project = {
   gallery?: string[];
 };
 
-export const PROJECTS: Project[] = [
+// Seed data — used as the source when no database is configured, and as the
+// import payload for /api/setup when first provisioning the DB.
+export const SEED_PROJECTS: Project[] = [
   {
     slug: "canaan-hotel",
     color: "#3B4043",
@@ -197,22 +200,53 @@ export const PROJECTS: Project[] = [
   },
 ];
 
-export function getProjects(): Project[] {
-  return PROJECTS;
+// Map a DB row to a Project. Bilingual fields live in a JSONB `data` column.
+type ProjectRow = {
+  slug: string;
+  color: string;
+  logo: string;
+  year: string;
+  data: Omit<Project, "slug" | "color" | "logo" | "year">;
+};
+
+function rowToProject(r: ProjectRow): Project {
+  return { slug: r.slug, color: r.color, logo: r.logo, year: r.year, ...r.data };
 }
 
-export function getProject(slug: string): Project | undefined {
-  return PROJECTS.find((p) => p.slug === slug);
+export async function getProjects(): Promise<Project[]> {
+  if (!isDbEnabled()) return SEED_PROJECTS;
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT slug, color, logo, year, data FROM projects ORDER BY sort_order ASC, created_at ASC
+  `) as unknown as ProjectRow[];
+  return rows.map(rowToProject);
 }
 
-export function getProjectSlugs(): string[] {
-  return PROJECTS.map((p) => p.slug);
+export async function getProject(slug: string): Promise<Project | undefined> {
+  if (!isDbEnabled()) return SEED_PROJECTS.find((p) => p.slug === slug);
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT slug, color, logo, year, data FROM projects WHERE slug = ${slug} LIMIT 1
+  `) as unknown as ProjectRow[];
+  return rows[0] ? rowToProject(rows[0]) : undefined;
 }
 
-// Convenience: the next project in the list (wraps around) for "next" links.
-export function getNextProject(slug: string): Project {
-  const i = PROJECTS.findIndex((p) => p.slug === slug);
-  return PROJECTS[(i + 1) % PROJECTS.length];
+export async function getProjectSlugs(): Promise<string[]> {
+  const projects = await getProjects();
+  return projects.map((p) => p.slug);
+}
+
+// The next project in the list (wraps around) for "next project" links.
+export async function getNextProject(slug: string): Promise<Project> {
+  const projects = await getProjects();
+  const i = projects.findIndex((p) => p.slug === slug);
+  return projects[(i + 1) % projects.length];
+}
+
+// Split the immutable columns from the bilingual JSON blob for DB writes.
+export function toRow(p: Project): { slug: string; color: string; logo: string; year: string; data: Omit<Project, "slug" | "color" | "logo" | "year"> } {
+  const { slug, color, logo, year, ...data } = p;
+  return { slug, color, logo, year, data };
 }
 
 // Pick a localized field.
