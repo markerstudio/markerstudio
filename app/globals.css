@@ -322,7 +322,7 @@ body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 6
 .ms-clients { padding: 56px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--marker-paper); overflow: hidden; }
 .ms-clients__head { display: flex; flex-direction: column; gap: 10px; margin-bottom: 28px; }
 .ms-clients__title { font: 700 28px/1.15 var(--font-display); letter-spacing: -0.01em; color: var(--marker-ink); margin: 0; max-width: 22ch; }
-.ms-marquee { position: relative; width: 100%; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
+.ms-marquee { position: relative; width: 100%; direction: ltr; -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent); }
 .ms-marquee__track { display: flex; gap: 16px; width: max-content; animation: ms-scroll 32s linear infinite; }
 .ms-marquee:hover .ms-marquee__track { animation-play-state: paused; }
 body.ar .ms-marquee__track { animation-direction: reverse; }
