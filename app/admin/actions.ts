@@ -8,7 +8,7 @@ import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, type ClientData } from "@/lib/clients";
-import { fetchNotionPosts, extractNotionId } from "@/lib/notion";
+import { fetchNotionPosts, fetchNotionClient, extractNotionId } from "@/lib/notion";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -343,6 +343,49 @@ export async function syncNotion(formData: FormData) {
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=synced-${posts.length}`);
+}
+
+// Pull the client record (name, plan dates/status/note + invoices) from a
+// Clients Database page in Notion.
+export async function syncNotionClient(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const raw = String(formData.get("notionPageId") || "").trim();
+  if (!process.env.NOTION_TOKEN) redirect(`/admin/clients/${slug}/edit?error=notion-token`);
+  const pageId = extractNotionId(raw);
+  if (!pageId) redirect(`/admin/clients/${slug}/edit?error=notion-id`);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+
+  let info;
+  try {
+    info = await fetchNotionClient(pageId);
+  } catch {
+    redirect(`/admin/clients/${slug}/edit?error=notion-fetch`);
+  }
+
+  const data = rows[0].data;
+  data.notionPageId = pageId;
+  data.plan = {
+    name: info.planName || data.plan?.name || "",
+    active: info.active,
+    start: info.start || data.plan?.start || "",
+    end: info.end || data.plan?.end || "",
+    notionUrl: data.plan?.notionUrl ?? "",
+    note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
+  };
+  if (info.invoices.length) data.invoices = info.invoices;
+
+  const name = info.name || undefined;
+  if (name) {
+    await sql`UPDATE clients SET name = ${name}, data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  } else {
+    await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  }
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=client-synced-${info.invoices.length}`);
 }
 
 // --- Invite links ----------------------------------------------------------

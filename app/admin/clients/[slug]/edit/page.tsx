@@ -4,7 +4,7 @@ import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import { getClient } from "@/lib/clients";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, createInvite, syncNotion } from "../../../actions";
+import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +51,8 @@ export default async function EditClientPage({
   const okKey = searchParams.ok;
   const msg = okKey?.startsWith("synced-")
     ? { text: `Synced ${okKey.slice(7)} posts from Notion into the Social calendar.`, ok: true }
+    : okKey?.startsWith("client-synced-")
+    ? { text: `Pulled the client record from Notion (plan, dates, status + ${okKey.slice(14)} invoices). Review below.`, ok: true }
     : okKey
     ? MSG[okKey]
     : searchParams.error
@@ -130,18 +132,33 @@ export default async function EditClientPage({
 
       <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
         <h2 className="font-bold mb-1">Notion sync</h2>
-        <p className="text-sm text-neutral-500 mb-4">
-          Pull a Notion database (your content calendar) into this client&apos;s Social calendar. In Notion, share the database
-          with your integration, then paste its link or ID. It maps Date → day, Title → post, and &quot;Platform&quot; / &quot;Status&quot; if present.
-        </p>
-        <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
-          <input type="hidden" name="slug" value={client.slug} />
-          <div className="flex-1 min-w-[240px]">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Notion database URL or ID</label>
-            <input name="notionDbId" defaultValue={client.data.notionDbId || ""} className={inputCls} placeholder="https://www.notion.so/…?v=…" />
-          </div>
-          <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull from Notion</button>
-        </form>
+        <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
+
+        <div className="border border-neutral-200 rounded-lg p-4 mb-4">
+          <div className="font-semibold text-sm mb-1">Client record → plan, dates, status &amp; invoices</div>
+          <p className="text-xs text-neutral-500 mb-3">Paste the client&apos;s row (page) from your <b>Clients Database</b>. Maps Name, Marketing Start/End dates, Status (Active), Notes, and the linked Income payments → invoices.</p>
+          <form action={syncNotionClient} className="flex items-end gap-3 flex-wrap">
+            <input type="hidden" name="slug" value={client.slug} />
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Clients Database page URL or ID</label>
+              <input name="notionPageId" defaultValue={client.data.notionPageId || ""} className={inputCls} placeholder="https://www.notion.so/…" />
+            </div>
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull client record</button>
+          </form>
+        </div>
+
+        <div className="border border-neutral-200 rounded-lg p-4">
+          <div className="font-semibold text-sm mb-1">Content calendar → social posts</div>
+          <p className="text-xs text-neutral-500 mb-3">Paste a Notion <b>content-calendar database</b>. Maps Date → day, Title → post, and Platform / Status if present.</p>
+          <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
+            <input type="hidden" name="slug" value={client.slug} />
+            <div className="flex-1 min-w-[240px]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Content calendar database URL or ID</label>
+              <input name="notionDbId" defaultValue={client.data.notionDbId || ""} className={inputCls} placeholder="https://www.notion.so/…?v=…" />
+            </div>
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull calendar</button>
+          </form>
+        </div>
       </div>
     </div>
   );
