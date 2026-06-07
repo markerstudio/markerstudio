@@ -55,6 +55,20 @@ const INJECTED_STYLES = `
   }
   .ch-hardware-btn { background: #0C0C0C; }
 
+  /* Frosted glass — only for the plain "unmarked" phone state */
+  .ch-glass {
+      background: linear-gradient(135deg, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0.03) 100%);
+      backdrop-filter: blur(8px) saturate(1.1);
+      -webkit-backdrop-filter: blur(8px) saturate(1.1);
+  }
+  /* Barely-visible grid sitting behind the glass */
+  .ch-glass-grid {
+      background-image:
+          linear-gradient(to right, rgba(255,255,255,0.05) 1px, transparent 1px),
+          linear-gradient(to bottom, rgba(255,255,255,0.05) 1px, transparent 1px);
+      background-size: 22px 22px;
+  }
+
   /* Flat widget row + flat floating chip */
   .ch-widget { background: var(--marker-paper); border: 1px solid var(--marker-charcoal-10); }
   .ch-chip {
@@ -354,43 +368,45 @@ export function CinematicHero({
                   <div className="absolute top-[170px] -right-[3px] w-[3px] h-[70px] ch-hardware-btn rounded-r-md z-0 scale-x-[-1]" aria-hidden="true" />
 
                   {/* screen */}
-                  <div className="absolute inset-[6px] bg-white rounded-[2.4rem] overflow-hidden text-ink z-10">
+                  <div className="absolute inset-[6px] bg-[#1E1E1E] rounded-[2.4rem] overflow-hidden z-10">
+                    {/* barely-visible grid sitting behind the plain glass */}
+                    <div className="ch-glass-grid absolute inset-0 z-0 pointer-events-none" aria-hidden="true" />
                     {/* dynamic island */}
                     <div className="absolute top-[6px] left-1/2 -translate-x-1/2 w-[96px] h-[26px] bg-[#0C0C0C] rounded-full z-50 flex items-center justify-end px-3">
                       <div className="w-1.5 h-1.5 rounded-full bg-orange animate-pulse" />
                     </div>
 
-                    {/* PLAIN (unbranded) state */}
-                    <div className="phone-plain absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
+                    {/* PLAIN (unbranded) state — frosted glass blank slate */}
+                    <div className="phone-plain ch-glass absolute inset-0 pt-11 px-4 pb-6 flex flex-col text-white">
                       <div className="flex justify-between items-center mb-3">
                         <div className="flex items-center gap-2">
-                          <span className="w-7 h-7 rounded-md bg-charcoal-10" />
+                          <span className="w-7 h-7 rounded-md bg-white/10" />
                           <div className="flex flex-col gap-1.5">
-                            <span className="h-2 w-8 bg-charcoal-10 rounded-full" />
-                            <span className="text-sm font-bold text-charcoal-20">{phonePlainTitle}</span>
+                            <span className="h-2 w-8 bg-white/10 rounded-full" />
+                            <span className="text-sm font-bold text-white/35">{phonePlainTitle}</span>
                           </div>
                         </div>
-                        <div className="w-8 h-8 rounded-full bg-charcoal-10" />
+                        <div className="w-8 h-8 rounded-full bg-white/10" />
                       </div>
                       <div className="relative w-28 h-28 mx-auto my-3 flex items-center justify-center">
                         <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160" aria-hidden="true">
-                          <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="12" />
+                          <circle cx="80" cy="80" r="64" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="12" />
                         </svg>
-                        <span className="text-3xl font-extrabold text-charcoal-20">—</span>
+                        <span className="text-3xl font-extrabold text-white/25">—</span>
                       </div>
                       <div className="flex items-end justify-between gap-1 h-10 mb-1">
                         {PLAIN_BARS.map((h, i) => (
-                          <span key={i} className="flex-1 rounded-sm bg-charcoal-10" style={{ height: `${h}%` }} />
+                          <span key={i} className="flex-1 rounded-sm bg-white/10" style={{ height: `${h}%` }} />
                         ))}
                       </div>
-                      <div className="h-2 w-20 bg-charcoal-10 rounded-full mb-4" />
+                      <div className="h-2 w-20 bg-white/10 rounded-full mb-4" />
                       <div className="space-y-2 mt-auto">
                         {[0, 1].map((i) => (
-                          <div key={i} className="ch-widget rounded-lg p-2.5 flex items-center gap-2.5">
-                            <span className="w-7 h-7 rounded-md bg-charcoal-10" />
+                          <div key={i} className="rounded-lg p-2.5 flex items-center gap-2.5 bg-white/5 border border-white/10">
+                            <span className="w-7 h-7 rounded-md bg-white/10" />
                             <div className="flex-1">
-                              <div className="h-2 w-16 bg-charcoal-10 rounded-full mb-2" />
-                              <div className="h-2 w-10 bg-charcoal-10 rounded-full" />
+                              <div className="h-2 w-16 bg-white/10 rounded-full mb-2" />
+                              <div className="h-2 w-10 bg-white/10 rounded-full" />
                             </div>
                           </div>
                         ))}
@@ -398,7 +414,7 @@ export function CinematicHero({
                     </div>
 
                     {/* BRANDED (Marker) analytics dashboard */}
-                    <div className="phone-branded absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
+                    <div className="phone-branded absolute inset-0 pt-11 px-4 pb-6 flex flex-col bg-white text-ink">
                       <div className="brand-stamp flex justify-between items-center mb-3">
                         <div className="flex items-center gap-2">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
