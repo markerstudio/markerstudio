@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
+import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 
 const LOGO = "/assets/logo-primary-transparent.png";
 
@@ -119,37 +120,29 @@ function SiteHeader({
   );
 }
 
+/* Cinematic scroll-driven hero (GSAP) — wired to bilingual content. */
 function Hero({ t }: { t: SiteContent }) {
+  const h = t.heroCine;
   return (
-    <section className="ms-hero">
-      <div className="ms-container">
-        <div className="ms-hero__eyebrow">{t.hero.eyebrow}</div>
-        <h1 className="ms-hero__title">
-          {t.hero.title[0]}{" "}
-          <span className="brushed brushed--bold">{t.hero.title[1]}</span>{" "}
-          {t.hero.title[2]}
-          <br />
-          {t.hero.title[3]}
-        </h1>
-        <p className="ms-hero__sub">{t.hero.sub}</p>
-        <div className="ms-hero__cta">
-          <button className="ms-btn ms-btn-primary">
-            {t.cta.primary} <span>{t.cta.arrow}</span>
-          </button>
-          <button className="ms-btn ms-btn-ghost">
-            {t.cta.secondary} <span>{t.cta.arrow}</span>
-          </button>
-        </div>
-        <div className="ms-hero__meta">
-          {t.hero.meta.map((m) => (
-            <div key={m.label} className="ms-hero__meta-item">
-              <div className="ms-hero__meta-num">{m.num}</div>
-              <div className="ms-hero__meta-label">{m.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <CinematicHero
+      dir={t.dir}
+      brandName={h.brandName}
+      tagline1={h.tagline1}
+      tagline2={h.tagline2}
+      cardHeading={h.cardHeading}
+      cardDescription={h.cardDescription}
+      metricValue={h.metricValue}
+      metricLabel={h.metricLabel}
+      ctaHeading={h.ctaHeading}
+      ctaDescription={h.ctaDescription}
+      ctaPrimary={t.cta.primary}
+      ctaSecondary={t.cta.secondary}
+      arrow={t.cta.arrow}
+      phoneToday={h.phoneToday}
+      phoneTitle={h.phoneTitle}
+      phoneInitials={h.phoneInitials}
+      badges={h.badges}
+    />
   );
 }
 
