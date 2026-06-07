@@ -141,6 +141,8 @@ function Hero({ t }: { t: SiteContent }) {
       phoneToday={h.phoneToday}
       phoneTitle={h.phoneTitle}
       phoneInitials={h.phoneInitials}
+      phonePlainTitle={h.phonePlainTitle}
+      phoneStats={h.phoneStats}
       badges={h.badges}
     />
   );
