@@ -160,10 +160,23 @@ Rules:
 - vitals.pct is an integer 0–100 estimating account health per label.
 - Always return all fields; use empty strings/arrays where you have nothing.`;
 
+// Diagnostic: visit this route in the browser (while signed in) to confirm the
+// key reached this deployment. Returns booleans only — never the key itself.
+export async function GET() {
+  if (!(await getSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  return NextResponse.json({
+    keyPresent: !!process.env.ANTHROPIC_API_KEY,
+    vercelEnv: process.env.VERCEL_ENV || "unknown",
+  });
+}
+
 export async function POST(req: NextRequest) {
   if (!(await getSession())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: "ANTHROPIC_API_KEY is not set. Add it in Vercel → Environment Variables and redeploy." }, { status: 500 });
+    return NextResponse.json(
+      { error: `ANTHROPIC_API_KEY is not set for this deployment (environment: ${process.env.VERCEL_ENV || "unknown"}). Add it for THAT environment in Vercel → Settings → Environment Variables, then redeploy.` },
+      { status: 500 }
+    );
   }
 
   const body = await req.json().catch(() => ({}));
