@@ -59,6 +59,9 @@ function Reveal({
   );
 }
 
+// Nav items map to section anchors, by index, matching content order.
+const NAV_HREFS = ["#work", "#services", "#studio", "#faq", "#contact"];
+
 function SiteHeader({
   lang,
   setLang,
@@ -68,16 +71,22 @@ function SiteHeader({
   setLang: (l: Lang) => void;
   t: SiteContent;
 }) {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="ms-header">
       <div className="ms-container ms-header__inner">
-        <a className="ms-logo" href="#">
+        <a className="ms-logo" href="#top" onClick={() => setMenuOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={LOGO} alt="Marker Studio" />
         </a>
-        <nav className="ms-nav">
+        <nav className={`ms-nav ${menuOpen ? "is-open" : ""}`}>
           {t.nav.map((item, i) => (
-            <a key={item} href="#" className={i === 0 ? "active" : ""}>
+            <a
+              key={item}
+              href={NAV_HREFS[i] || "#top"}
+              onClick={() => setMenuOpen(false)}
+            >
               {item}
             </a>
           ))}
@@ -91,8 +100,18 @@ function SiteHeader({
               ع
             </button>
           </div>
-          <button className="ms-btn ms-btn-primary">
+          <a href="#contact" className="ms-btn ms-btn-primary ms-cta-desktop">
             {t.cta.primary} <span>{t.cta.arrow}</span>
+          </a>
+          <button
+            className={`ms-burger ${menuOpen ? "is-open" : ""}`}
+            aria-label="Menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            <span />
+            <span />
+            <span />
           </button>
         </div>
       </div>
@@ -162,7 +181,7 @@ function ClientsMarquee({ t }: { t: SiteContent }) {
 function WorkGrid({ t }: { t: SiteContent }) {
   const layout = ["lg", "sm", "sm", "md", "md"];
   return (
-    <section className="ms-section ms-section--cream">
+    <section className="ms-section ms-section--cream" id="work">
       <div className="ms-container">
         <div className="ms-section__header">
           <div>
@@ -204,7 +223,7 @@ function WorkGrid({ t }: { t: SiteContent }) {
 
 function ServicesGrid({ t }: { t: SiteContent }) {
   return (
-    <section className="ms-section">
+    <section className="ms-section" id="services">
       <div className="ms-container">
         <div className="ms-section__header">
           <div>
@@ -513,7 +532,7 @@ export default function MarkerSite() {
   }, [lang, t]);
 
   return (
-    <div data-screen-label={lang === "en" ? "Marker Site (EN)" : "Marker Site (AR)"}>
+    <div id="top" data-screen-label={lang === "en" ? "Marker Site (EN)" : "Marker Site (AR)"}>
       <SiteHeader lang={lang} setLang={setLang} t={t} />
       <main>
         <Hero t={t} />
