@@ -94,6 +94,9 @@ function SiteHeader({
               {item}
             </a>
           ))}
+          <Link href="/login" className="ms-nav__login" onClick={() => setMenuOpen(false)}>
+            {t.cta.login}
+          </Link>
         </nav>
         <div className="ms-actions">
           <Link href="/login" className="ms-login" aria-label={t.cta.login}>
