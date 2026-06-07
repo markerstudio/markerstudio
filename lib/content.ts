@@ -120,7 +120,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       cardDescription:
         "Marker runs your brand's social like a funnel — reach to profile-visit to follower to inquiry — and reports every number, every month.",
       metricValue: 445,
-      metricLabel: "K Views · 60d",
+      metricLabel: "K Views",
       ctaHeading: "Ready to leave a",
       ctaHeadingBrush: "mark?",
       ctaDescription:
@@ -297,7 +297,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       cardDescription:
         "نُدير وسائل التواصل لعلامتك كقمعٍ تسويقي — من الوصول إلى زيارة الملف إلى المتابعة إلى الاستفسار — ونوثّق كل رقم، كل شهر.",
       metricValue: 445,
-      metricLabel: "ألف مشاهدة · ٦٠ يوم",
+      metricLabel: "ألف مشاهدة",
       ctaHeading: "جاهزٌ لتترك",
       ctaHeadingBrush: "أثراً؟",
       ctaDescription: "حدّثنا عمّا تبنيه. نردّ على كل طلب خلال يومَي عمل.",

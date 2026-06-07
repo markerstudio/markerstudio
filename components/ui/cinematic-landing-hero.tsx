@@ -432,9 +432,9 @@ export function CinematicHero({
                           <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="12" />
                           <circle className="ch-progress-ring" cx="80" cy="80" r="64" fill="none" stroke="#FF9100" strokeWidth="12" />
                         </svg>
-                        <div className="counter-num text-center flex flex-col items-center">
-                          <span className="counter-val text-4xl font-extrabold tracking-tighter text-ink">0</span>
-                          <span className="text-[9px] text-orange uppercase tracking-[0.1em] font-bold mt-1">{metricLabel}</span>
+                        <div className="counter-num text-center flex flex-col items-center max-w-[80px]">
+                          <span className="counter-val text-[2rem] leading-none font-extrabold tracking-tighter text-ink">0</span>
+                          <span className="text-[8px] text-orange uppercase tracking-[0.08em] font-bold mt-1 whitespace-nowrap">{metricLabel}</span>
                         </div>
                       </div>
 
