@@ -96,6 +96,13 @@ function SiteHeader({
           ))}
         </nav>
         <div className="ms-actions">
+          <Link href="/login" className="ms-login" aria-label={t.cta.login}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+            </svg>
+            <span>{t.cta.login}</span>
+          </Link>
           <div className="ms-lang" role="group" aria-label="Language">
             <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>
               EN

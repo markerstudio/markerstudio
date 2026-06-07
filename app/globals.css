@@ -189,6 +189,11 @@ a { color: inherit; text-decoration: none; }
 .ms-nav a:hover { color: var(--marker-orange); }
 .ms-nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px; background: var(--marker-orange); }
 .ms-actions { display: flex; align-items: center; gap: 12px; }
+.ms-login { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; white-space: nowrap; }
+.ms-login:hover { color: var(--marker-orange); }
+.ms-login svg { width: 17px; height: 17px; }
+body.ar .ms-login { font-family: var(--font-arabic); }
+@media (max-width: 480px) { .ms-login span { display: none; } }
 
 /* ---- Hamburger (mobile only) ---- */
 .ms-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 42px; height: 42px; padding: 0 9px; background: transparent; border: 1px solid var(--border-strong); border-radius: 4px; cursor: pointer; }
