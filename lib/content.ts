@@ -56,6 +56,8 @@ export interface SiteContent {
     phoneToday: string;
     phoneTitle: string;
     phoneInitials: string;
+    phonePlainTitle: string;
+    phoneStats: [{ label: string; value: string }, { label: string; value: string }];
     badges: [{ icon: string; title: string; sub: string }, { icon: string; title: string; sub: string }];
   };
   clients: { eyebrow: string; title: string; items: ClientItem[] };
@@ -121,9 +123,14 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       phoneToday: "Last 60 days",
       phoneTitle: "Reach",
       phoneInitials: "MS",
+      phonePlainTitle: "Your brand",
+      phoneStats: [
+        { label: "Reach", value: "+1,353%" },
+        { label: "Followers", value: "+369" },
+      ],
       badges: [
-        { icon: "📈", title: "+1,353% Reach", sub: "vs prior 60 days" },
-        { icon: "🤝", title: "+369 Followers", sub: "net, in 60 days" },
+        { icon: "📈", title: "87,606", sub: "Accounts reached" },
+        { icon: "✦", title: "6.9% CTR", sub: "Click-through" },
       ],
     },
     clients: {
@@ -289,9 +296,14 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       phoneToday: "آخر ٦٠ يوم",
       phoneTitle: "الوصول",
       phoneInitials: "MS",
+      phonePlainTitle: "علامتك",
+      phoneStats: [
+        { label: "الوصول", value: "+1,353%" },
+        { label: "متابعون", value: "+369" },
+      ],
       badges: [
-        { icon: "📈", title: "+1,353% وصول", sub: "مقارنة بالسابق" },
-        { icon: "🤝", title: "+369 متابع", sub: "صافي خلال ٦٠ يوم" },
+        { icon: "📈", title: "87,606", sub: "حساب وصلنا إليه" },
+        { icon: "✦", title: "6.9% نقر", sub: "نسبة النقر" },
       ],
     },
     clients: {
