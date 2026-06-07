@@ -43,6 +43,21 @@ export interface SiteContent {
   nav: string[];
   cta: { primary: string; secondary: string; read: string; arrow: string };
   hero: { eyebrow: string; title: string[]; sub: string; meta: MetaItem[] };
+  heroCine: {
+    brandName: string;
+    tagline1: string;
+    tagline2: string;
+    cardHeading: string;
+    cardDescription: string;
+    metricValue: number;
+    metricLabel: string;
+    ctaHeading: string;
+    ctaDescription: string;
+    phoneToday: string;
+    phoneTitle: string;
+    phoneInitials: string;
+    badges: [{ icon: string; title: string; sub: string }, { icon: string; title: string; sub: string }];
+  };
   clients: { eyebrow: string; title: string; items: ClientItem[] };
   work: { eyebrow: string; title: string; sub: string; items: WorkItem[] };
   services: { eyebrow: string; title: string; items: NumberedItem[]; link: string };
@@ -89,6 +104,26 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "445K", label: "Views generated" },
         { num: "6.9%", label: "Click-through" },
         { num: "12+", label: "Brands marked" },
+      ],
+    },
+    heroCine: {
+      brandName: "Marker",
+      tagline1: "We mark the brands",
+      tagline2: "that matter.",
+      cardHeading: "Marketing, measured.",
+      cardDescription:
+        "Marker runs your brand's social like a funnel — reach to profile-visit to follower to inquiry — and reports every number, every month.",
+      metricValue: 445,
+      metricLabel: "K Views · 60d",
+      ctaHeading: "Ready to leave a mark?",
+      ctaDescription:
+        "Tell us what you're building. We reply to every brief within two working days.",
+      phoneToday: "Last 60 days",
+      phoneTitle: "Reach",
+      phoneInitials: "MS",
+      badges: [
+        { icon: "📈", title: "+1,353% Reach", sub: "vs prior 60 days" },
+        { icon: "🤝", title: "+369 Followers", sub: "net, in 60 days" },
       ],
     },
     clients: {
@@ -238,6 +273,25 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "445K", label: "مشاهدة" },
         { num: "6.9%", label: "نسبة النقر" },
         { num: "+12", label: "علامة" },
+      ],
+    },
+    heroCine: {
+      brandName: "ماركر",
+      tagline1: "نعلّم على العلامات",
+      tagline2: "التي تستحقّ.",
+      cardHeading: "تسويق، يُقاس.",
+      cardDescription:
+        "ندير سوشال علامتك كقمع — من الوصول إلى زيارة الملف إلى المتابعة إلى الاستفسار — ونوثّق كل رقم، كل شهر.",
+      metricValue: 445,
+      metricLabel: "ألف مشاهدة · ٦٠ يوم",
+      ctaHeading: "جاهز لتترك أثراً؟",
+      ctaDescription: "حدّثنا عمّا تبنيه. نردّ على كل طلب خلال يومَي عمل.",
+      phoneToday: "آخر ٦٠ يوم",
+      phoneTitle: "الوصول",
+      phoneInitials: "MS",
+      badges: [
+        { icon: "📈", title: "+1,353% وصول", sub: "مقارنة بالسابق" },
+        { icon: "🤝", title: "+369 متابع", sub: "صافي خلال ٦٠ يوم" },
       ],
     },
     clients: {
