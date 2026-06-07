@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { saveClient } from "@/app/admin/actions";
-import type { Client, ClientData, LocalizedText, StoryCard, Vital, SocialItem, MetricRow, Campaign, Invoice } from "@/lib/clients";
+import type { Client, ClientData, LocalizedText, StoryCard, Vital, SocialItem, MetricRow, Campaign, Invoice, DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
@@ -19,6 +19,7 @@ const BLANK: ClientData = {
     paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
   },
   invoices: [],
+  documents: [],
 };
 
 function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
@@ -81,18 +82,77 @@ export default function ClientForm({ client }: { client?: Client }) {
   const [data, setData] = useState<ClientData>(client?.data ?? BLANK);
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
 
+  const [color, setColor] = useState(client?.color ?? "#303030");
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  async function generate() {
+    setAiBusy(true);
+    setAiError("");
+    try {
+      const clientName = (formRef.current?.elements.namedItem("name") as HTMLInputElement | null)?.value || "";
+      const res = await fetch("/api/admin/generate-portal", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: aiPrompt, clientName }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setAiError(json.error || "Generation failed.");
+        return;
+      }
+      setData((d) => ({ ...d, ...json.data }));
+    } catch {
+      setAiError("Network error. Please try again.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
+
   return (
-    <form action={saveClient} className="space-y-6">
+    <form ref={formRef} action={saveClient} className="space-y-6">
       {client && <input type="hidden" name="originalSlug" value={client.slug} />}
       {/* The friendly fields build this hidden JSON for the server action */}
       <input type="hidden" name="data" value={JSON.stringify(data)} />
+
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+        <h2 className="font-bold mb-1">✨ Generate with AI</h2>
+        <p className="text-sm text-neutral-600 mb-3">
+          Paste the client&apos;s report or describe their results — Claude fills the whole portal (English + Arabic) for you.
+          Review and tweak the fields below before saving.
+        </p>
+        <textarea
+          value={aiPrompt}
+          onChange={(e) => setAiPrompt(e.target.value)}
+          rows={6}
+          className={input}
+          placeholder="e.g. Dr. Jack Sabat, dermatology clinic. Since March we ran 5 Meta campaigns, $292 spend. Views 7,260 → 301,274, followers 11 → 238, link clicks 1 → 1,182. Plan: monthly social management, active, Feb 26–May 26. Three paid invoices of 1,800 ILS each."
+        />
+        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
+        <button
+          type="button"
+          onClick={generate}
+          disabled={aiBusy}
+          className="mt-3 bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors disabled:opacity-60"
+        >
+          {aiBusy ? "Generating…" : "Generate portal content"}
+        </button>
+      </div>
 
       <Group title="Identity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
           <div><label className={lbl}>Slug</label><input name="slug" defaultValue={client?.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" /></div>
           <div><label className={lbl}>Client name</label><input name="name" defaultValue={client?.name} required className={input} placeholder="Dr. Jack Sabat" /></div>
           <div><label className={lbl}>Logo URL</label><input name="logo" defaultValue={client?.logo} className={input} /></div>
-          <div><label className={lbl}>Brand colour (hex)</label><input name="color" defaultValue={client?.color ?? "#303030"} className={input} /></div>
+          <div>
+            <label className={lbl}>Brand colour</label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 rounded border border-neutral-300 bg-white p-1" aria-label="Brand colour" />
+              <input name="color" value={color} onChange={(e) => setColor(e.target.value)} className={input} />
+            </div>
+          </div>
         </div>
       </Group>
 
@@ -141,7 +201,11 @@ export default function ClientForm({ client }: { client?: Client }) {
           render={(v, set) => (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
               <Text label="Label" value={v.label} onChange={(label) => set({ label })} />
-              <div><label className={lbl}>Percent (0–100)</label><input type="number" min={0} max={100} className={input} value={v.pct} onChange={(e) => set({ pct: Number(e.target.value) })} /></div>
+              <div>
+                <label className={lbl}>Strength: {v.pct}%</label>
+                <input type="range" min={0} max={100} value={v.pct} onChange={(e) => set({ pct: Number(e.target.value) })} className="w-full accent-orange" />
+                <div className="h-1.5 bg-charcoal-10 rounded-full overflow-hidden mt-1"><div className="h-full bg-orange rounded-full" style={{ width: `${v.pct}%` }} /></div>
+              </div>
               <Text label="Note" value={v.note} onChange={(note) => set({ note })} />
             </div>
           )}
@@ -231,6 +295,22 @@ export default function ClientForm({ client }: { client?: Client }) {
                 </select>
               </div>
               <div className="md:col-span-4"><Text label="Description" value={inv.desc} onChange={(desc) => set({ desc })} /></div>
+            </div>
+          )}
+        />
+      </Group>
+
+      <Group title="Documents" hint="Proposal, agreement, etc. Clients can open / download these from the portal.">
+        <Rows<DocItem>
+          items={data.documents}
+          onChange={(documents) => patch({ documents })}
+          blank={{ title: "", type: "PDF", url: "" }}
+          addLabel="Add document"
+          render={(doc, set) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
+              <Text label="Title" value={doc.title} onChange={(title) => set({ title })} placeholder="Proposal" />
+              <Text label="Type" value={doc.type} onChange={(type) => set({ type })} placeholder="PDF" />
+              <Text label="URL" value={doc.url} onChange={(url) => set({ url })} placeholder="https://…" />
             </div>
           )}
         />

@@ -13,6 +13,7 @@ const TABS = [
   { id: "social", en: "Social", ar: "السوشال" },
   { id: "analysis", en: "Analysis", ar: "التحليل" },
   { id: "invoices", en: "Invoices", ar: "الفواتير" },
+  { id: "documents", en: "Documents", ar: "المستندات" },
 ] as const;
 
 const STATUS_PILL: Record<string, string> = {
@@ -37,6 +38,7 @@ export default function PortalView({ client }: { client: Client }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={MARKER_LOGO} alt="Marker Studio" />
           </button>
+          <span className="ms-portal-name">{client.name} · {ui("Portal", "البوابة")}</span>
           <nav className="ms-portal-tabs">
             {TABS.map((t) => (
               <button key={t.id} className={`ms-portal-tab ${tab === t.id ? "is-active" : ""}`} onClick={() => setTab(t.id)}>
@@ -265,6 +267,37 @@ export default function PortalView({ client }: { client: Client }) {
                   </span>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {tab === "documents" && (
+        <section className="ms-section">
+          <div className="ms-container">
+            <div className="ms-section__header">
+              <div>
+                <span className="ms-section__eyebrow">{ui("Documents", "المستندات")}</span>
+                <h2 className="ms-section__title">{ui("Proposals & agreements.", "العروض والاتفاقيات.")}</h2>
+              </div>
+            </div>
+            <div className="ms-portal-grid">
+              {(d.documents ?? []).map((doc, i) => (
+                <div key={i} className="ms-pcard pc-4" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  <span className="ms-portal-pill ms-portal-pill--orange" style={{ alignSelf: "flex-start" }}>{doc.type || "DOC"}</span>
+                  <h3 className="ms-pcard__h" style={{ margin: 0 }}>{doc.title}</h3>
+                  {doc.url ? (
+                    <a href={doc.url} target="_blank" rel="noreferrer" className="ms-btn ms-btn-outline" style={{ alignSelf: "flex-start" }}>
+                      {ui("Open", "فتح")} <span>↗</span>
+                    </a>
+                  ) : (
+                    <span className="ms-pmuted">{ui("Shared soon.", "ستُشارك قريباً.")}</span>
+                  )}
+                </div>
+              ))}
+              {(d.documents ?? []).length === 0 && (
+                <div className="ms-pcard pc-12"><p className="ms-pmuted">{ui("No documents yet.", "لا مستندات بعد.")}</p></div>
+              )}
             </div>
           </div>
         </section>

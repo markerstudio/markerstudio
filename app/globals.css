@@ -532,6 +532,9 @@ body.ar .ms-proj-next__name { font-family: var(--font-arabic-display); }
 .ms-portal-tab.is-active { background: var(--marker-orange); color: #fff; }
 body.ar .ms-portal-tab { font-family: var(--font-arabic); }
 .ms-portal-signout { padding: 9px 14px; font-size: 13px; }
+.ms-portal-name { font: 700 12px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-muted); border-inline-start: 1px solid var(--border); padding-inline-start: 14px; white-space: nowrap; }
+body.ar .ms-portal-name { font-family: var(--font-arabic); }
+@media (max-width: 900px) { .ms-portal-name { display: none; } }
 
 /* Hero band — charcoal, like the site's dark sections */
 .ms-portal-hero { background: var(--marker-charcoal); color: #fff; padding: 56px 0; }
