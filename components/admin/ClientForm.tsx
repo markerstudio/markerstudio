@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { saveClient } from "@/app/admin/actions";
+import { toCSV, fromCSV } from "@/lib/portalCsv";
 import type { Client, ClientData, LocalizedText, StoryCard, Vital, SocialItem, MetricRow, Campaign, Invoice, DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
@@ -83,32 +84,34 @@ export default function ClientForm({ client }: { client?: Client }) {
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
 
   const [color, setColor] = useState(client?.color ?? "#303030");
-  const [aiPrompt, setAiPrompt] = useState("");
-  const [aiBusy, setAiBusy] = useState(false);
-  const [aiError, setAiError] = useState("");
+  const [csvMsg, setCsvMsg] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
-  async function generate() {
-    setAiBusy(true);
-    setAiError("");
-    try {
-      const clientName = (formRef.current?.elements.namedItem("name") as HTMLInputElement | null)?.value || "";
-      const res = await fetch("/api/admin/generate-portal", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ prompt: aiPrompt, clientName }),
-      });
-      const json = await res.json();
-      if (!res.ok) {
-        setAiError(json.error || "Generation failed.");
-        return;
+  function downloadCsv() {
+    const slug = (formRef.current?.elements.namedItem("slug") as HTMLInputElement | null)?.value || "client";
+    const blob = new Blob([toCSV(data)], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug || "client"}-portal.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        setData(fromCSV(String(reader.result)));
+        setCsvMsg("Imported ✓ — review the fields below, then Save changes.");
+      } catch {
+        setCsvMsg("Couldn't read that CSV. Use the downloaded template as the starting point.");
       }
-      setData((d) => ({ ...d, ...json.data }));
-    } catch {
-      setAiError("Network error. Please try again.");
-    } finally {
-      setAiBusy(false);
-    }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   }
 
   return (
@@ -117,28 +120,24 @@ export default function ClientForm({ client }: { client?: Client }) {
       {/* The friendly fields build this hidden JSON for the server action */}
       <input type="hidden" name="data" value={JSON.stringify(data)} />
 
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h2 className="font-bold mb-1">✨ Generate with AI</h2>
+      <div className="bg-cream border border-neutral-200 rounded-xl p-6">
+        <h2 className="font-bold mb-1">Fill with a spreadsheet (CSV)</h2>
         <p className="text-sm text-neutral-600 mb-3">
-          Paste the client&apos;s report or describe their results — Claude fills the whole portal (English + Arabic) for you.
-          Review and tweak the fields below before saving.
+          <b>1.</b> Download the CSV. <b>2.</b> Fill the <code>en</code> / <code>ar</code> or <code>value</code> column —
+          keep the <code>field</code> column as-is, and add more <code>…[2]…</code>, <code>…[3]…</code> rows to add cards,
+          campaigns, invoices, etc. (You can paste the file into any AI and ask it to fill it.) <b>3.</b> Upload it and the
+          form fills itself — then review and Save.
         </p>
-        <textarea
-          value={aiPrompt}
-          onChange={(e) => setAiPrompt(e.target.value)}
-          rows={6}
-          className={input}
-          placeholder="e.g. Dr. Jack Sabat, dermatology clinic. Since March we ran 5 Meta campaigns, $292 spend. Views 7,260 → 301,274, followers 11 → 238, link clicks 1 → 1,182. Plan: monthly social management, active, Feb 26–May 26. Three paid invoices of 1,800 ILS each."
-        />
-        {aiError && <p className="text-sm text-red-600 mt-2">{aiError}</p>}
-        <button
-          type="button"
-          onClick={generate}
-          disabled={aiBusy}
-          className="mt-3 bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors disabled:opacity-60"
-        >
-          {aiBusy ? "Generating…" : "Generate portal content"}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <button type="button" onClick={downloadCsv} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">
+            Download CSV
+          </button>
+          <label className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors cursor-pointer">
+            Upload CSV
+            <input type="file" accept=".csv,text/csv" className="hidden" onChange={onUpload} />
+          </label>
+          {csvMsg && <span className="text-sm text-neutral-700">{csvMsg}</span>}
+        </div>
       </div>
 
       <Group title="Identity">
