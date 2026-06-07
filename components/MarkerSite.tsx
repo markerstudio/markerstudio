@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
+import { useLang } from "@/lib/useLang";
+import { getProjects } from "@/lib/projects";
 
 const LOGO = "/assets/logo-primary-transparent.png";
 
@@ -176,8 +179,9 @@ function ClientsMarquee({ t }: { t: SiteContent }) {
   );
 }
 
-function WorkGrid({ t }: { t: SiteContent }) {
+function WorkGrid({ t, lang }: { t: SiteContent; lang: Lang }) {
   const layout = ["lg", "sm", "sm", "md", "md"];
+  const projects = getProjects();
   return (
     <section className="ms-section ms-section--cream" id="work">
       <div className="ms-container">
@@ -187,27 +191,25 @@ function WorkGrid({ t }: { t: SiteContent }) {
             <h2 className="ms-section__title">{t.work.title}</h2>
             <p className="ms-section__sub">{t.work.sub}</p>
           </div>
-          <button className="ms-btn ms-btn-outline">
-            {t.cta.secondary} <span>{t.cta.arrow}</span>
-          </button>
         </div>
         <div className="ms-work-grid">
-          {t.work.items.map((item, i) => (
+          {projects.map((p, i) => (
             <Reveal
-              key={i}
+              key={p.slug}
               delay={i * 60}
               className={`ms-work-card ms-work-card--${layout[i] || "md"}`}
             >
+              <Link href={`/work/${p.slug}`} className="ms-work-card__link" aria-label={p.name[lang]} />
               <div
                 className="ms-work-card__media"
-                style={{ background: item.color }}
+                style={{ background: p.color }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="ms-work-card__logo" src={item.logo} alt={item.title} loading="lazy" />
+                <img className="ms-work-card__logo" src={p.logo} alt={p.name[lang]} loading="lazy" />
               </div>
               <div className="ms-work-card__body">
-                <span className="ms-work-card__tag">{item.tag}</span>
-                <h3 className="ms-work-card__title">{item.title}</h3>
+                <span className="ms-work-card__tag">{p.tag[lang]}</span>
+                <h3 className="ms-work-card__title">{p.name[lang]}</h3>
               </div>
             </Reveal>
           ))}
@@ -518,14 +520,8 @@ function SiteFooter({ t }: { t: SiteContent }) {
 }
 
 export default function MarkerSite() {
-  const [lang, setLang] = useState<Lang>("en");
+  const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
-
-  useEffect(() => {
-    document.documentElement.dir = t.dir;
-    document.documentElement.lang = lang;
-    document.body.className = t.bodyClass;
-  }, [lang, t]);
 
   return (
     <div id="top" data-screen-label={lang === "en" ? "Marker Site (EN)" : "Marker Site (AR)"}>
@@ -533,7 +529,7 @@ export default function MarkerSite() {
       <main>
         <Hero t={t} />
         <ClientsMarquee t={t} />
-        <WorkGrid t={t} />
+        <WorkGrid t={t} lang={lang} />
         <ServicesGrid t={t} />
         <StudioBlock t={t} />
         <MetricStrip t={t} />
