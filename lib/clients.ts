@@ -42,6 +42,7 @@ export type ClientData = {
   };
   invoices: Invoice[];
   documents: DocItem[];
+  notionDbId?: string;
 };
 
 export type Client = {
@@ -98,6 +99,7 @@ export function blankClientData(): ClientData {
     },
     invoices: [],
     documents: [],
+    notionDbId: "",
   };
 }
 

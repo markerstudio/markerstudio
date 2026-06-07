@@ -7,7 +7,8 @@ import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
-import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify } from "@/lib/clients";
+import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, type ClientData } from "@/lib/clients";
+import { fetchNotionPosts, extractNotionId } from "@/lib/notion";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -314,6 +315,34 @@ export async function updateClientData(slug: string, dataJson: string): Promise<
   }
   revalidatePath(`/portal/${slug}`);
   return { ok: true };
+}
+
+// Pull a Notion content-calendar database into this client's social calendar.
+export async function syncNotion(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const raw = String(formData.get("notionDbId") || "").trim();
+  if (!process.env.NOTION_TOKEN) redirect(`/admin/clients/${slug}/edit?error=notion-token`);
+  const dbId = extractNotionId(raw);
+  if (!dbId) redirect(`/admin/clients/${slug}/edit?error=notion-id`);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+
+  let posts;
+  try {
+    posts = await fetchNotionPosts(dbId);
+  } catch {
+    redirect(`/admin/clients/${slug}/edit?error=notion-fetch`);
+  }
+
+  const data = rows[0].data;
+  data.notionDbId = dbId;
+  data.social = { headline: data.social?.headline ?? { en: "", ar: "" }, posts };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=synced-${posts.length}`);
 }
 
 // --- Invite links ----------------------------------------------------------
