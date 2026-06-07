@@ -189,6 +189,12 @@ a { color: inherit; text-decoration: none; }
 .ms-nav a:hover { color: var(--marker-orange); }
 .ms-nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px; background: var(--marker-orange); }
 .ms-actions { display: flex; align-items: center; gap: 12px; }
+.ms-login { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; white-space: nowrap; }
+.ms-login:hover { color: var(--marker-orange); }
+.ms-login svg { width: 17px; height: 17px; }
+body.ar .ms-login { font-family: var(--font-arabic); }
+@media (max-width: 480px) { .ms-login span { display: none; } }
+.ms-nav__login { display: none; } /* desktop uses the header button; this is the mobile-menu row */
 
 /* ---- Hamburger (mobile only) ---- */
 .ms-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 42px; height: 42px; padding: 0 9px; background: transparent; border: 1px solid var(--border-strong); border-radius: 4px; cursor: pointer; }
@@ -417,6 +423,7 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
   .ms-nav.is-open { opacity: 1; visibility: visible; transform: none; }
   .ms-nav a { padding: 14px 4px; font-size: 16px; border-bottom: 1px solid var(--border); }
   .ms-nav a:last-child { border-bottom: none; }
+  .ms-nav__login { display: block; color: var(--marker-orange); }
   .ms-hero { padding: 56px 0 64px; }
   .ms-hero__title { font-size: 48px; }
   body.ar .ms-hero__title { font-size: 44px; }
