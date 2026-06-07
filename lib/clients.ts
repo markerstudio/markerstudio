@@ -72,6 +72,45 @@ export async function ensureClientSchema(): Promise<void> {
   `;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'admin'`;
   await sql`ALTER TABLE users ADD COLUMN IF NOT EXISTS client_id INTEGER`;
+  await sql`
+    CREATE TABLE IF NOT EXISTS invites (
+      id SERIAL PRIMARY KEY,
+      token TEXT UNIQUE NOT NULL,
+      client_id INTEGER NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      used_at TIMESTAMPTZ
+    )
+  `;
+}
+
+// Empty portal content for a brand-new client.
+export function blankClientData(): ClientData {
+  return {
+    hero: { en: "", ar: "" },
+    accent: "",
+    plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" } },
+    dashboard: { headline: { en: "", ar: "" }, diagnosis: { en: "", ar: "" }, cards: [], vitals: [] },
+    social: { headline: { en: "", ar: "" }, items: [] },
+    analysis: {
+      organic: { headline: { en: "", ar: "" }, reading: { en: "", ar: "" }, metrics: [] },
+      paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
+    },
+    invoices: [],
+    documents: [],
+  };
+}
+
+// URL-safe slug from a free-text name.
+export function slugify(s: string): string {
+  return (
+    s
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "") || "client"
+  );
 }
 
 export async function getClients(): Promise<Client[]> {

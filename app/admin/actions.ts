@@ -3,10 +3,11 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
-import { ensureClientSchema, EXAMPLE_CLIENT } from "@/lib/clients";
+import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify } from "@/lib/clients";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -272,6 +273,99 @@ export async function deleteClientUser(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   await getSql()`DELETE FROM users WHERE id = ${id} AND role = 'client'`;
   redirect(`/admin/clients/${slug}/edit?ok=removed`);
+}
+
+// One-step create: just a name. Generates a unique slug, blank content, and
+// drops you onto the new portal in edit mode.
+export async function quickCreateClient(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  await ensureClientSchema();
+  const name = String(formData.get("name") || "").trim();
+  if (!name) redirect("/admin/clients?error=name");
+
+  const sql = getSql();
+  const base = slugify(name);
+  let slug = base;
+  let n = 2;
+  // ensure unique slug
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const rows = (await sql`SELECT 1 FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as unknown[];
+    if (rows.length === 0) break;
+    slug = `${base}-${n++}`;
+  }
+  await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(blankClientData())}::jsonb)`;
+  redirect(`/portal/${slug}?edit=1`);
+}
+
+// Save portal content from in-place editing (called programmatically, not a form).
+export async function updateClientData(slug: string, dataJson: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await getSession())) return { ok: false, error: "unauthorized" };
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(dataJson);
+  } catch {
+    return { ok: false, error: "bad json" };
+  }
+  try {
+    await getSql()`UPDATE clients SET data = ${JSON.stringify(parsed)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  } catch {
+    return { ok: false, error: "db" };
+  }
+  revalidatePath(`/portal/${slug}`);
+  return { ok: true };
+}
+
+// --- Invite links ----------------------------------------------------------
+
+export async function createInvite(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  await ensureClientSchema();
+  const slug = String(formData.get("slug") || "").trim();
+  const sql = getSql();
+  const rows = (await sql`SELECT id FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const token = randomBytes(24).toString("base64url");
+  await sql`INSERT INTO invites (token, client_id) VALUES (${token}, ${rows[0].id})`;
+  redirect(`/admin/clients/${slug}/edit?ok=invite`);
+}
+
+export async function deleteInvite(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  const slug = String(formData.get("slug") || "");
+  await getSql()`DELETE FROM invites WHERE id = ${id}`;
+  redirect(`/admin/clients/${slug}/edit?ok=invite-removed`);
+}
+
+// Public: a client accepts an invite by choosing an email + password.
+export async function acceptInvite(formData: FormData) {
+  await ensureClientSchema();
+  const token = String(formData.get("token") || "");
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const name = String(formData.get("name") || "").trim() || "Client";
+  const password = String(formData.get("password") || "");
+  if (!email || password.length < 8) redirect(`/invite/${token}?error=input`);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, client_id, used_at FROM invites WHERE token = ${token} LIMIT 1`) as unknown as { id: number; client_id: number; used_at: string | null }[];
+  const inv = rows[0];
+  if (!inv || inv.used_at) redirect(`/invite/${token}?error=invalid`);
+
+  const hash = await bcrypt.hash(password, 10);
+  let userId: number | undefined;
+  try {
+    const ins = (await sql`
+      INSERT INTO users (email, name, password_hash, role, client_id)
+      VALUES (${email}, ${name}, ${hash}, 'client', ${inv.client_id}) RETURNING id
+    `) as unknown as { id: number }[];
+    userId = ins[0].id;
+  } catch {
+    redirect(`/invite/${token}?error=email-taken`);
+  }
+  await sql`UPDATE invites SET used_at = now() WHERE id = ${inv.id}`;
+  await createSession({ id: userId as number, email, name, role: "client", clientId: inv.client_id });
+  redirect("/portal");
 }
 
 export async function importExampleClient() {
