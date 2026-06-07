@@ -6,6 +6,9 @@ export type MetaItem = { num: string; label: string };
 export type NumberedItem = { num: string; title: string; desc: string };
 export type MetricItem = { label: string; value: string; delta: string };
 export type FooterCol = { title: string; items: string[] };
+export type ClientItem = { name: string; initials: string };
+export type QuoteItem = { quote: string; name: string; role: string };
+export type FaqItem = { q: string; a: string };
 
 export type Lang = "en" | "ar";
 
@@ -15,10 +18,20 @@ export interface SiteContent {
   nav: string[];
   cta: { primary: string; secondary: string; read: string; arrow: string };
   hero: { eyebrow: string; title: string[]; sub: string; meta: MetaItem[] };
+  clients: { eyebrow: string; title: string; items: ClientItem[] };
   work: { eyebrow: string; title: string; sub: string; items: WorkItem[] };
   services: { eyebrow: string; title: string; items: NumberedItem[]; link: string };
+  studio: {
+    eyebrow: string;
+    title: string[];
+    body: string[];
+    logos: { src: string; label: string; dark: boolean }[];
+  };
   metrics: { eyebrow: string; title: string; sub: string; items: MetricItem[] };
+  testimonials: { eyebrow: string; title: string; items: QuoteItem[] };
   process: { eyebrow: string; title: string; items: NumberedItem[] };
+  faq: { eyebrow: string; title: string; sub: string; items: FaqItem[] };
+  ctaBanner: { title: string[]; sub: string; button: string };
   contact: {
     eyebrow: string;
     title: string[];
@@ -53,6 +66,17 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "12+", label: "Brands marked" },
       ],
     },
+    clients: {
+      eyebrow: "Trusted by",
+      title: "Brands that asked us to leave a mark.",
+      items: [
+        { name: "Dr. Jack Sabat", initials: "JS" },
+        { name: "Beit Café", initials: "BC" },
+        { name: "Aurora Goods", initials: "AG" },
+        { name: "JIAD ISEAD", initials: "JI" },
+        { name: "Marker Studio®", initials: "M" },
+      ],
+    },
     work: {
       eyebrow: "Recent work",
       title: "Brands we've left a mark on.",
@@ -75,6 +99,18 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       ],
       link: "Read more",
     },
+    studio: {
+      eyebrow: "The studio",
+      title: ["A small studio", "with a heavy", "marker."],
+      body: [
+        "Marker is a creative & marketing studio out of Beit Sahour, Palestine. We're small on purpose — every brand we take on gets focused attention, not a hand-off.",
+        "We work bilingually by default, design in Arabic and Latin at the same time, and treat the brushstroke as a promise: when we mark a brand, it stays marked.",
+      ],
+      logos: [
+        { src: "/assets/logo-primary-transparent.png", label: "Primary mark", dark: false },
+        { src: "/assets/logo-on-dark.svg", label: "On charcoal", dark: true },
+      ],
+    },
     metrics: {
       eyebrow: "Recent client · 60 days",
       title: "Numbers from one engagement.",
@@ -86,6 +122,30 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { label: "Profile visits", value: "6,078", delta: "from 1,001 previously" },
       ],
     },
+    testimonials: {
+      eyebrow: "In their words",
+      title: "What it's like to be marked.",
+      items: [
+        {
+          quote:
+            "They didn't just redesign our page — they rebuilt how patients find us. The numbers moved within the first month.",
+          name: "Private clinic",
+          role: "Healthcare · Bethlehem",
+        },
+        {
+          quote:
+            "Bilingual, fast, and they actually understand the local audience. The brand finally feels like us in both languages.",
+          name: "F&B brand",
+          role: "Hospitality · Beit Sahour",
+        },
+        {
+          quote:
+            "A campaign built around one clear idea, measured by what it sold — not by likes. Refreshing.",
+          name: "Retail partner",
+          role: "Retail · Palestine",
+        },
+      ],
+    },
     process: {
       eyebrow: "How we work",
       title: "Four phases. No surprises.",
@@ -95,6 +155,34 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "03", title: "Make", desc: "Production sprints. Assets shipped weekly, paid amplification dialed in, content tested." },
         { num: "04", title: "Measure", desc: "Monthly report — reach, conversion, learnings. Then we tune the next phase against it." },
       ],
+    },
+    faq: {
+      eyebrow: "Before you ask",
+      title: "Questions, answered.",
+      sub: "The things brands ask us before the first call.",
+      items: [
+        {
+          q: "Do you work in English and Arabic?",
+          a: "Always. We design both scripts side by side — type, layout, and tone — so neither version feels like a translation of the other.",
+        },
+        {
+          q: "How long does a brand identity take?",
+          a: "A focused identity runs 3–5 weeks: discovery, one committed direction, then the full system and guidelines. Campaigns and social are ongoing monthly engagements.",
+        },
+        {
+          q: "Do you only work with brands in Palestine?",
+          a: "No — we're based in Beit Sahour but work remotely with brands anywhere. Bilingual work is our specialty, wherever you are.",
+        },
+        {
+          q: "How do you measure success?",
+          a: "By the funnel, not vanity. Reach, profile visits, inquiries, conversion — reported monthly, tuned every phase.",
+        },
+      ],
+    },
+    ctaBanner: {
+      title: ["Ready to leave", "a mark?"],
+      sub: "Tell us what you're building. We reply to every brief within two working days.",
+      button: "Start a project",
     },
     contact: {
       eyebrow: "Make your mark",
@@ -133,6 +221,17 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "+12", label: "علامة" },
       ],
     },
+    clients: {
+      eyebrow: "وثقوا بنا",
+      title: "علامات طلبت منّا أن نترك أثراً.",
+      items: [
+        { name: "د. جاك صبات", initials: "ج ص" },
+        { name: "بيت كافيه", initials: "ب ك" },
+        { name: "أورورا", initials: "أ" },
+        { name: "جياد إسعاد", initials: "ج إ" },
+        { name: "ماركر®", initials: "م" },
+      ],
+    },
     work: {
       eyebrow: "أحدث الأعمال",
       title: "علامات تركنا أثرنا عليها.",
@@ -155,6 +254,18 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       ],
       link: "اقرأ المزيد",
     },
+    studio: {
+      eyebrow: "الاستديو",
+      title: ["استديو صغير", "بأثر", "ثقيل."],
+      body: [
+        "ماركر استديو إبداعي وتسويقي من بيت ساحور، فلسطين. صغيرٌ عن قصد — كل علامة نتولّاها تحصل على اهتمام كامل، لا على تسليمٍ بارد.",
+        "نشتغل بلغتين بالأصل، ونصمّم بالعربية واللاتينية في آنٍ واحد، ونعامل ضربة الفرشاة كوعد: حين نعلّم على علامة، يبقى الأثر.",
+      ],
+      logos: [
+        { src: "/assets/logo-primary-transparent.png", label: "الشعار الأساسي", dark: false },
+        { src: "/assets/logo-on-dark.svg", label: "على الفحمي", dark: true },
+      ],
+    },
     metrics: {
       eyebrow: "عميل حديث · 60 يوم",
       title: "أرقام من حساب واحد.",
@@ -166,6 +277,30 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { label: "زيارات الملف", value: "6,078", delta: "كانت 1,001" },
       ],
     },
+    testimonials: {
+      eyebrow: "بكلماتهم",
+      title: "كيف يكون أن تُعلَّم.",
+      items: [
+        {
+          quote:
+            "لم يعيدوا تصميم صفحتنا فحسب — أعادوا بناء طريقة وصول المرضى إلينا. تحرّكت الأرقام خلال الشهر الأول.",
+          name: "عيادة خاصة",
+          role: "رعاية صحية · بيت لحم",
+        },
+        {
+          quote:
+            "ثنائيو اللغة، سريعون، ويفهمون الجمهور المحلي فعلاً. أصبحت العلامة تشبهنا في اللغتين.",
+          name: "علامة مأكولات",
+          role: "ضيافة · بيت ساحور",
+        },
+        {
+          quote:
+            "حملة مبنيّة حول فكرة واحدة واضحة، تُقاس بما باعته — لا بالإعجابات. منعش.",
+          name: "شريك تجزئة",
+          role: "تجزئة · فلسطين",
+        },
+      ],
+    },
     process: {
       eyebrow: "طريقة عملنا",
       title: "أربع مراحل. بلا مفاجآت.",
@@ -175,6 +310,34 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "٠٣", title: "إنتاج", desc: "أسابيع إنتاج. أصول تُسلَّم أسبوعياً، إعلانات مضبوطة، محتوى مُختبَر." },
         { num: "٠٤", title: "قياس", desc: "تقرير شهري — وصول، تحويل، دروس. ثمّ نضبط المرحلة القادمة عليه." },
       ],
+    },
+    faq: {
+      eyebrow: "قبل أن تسأل",
+      title: "أسئلة، بإجابات.",
+      sub: "ما تسألنا عنه العلامات قبل أول مكالمة.",
+      items: [
+        {
+          q: "هل تشتغلون بالعربية والإنجليزية؟",
+          a: "دائماً. نصمّم النصّين جنباً إلى جنب — الخط والتخطيط والنبرة — كي لا يبدو أيٌّ منهما ترجمةً للآخر.",
+        },
+        {
+          q: "كم تستغرق هوية العلامة؟",
+          a: "هوية مركّزة تأخذ 3–5 أسابيع: اكتشاف، اتجاه واحد ملتزَم، ثمّ النظام الكامل والدليل. الحملات والمحتوى ارتباطات شهرية مستمرة.",
+        },
+        {
+          q: "هل تعملون فقط مع علامات في فلسطين؟",
+          a: "لا — مقرّنا بيت ساحور لكنّنا نعمل عن بُعد مع علامات في أي مكان. العمل ثنائي اللغة تخصّصنا، أينما كنت.",
+        },
+        {
+          q: "كيف تقيسون النجاح؟",
+          a: "بالقمع، لا بالأرقام الزائفة. وصول، زيارات، استفسارات، تحويل — موثّقة شهرياً، ومضبوطة كل مرحلة.",
+        },
+      ],
+    },
+    ctaBanner: {
+      title: ["جاهز لتترك", "أثراً؟"],
+      sub: "حدّثنا عمّا تبنيه. نردّ على كل طلب خلال يومَي عمل.",
+      button: "ابدأ مشروعاً",
     },
     contact: {
       eyebrow: "اترك علامتك",
