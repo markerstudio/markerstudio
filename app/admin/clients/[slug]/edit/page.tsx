@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import ClientForm from "@/components/admin/ClientForm";
+import InviteList from "@/components/admin/InviteList";
 import { getClient } from "@/lib/clients";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser } from "../../../actions";
+import { createClientUser, deleteClientUser, createInvite } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -15,12 +16,15 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   imported: { text: "Example imported.", ok: true },
   login: { text: "Client login created.", ok: true },
   removed: { text: "Login removed.", ok: true },
+  invite: { text: "Invite link created — copy it below and send it to your client.", ok: true },
+  "invite-removed": { text: "Invite revoked.", ok: true },
   json: { text: "Portal content was not valid JSON — fix it and save again." },
   invalid: { text: "Enter a valid email and an 8+ character password." },
   exists: { text: "A user with that email already exists." },
 };
 
 type ClientUser = { id: number; email: string; name: string };
+type InviteRow = { id: number; token: string };
 
 export default async function EditClientPage({
   params,
@@ -33,8 +37,10 @@ export default async function EditClientPage({
   if (!client) notFound();
 
   let logins: ClientUser[] = [];
+  let invites: InviteRow[] = [];
   try {
     logins = (await getSql()`SELECT id, email, name FROM users WHERE client_id = ${client.id} ORDER BY created_at ASC`) as unknown as ClientUser[];
+    invites = (await getSql()`SELECT id, token FROM invites WHERE client_id = ${client.id} AND used_at IS NULL ORDER BY created_at ASC`) as unknown as InviteRow[];
   } catch {
     logins = [];
   }
@@ -98,6 +104,18 @@ export default async function EditClientPage({
             Add login
           </button>
         </form>
+      </div>
+
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h2 className="font-bold">Invite links</h2>
+          <form action={createInvite}>
+            <input type="hidden" name="slug" value={client.slug} />
+            <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Create invite</button>
+          </form>
+        </div>
+        <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
+        <InviteList invites={invites} slug={client.slug} />
       </div>
     </div>
   );

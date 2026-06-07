@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { isDbEnabled, getSql } from "@/lib/db";
 import { getClients } from "@/lib/clients";
-import { deleteClient, importExampleClient } from "../actions";
+import { deleteClient, importExampleClient, quickCreateClient } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -26,9 +26,16 @@ export default async function ClientsHome() {
           <form action={importExampleClient}>
             <button className="border border-neutral-300 rounded-md px-3 py-2 text-sm font-medium hover:bg-neutral-50">Import example</button>
           </form>
-          <Link href="/admin/clients/new" className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">+ New client</Link>
         </div>
       </div>
+
+      <form action={quickCreateClient} className="bg-white border border-neutral-200 rounded-xl p-4 mb-6 flex items-end gap-3 flex-wrap">
+        <div className="flex-1 min-w-[200px]">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">New client — just the name</label>
+          <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+        </div>
+        <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create &amp; edit portal →</button>
+      </form>
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>
