@@ -53,7 +53,7 @@ export default async function SetupPage({ searchParams }: { searchParams: { erro
           <p className="text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2 mb-4">
             Already set up. ✓
           </p>
-          <Link href="/admin/login" className="font-semibold text-orange hover:text-orange-deep">Go to login →</Link>
+          <Link href="/login" className="font-semibold text-orange hover:text-orange-deep">Go to login →</Link>
         </div>
       ) : dbOff || noSecret ? (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-3 py-3">

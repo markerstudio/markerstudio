@@ -22,7 +22,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
   let users: U[] = [];
   if (isDbEnabled()) {
     try {
-      users = (await getSql()`SELECT id, email, name, created_at FROM users ORDER BY created_at ASC`) as unknown as U[];
+      users = (await getSql()`SELECT id, email, name, created_at FROM users WHERE role = 'admin' OR role IS NULL ORDER BY created_at ASC`) as unknown as U[];
     } catch {
       users = [];
     }

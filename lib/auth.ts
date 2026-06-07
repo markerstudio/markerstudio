@@ -1,11 +1,13 @@
-// Session auth for the admin: a signed JWT in an httpOnly cookie (jose), with
-// passwords hashed via bcryptjs (see app/admin/actions.ts and /api/setup).
+// Session auth: a signed JWT in an httpOnly cookie (jose), passwords hashed via
+// bcryptjs. Sessions carry a role (admin vs client) and, for clients, the id of
+// the client whose portal they may access.
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "marker_session";
 
-export type SessionUser = { id: number; email: string; name: string };
+export type Role = "admin" | "client";
+export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 
 function secret(): Uint8Array {
   const s = process.env.AUTH_SECRET;
@@ -14,7 +16,13 @@ function secret(): Uint8Array {
 }
 
 export async function createSession(user: SessionUser): Promise<void> {
-  const token = await new SignJWT({ email: user.email, name: user.name, uid: user.id })
+  const token = await new SignJWT({
+    email: user.email,
+    name: user.name,
+    uid: user.id,
+    role: user.role,
+    cid: user.clientId,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -38,7 +46,13 @@ export async function getSession(): Promise<SessionUser | null> {
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secret());
-    return { id: payload.uid as number, email: payload.email as string, name: payload.name as string };
+    return {
+      id: payload.uid as number,
+      email: payload.email as string,
+      name: payload.name as string,
+      role: (payload.role as Role) || "admin",
+      clientId: (payload.cid as number | null) ?? null,
+    };
   } catch {
     return null;
   }
