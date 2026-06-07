@@ -1,9 +1,10 @@
 // components/ui/cinematic-landing-hero.tsx
 // Cinematic scroll-driven hero (GSAP), Marker-styled: flat + crisp (no
-// skeuomorphic shadows or glows), two-color orange/charcoal. The phone tells a
-// two-in-one story — it starts PLAIN (an unbranded brand) and gets MARKED:
-// Marker branding stamps on, the dashboard appears, and the numbers explode in.
-// Bilingual EN/AR + RTL aware; all copy comes from lib/content.ts.
+// skeuomorphic shadows or glows), two-color orange/charcoal. The animated
+// headline and CTA carry the signature orange brushstroke. The phone tells a
+// two-in-one story — it starts PLAIN (unbranded) and gets MARKED: Marker
+// branding stamps on, a real analytics dashboard appears, and the numbers
+// explode in. Bilingual EN/AR + RTL aware; all copy comes from lib/content.ts.
 "use client";
 
 import React, { useEffect, useRef } from "react";
@@ -16,6 +17,10 @@ if (typeof window !== "undefined") {
 }
 
 const LOGO = "/assets/logo-primary-transparent.png";
+
+// Heights (%) of the growth bars — plain is flat & dull, branded climbs.
+const PLAIN_BARS = [26, 30, 24, 28, 32, 27, 30, 26, 31];
+const BRAND_BARS = [22, 34, 28, 46, 40, 60, 54, 78, 100];
 
 // Flat, crisp, on-brand. No drop-shadows, glows, glass blur, or inset highlights.
 const INJECTED_STYLES = `
@@ -33,7 +38,6 @@ const INJECTED_STYLES = `
 
   /* Flat type — colour does the work, not shadows */
   .ch-text-ink { color: var(--marker-ink); }
-  .ch-text-orange { color: var(--marker-orange); }
   .ch-text-card-silver { color: #fff; }
 
   /* Flat charcoal card, crisp edge, one sparse shadow */
@@ -75,17 +79,20 @@ export interface CinematicHeroProps extends React.HTMLAttributes<HTMLDivElement>
   brandName?: string;
   tagline1?: string;
   tagline2?: string;
+  tagline2Brush?: string;
   cardHeading?: string;
   cardDescription?: React.ReactNode;
   metricValue?: number;
   metricLabel?: string;
   ctaHeading?: string;
+  ctaHeadingBrush?: string;
   ctaDescription?: string;
   ctaPrimary?: string;
   ctaSecondary?: string;
   arrow?: string;
   phoneToday?: string;
   phoneTitle?: string;
+  phoneChartLabel?: string;
   phoneInitials?: string;
   phonePlainTitle?: string;
   phoneStats?: [Stat, Stat];
@@ -96,18 +103,21 @@ export interface CinematicHeroProps extends React.HTMLAttributes<HTMLDivElement>
 export function CinematicHero({
   brandName = "Marker",
   tagline1 = "We mark the brands",
-  tagline2 = "that matter.",
+  tagline2 = "that",
+  tagline2Brush = "matter.",
   cardHeading = "Marketing, measured.",
   cardDescription = "Marker runs your brand's social like a funnel — reach to profile-visit to follower to inquiry — and reports every number, every month.",
   metricValue = 445,
   metricLabel = "K Views · 60d",
-  ctaHeading = "Ready to leave a mark?",
+  ctaHeading = "Ready to leave a",
+  ctaHeadingBrush = "mark?",
   ctaDescription = "Tell us what you're building. We reply to every brief within two working days.",
   ctaPrimary = "Start a project",
   ctaSecondary = "View work",
   arrow = "→",
   phoneToday = "Last 60 days",
   phoneTitle = "Reach",
+  phoneChartLabel = "Daily reach",
   phoneInitials = "MS",
   phonePlainTitle = "Your brand",
   phoneStats = [
@@ -123,7 +133,6 @@ export function CinematicHero({
   ...props
 }: CinematicHeroProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mainCardRef = useRef<HTMLDivElement>(null);
   const mockupRef = useRef<HTMLDivElement>(null);
   const requestRef = useRef<number>(0);
 
@@ -178,6 +187,7 @@ export function CinematicHero({
           ".phone-branded",
           ".brand-stamp",
           ".phone-stat",
+          ".phone-bar",
           ".counter-num",
         ],
         { clearProps: "all", autoAlpha: 1, visibility: "visible" }
@@ -198,6 +208,7 @@ export function CinematicHero({
       // Phone starts PLAIN: branded layer + its parts hidden, plain layer shown.
       gsap.set(".phone-plain", { autoAlpha: 1 });
       gsap.set([".phone-branded", ".brand-stamp", ".phone-stat", ".counter-num"], { autoAlpha: 0 });
+      gsap.set(".phone-bar", { scaleY: 0, transformOrigin: "bottom" });
       gsap.set(".cta-wrapper", { autoAlpha: 0, scale: 0.8, filter: "blur(30px)" });
 
       const introTl = gsap.timeline({ delay: 0.3 });
@@ -240,9 +251,11 @@ export function CinematicHero({
           { autoAlpha: 1, scale: 1, ease: "elastic.out(1.1, 0.45)", duration: 1.6 }, "<"
         )
         .to(".counter-val", { innerHTML: metricValue, snap: { innerHTML: 1 }, duration: 1.2, ease: "power2.out" }, "<")
+        // Growth bars climb
+        .to(".phone-bar", { scaleY: 1, ease: "back.out(1.7)", stagger: 0.05, duration: 0.9 }, "-=1.1")
         .fromTo(".phone-stat",
           { autoAlpha: 0, y: 24, scale: 0.85 },
-          { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.8)", stagger: 0.15, duration: 1.1 }, "-=1.0"
+          { autoAlpha: 1, y: 0, scale: 1, ease: "back.out(1.8)", stagger: 0.15, duration: 1.1 }, "-=0.8"
         )
         .fromTo(".floating-badge",
           { y: 80, autoAlpha: 0, scale: 0.7 },
@@ -271,26 +284,6 @@ export function CinematicHero({
     return () => ctx.revert();
   }, [metricValue, isRtl]);
 
-  // The phone screen UI for both states (plain = greyscale placeholders).
-  const Ring = ({ branded }: { branded: boolean }) => (
-    <div className="relative w-40 h-40 mx-auto my-5 flex items-center justify-center">
-      <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160" aria-hidden="true">
-        <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="10" />
-        {branded && (
-          <circle className="ch-progress-ring" cx="80" cy="80" r="64" fill="none" stroke="#FF9100" strokeWidth="10" />
-        )}
-      </svg>
-      {branded ? (
-        <div className="counter-num text-center flex flex-col items-center">
-          <span className="counter-val text-4xl font-extrabold tracking-tighter text-ink">0</span>
-          <span className="text-[9px] text-orange uppercase tracking-[0.12em] font-bold mt-1">{metricLabel}</span>
-        </div>
-      ) : (
-        <span className="text-3xl font-extrabold text-charcoal-20">—</span>
-      )}
-    </div>
-  );
-
   return (
     <div
       ref={containerRef}
@@ -306,20 +299,20 @@ export function CinematicHero({
       <style dangerouslySetInnerHTML={{ __html: INJECTED_STYLES }} />
       <div className="ch-bg-grid absolute inset-0 z-0 pointer-events-none opacity-60" aria-hidden="true" />
 
-      {/* BACKGROUND LAYER: hero headline */}
+      {/* BACKGROUND LAYER: hero headline (with the signature brushstroke) */}
       <div className="hero-text-wrapper absolute z-10 flex flex-col items-center justify-center text-center w-full px-4 will-change-transform [transform-style:preserve-3d]">
         <h1 className={cn("text-track gsap-reveal ch-text-ink text-5xl md:text-7xl lg:text-[6rem] font-bold tracking-tight mb-2", display)}>
           {tagline1}
         </h1>
-        <h1 className={cn("text-days gsap-reveal ch-text-orange text-5xl md:text-7xl lg:text-[6rem] font-extrabold tracking-tighter", display)}>
-          {tagline2}
+        <h1 className={cn("text-days gsap-reveal ch-text-ink text-5xl md:text-7xl lg:text-[6rem] font-extrabold tracking-tighter", display)}>
+          {tagline2} <span className="brushed brushed--bold">{tagline2Brush}</span>
         </h1>
       </div>
 
-      {/* BACKGROUND LAYER 2: CTA */}
+      {/* BACKGROUND LAYER 2: CTA (brushstroke on the final word) */}
       <div className="cta-wrapper absolute z-10 flex flex-col items-center justify-center text-center w-full px-4 gsap-reveal pointer-events-auto will-change-transform">
-        <h2 className={cn("text-4xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight ch-text-orange", display)}>
-          {ctaHeading}
+        <h2 className={cn("text-4xl md:text-6xl lg:text-7xl font-bold mb-6 tracking-tight ch-text-ink", display)}>
+          {ctaHeading} <span className="brushed brushed--bold">{ctaHeadingBrush}</span>
         </h2>
         <p className="text-charcoal-60 text-lg md:text-xl mb-10 max-w-xl mx-auto font-body font-light leading-relaxed">
           {ctaDescription}
@@ -337,7 +330,6 @@ export function CinematicHero({
       {/* FOREGROUND LAYER: the flat charcoal card */}
       <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none" style={{ perspective: "1500px" }}>
         <div
-          ref={mainCardRef}
           className="main-card ch-depth-card relative overflow-hidden gsap-reveal flex items-center justify-center pointer-events-auto w-[92vw] md:w-[85vw] h-[92vh] md:h-[85vh] rounded-[32px] md:rounded-[40px]"
         >
           <div className="relative w-full h-full max-w-7xl mx-auto px-4 lg:px-12 flex flex-col justify-evenly lg:grid lg:grid-cols-3 items-center lg:gap-8 z-10 py-6 lg:py-0">
@@ -348,7 +340,7 @@ export function CinematicHero({
               </h2>
             </div>
 
-            {/* MIDDLE: iPhone mockup — plain → Marker-branded */}
+            {/* MIDDLE: iPhone mockup — plain → Marker-branded analytics */}
             <div className="mockup-scroll-wrapper order-2 lg:order-2 relative w-full h-[380px] lg:h-[600px] flex items-center justify-center z-10" style={{ perspective: "1000px" }}>
               <div className="relative w-full h-full flex items-center justify-center transform scale-[0.65] md:scale-[0.85] lg:scale-100">
                 <div
@@ -369,19 +361,33 @@ export function CinematicHero({
                     </div>
 
                     {/* PLAIN (unbranded) state */}
-                    <div className="phone-plain absolute inset-0 pt-12 px-5 pb-8 flex flex-col">
-                      <div className="flex justify-between items-center mb-2">
-                        <div className="flex flex-col gap-1.5">
-                          <span className="h-2 w-10 bg-charcoal-10 rounded-full" />
-                          <span className="text-sm font-bold text-charcoal-20">{phonePlainTitle}</span>
+                    <div className="phone-plain absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
+                      <div className="flex justify-between items-center mb-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-7 h-7 rounded-md bg-charcoal-10" />
+                          <div className="flex flex-col gap-1.5">
+                            <span className="h-2 w-8 bg-charcoal-10 rounded-full" />
+                            <span className="text-sm font-bold text-charcoal-20">{phonePlainTitle}</span>
+                          </div>
                         </div>
-                        <div className="w-9 h-9 rounded-full bg-charcoal-10" />
+                        <div className="w-8 h-8 rounded-full bg-charcoal-10" />
                       </div>
-                      <Ring branded={false} />
-                      <div className="space-y-2.5 mt-auto">
+                      <div className="relative w-28 h-28 mx-auto my-3 flex items-center justify-center">
+                        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160" aria-hidden="true">
+                          <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="12" />
+                        </svg>
+                        <span className="text-3xl font-extrabold text-charcoal-20">—</span>
+                      </div>
+                      <div className="flex items-end justify-between gap-1 h-10 mb-1">
+                        {PLAIN_BARS.map((h, i) => (
+                          <span key={i} className="flex-1 rounded-sm bg-charcoal-10" style={{ height: `${h}%` }} />
+                        ))}
+                      </div>
+                      <div className="h-2 w-20 bg-charcoal-10 rounded-full mb-4" />
+                      <div className="space-y-2 mt-auto">
                         {[0, 1].map((i) => (
-                          <div key={i} className="ch-widget rounded-lg p-3 flex items-center gap-2.5">
-                            <span className="w-8 h-8 rounded-md bg-charcoal-10" />
+                          <div key={i} className="ch-widget rounded-lg p-2.5 flex items-center gap-2.5">
+                            <span className="w-7 h-7 rounded-md bg-charcoal-10" />
                             <div className="flex-1">
                               <div className="h-2 w-16 bg-charcoal-10 rounded-full mb-2" />
                               <div className="h-2 w-10 bg-charcoal-10 rounded-full" />
@@ -391,26 +397,69 @@ export function CinematicHero({
                       </div>
                     </div>
 
-                    {/* BRANDED (Marker) state */}
-                    <div className="phone-branded absolute inset-0 pt-12 px-5 pb-8 flex flex-col">
-                      <div className="brand-stamp flex justify-between items-center mb-2">
+                    {/* BRANDED (Marker) analytics dashboard */}
+                    <div className="phone-branded absolute inset-0 pt-11 px-4 pb-6 flex flex-col">
+                      <div className="brand-stamp flex justify-between items-center mb-3">
                         <div className="flex items-center gap-2">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={LOGO} alt="Marker" className="h-6 w-auto" />
+                          <img src={LOGO} alt="Marker" className="h-5 w-auto" />
                           <div className="flex flex-col leading-none gap-1">
-                            <span className="text-[9px] text-charcoal-60 uppercase tracking-widest font-bold">{phoneToday}</span>
+                            <span className="text-[8px] text-charcoal-60 uppercase tracking-widest font-bold">{phoneToday}</span>
                             <span className="text-sm font-bold text-ink">{phoneTitle}</span>
                           </div>
                         </div>
-                        <div className="w-9 h-9 rounded-full bg-orange text-white flex items-center justify-center font-bold text-xs">{phoneInitials}</div>
+                        <div className="w-8 h-8 rounded-full bg-orange text-white flex items-center justify-center font-bold text-[11px]">{phoneInitials}</div>
                       </div>
-                      <Ring branded={true} />
-                      <div className="space-y-2.5 mt-auto">
+
+                      {/* period selector */}
+                      <div className="flex gap-1 mb-1" dir="ltr">
+                        {["7d", "30d", "60d"].map((p) => (
+                          <span
+                            key={p}
+                            className={cn(
+                              "flex-1 text-center text-[9px] font-bold py-1 rounded-md",
+                              p === "60d" ? "bg-orange text-white" : "bg-charcoal-10 text-charcoal-60"
+                            )}
+                          >
+                            {p}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* metric ring */}
+                      <div className="relative w-28 h-28 mx-auto my-2 flex items-center justify-center">
+                        <svg className="absolute inset-0 w-full h-full" viewBox="0 0 160 160" aria-hidden="true">
+                          <circle cx="80" cy="80" r="64" fill="none" stroke="var(--marker-charcoal-10)" strokeWidth="12" />
+                          <circle className="ch-progress-ring" cx="80" cy="80" r="64" fill="none" stroke="#FF9100" strokeWidth="12" />
+                        </svg>
+                        <div className="counter-num text-center flex flex-col items-center">
+                          <span className="counter-val text-4xl font-extrabold tracking-tighter text-ink">0</span>
+                          <span className="text-[9px] text-orange uppercase tracking-[0.1em] font-bold mt-1">{metricLabel}</span>
+                        </div>
+                      </div>
+
+                      {/* growth bar chart */}
+                      <div className="flex items-end justify-between gap-1 h-10 mb-1.5">
+                        {BRAND_BARS.map((h, i) => (
+                          <span
+                            key={i}
+                            className={cn("phone-bar flex-1 rounded-sm", i >= BRAND_BARS.length - 2 ? "bg-orange" : "bg-orange/45")}
+                            style={{ height: `${h}%` }}
+                          />
+                        ))}
+                      </div>
+                      <div className="flex justify-between items-center mb-3" dir={dir}>
+                        <span className="text-[8px] text-charcoal-60 uppercase tracking-wider font-bold">{phoneChartLabel}</span>
+                        <span className="text-[9px] text-[#2BB673] font-bold" dir="ltr">▲ 1,353%</span>
+                      </div>
+
+                      {/* stat rows */}
+                      <div className="space-y-2 mt-auto">
                         {phoneStats.map((s, i) => (
-                          <div key={i} className="phone-stat ch-widget rounded-lg p-3 flex items-center justify-between">
+                          <div key={i} className="phone-stat ch-widget rounded-lg px-3 py-2 flex items-center justify-between">
                             <div className="flex items-center gap-2.5">
-                              <span className="w-8 h-8 rounded-md bg-orange-50 text-orange flex items-center justify-center">
-                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                              <span className="w-7 h-7 rounded-md bg-orange-50 text-orange flex items-center justify-center">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                   {i === 0 ? (
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 17l6-6 4 4 8-8M21 7h-4M21 7v4" />
                                   ) : (
@@ -420,7 +469,7 @@ export function CinematicHero({
                               </span>
                               <span className="text-[11px] font-semibold text-charcoal-60 uppercase tracking-wider">{s.label}</span>
                             </div>
-                            <span className="text-base font-extrabold text-ink">{s.value}</span>
+                            <span className="text-sm font-extrabold text-ink" dir="ltr">{s.value}</span>
                           </div>
                         ))}
                       </div>
@@ -434,7 +483,7 @@ export function CinematicHero({
                 <div className="floating-badge ch-chip absolute flex top-6 lg:top-10 left-[-15px] lg:left-[-70px] rounded-lg p-3 items-center gap-3 z-30">
                   <span className="w-9 h-9 rounded-md bg-orange-50 text-orange flex items-center justify-center text-base" aria-hidden="true">{badges[0].icon}</span>
                   <div>
-                    <p className="text-ink text-sm font-bold tracking-tight">{badges[0].title}</p>
+                    <p className="text-ink text-sm font-bold tracking-tight" dir="ltr">{badges[0].title}</p>
                     <p className="text-charcoal-60 text-[11px] font-medium">{badges[0].sub}</p>
                   </div>
                 </div>
@@ -442,7 +491,7 @@ export function CinematicHero({
                 <div className="floating-badge ch-chip absolute flex bottom-12 lg:bottom-16 right-[-15px] lg:right-[-70px] rounded-lg p-3 items-center gap-3 z-30">
                   <span className="w-9 h-9 rounded-md bg-orange-50 text-orange flex items-center justify-center text-base" aria-hidden="true">{badges[1].icon}</span>
                   <div>
-                    <p className="text-ink text-sm font-bold tracking-tight">{badges[1].title}</p>
+                    <p className="text-ink text-sm font-bold tracking-tight" dir="ltr">{badges[1].title}</p>
                     <p className="text-charcoal-60 text-[11px] font-medium">{badges[1].sub}</p>
                   </div>
                 </div>

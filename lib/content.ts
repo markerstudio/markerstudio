@@ -47,14 +47,17 @@ export interface SiteContent {
     brandName: string;
     tagline1: string;
     tagline2: string;
+    tagline2Brush: string;
     cardHeading: string;
     cardDescription: string;
     metricValue: number;
     metricLabel: string;
     ctaHeading: string;
+    ctaHeadingBrush: string;
     ctaDescription: string;
     phoneToday: string;
     phoneTitle: string;
+    phoneChartLabel: string;
     phoneInitials: string;
     phonePlainTitle: string;
     phoneStats: [{ label: string; value: string }, { label: string; value: string }];
@@ -111,17 +114,20 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     heroCine: {
       brandName: "Marker",
       tagline1: "We mark the brands",
-      tagline2: "that matter.",
+      tagline2: "that",
+      tagline2Brush: "matter.",
       cardHeading: "Marketing, measured.",
       cardDescription:
         "Marker runs your brand's social like a funnel — reach to profile-visit to follower to inquiry — and reports every number, every month.",
       metricValue: 445,
       metricLabel: "K Views · 60d",
-      ctaHeading: "Ready to leave a mark?",
+      ctaHeading: "Ready to leave a",
+      ctaHeadingBrush: "mark?",
       ctaDescription:
         "Tell us what you're building. We reply to every brief within two working days.",
       phoneToday: "Last 60 days",
       phoneTitle: "Reach",
+      phoneChartLabel: "Daily reach",
       phoneInitials: "MS",
       phonePlainTitle: "Your brand",
       phoneStats: [
@@ -274,7 +280,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     hero: {
       eyebrow: "بيت ساحور · فلسطين — منذ الشرارة",
       title: ["نحن", "نعلّم", "على العلامات", "التي تستحقّ."],
-      sub: "ماركر استديو إبداعي وتسويقي. نطلق هوّيات، محتوى، وحملات تُحرّك الأرقام — لا تُحرّك الأهداف.",
+      sub: "ماركر استديو إبداعي وتسويقي. نطلق هويّات، محتوى، وحملات تُحرّك الأرقام — لا تُحرّك الأهداف.",
       meta: [
         { num: "+369", label: "متابع / 60 يوم" },
         { num: "445K", label: "مشاهدة" },
@@ -285,16 +291,19 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     heroCine: {
       brandName: "ماركر",
       tagline1: "نعلّم على العلامات",
-      tagline2: "التي تستحقّ.",
+      tagline2: "التي",
+      tagline2Brush: "تستحقّ.",
       cardHeading: "تسويق، يُقاس.",
       cardDescription:
-        "ندير سوشال علامتك كقمع — من الوصول إلى زيارة الملف إلى المتابعة إلى الاستفسار — ونوثّق كل رقم، كل شهر.",
+        "نُدير وسائل التواصل لعلامتك كقمعٍ تسويقي — من الوصول إلى زيارة الملف إلى المتابعة إلى الاستفسار — ونوثّق كل رقم، كل شهر.",
       metricValue: 445,
       metricLabel: "ألف مشاهدة · ٦٠ يوم",
-      ctaHeading: "جاهز لتترك أثراً؟",
+      ctaHeading: "جاهزٌ لتترك",
+      ctaHeadingBrush: "أثراً؟",
       ctaDescription: "حدّثنا عمّا تبنيه. نردّ على كل طلب خلال يومَي عمل.",
       phoneToday: "آخر ٦٠ يوم",
       phoneTitle: "الوصول",
+      phoneChartLabel: "الوصول اليومي",
       phoneInitials: "MS",
       phonePlainTitle: "علامتك",
       phoneStats: [
@@ -348,7 +357,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     metrics: {
       eyebrow: "عميل حديث · 60 يوم",
       title: "أرقام من حساب واحد.",
-      sub: "تحوّل حقيقي في حساب عيادة طبية خاصة بعد توليّنا الحساب.",
+      sub: "تحوّل حقيقي في حساب عيادة طبية خاصة بعد تولّينا الحساب.",
       items: [
         { label: "الحسابات الواصلة", value: "87,606", delta: "+1,353% مقارنة بالسابق" },
         { label: "إجمالي المشاهدات", value: "445K", delta: "كانت 105 ألف سابقاً" },
@@ -358,7 +367,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     },
     testimonials: {
       eyebrow: "بكلماتهم",
-      title: "كيف يكون أن تُعلَّم.",
+      title: "كيف يكون أن تحمل علامتنا.",
       items: [
         {
           quote:
@@ -385,7 +394,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       title: "أربع مراحل. بلا مفاجآت.",
       items: [
         { num: "٠١", title: "اكتشاف", desc: "نقرأ الجمهور والسوق وما اشتغل وما لم يشتغل. أرقام وحدس." },
-        { num: "٠٢", title: "علامة", desc: "نلتزم باتجاه. هوية، قمع، حملة — حادة بما يكفي للمراهنة." },
+        { num: "٠٢", title: "توسيم", desc: "نلتزم باتجاه. هوية، قمع، حملة — حادّة بما يكفي للمراهنة." },
         { num: "٠٣", title: "إنتاج", desc: "أسابيع إنتاج. أصول تُسلَّم أسبوعياً، إعلانات مضبوطة، محتوى مُختبَر." },
         { num: "٠٤", title: "قياس", desc: "تقرير شهري — وصول، تحويل، دروس. ثمّ نضبط المرحلة القادمة عليه." },
       ],
