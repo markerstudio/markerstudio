@@ -167,9 +167,9 @@ function ClientsMarquee({ t }: { t: SiteContent }) {
       <div className="ms-marquee">
         <div className="ms-marquee__track">
           {row.map((c, i) => (
-            <div className="ms-chip" key={`${c.name}-${i}`}>
-              <span className="ms-chip__mark">{c.initials}</span>
-              <span className="ms-chip__name">{c.name}</span>
+            <div className="ms-chip" key={`${c.name}-${i}`} title={c.name}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className="ms-chip__logo" src={c.logo} alt={c.name} loading="lazy" />
             </div>
           ))}
         </div>
@@ -202,12 +202,10 @@ function WorkGrid({ t }: { t: SiteContent }) {
             >
               <div
                 className="ms-work-card__media"
-                style={{
-                  background: i % 2 === 0 ? "#FFE3BF" : "#303030",
-                  color: i % 2 === 0 ? "#FF9100" : "rgba(255,255,255,.12)",
-                }}
+                style={{ background: item.color }}
               >
-                {item.media}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="ms-work-card__logo" src={item.logo} alt={item.title} loading="lazy" />
               </div>
               <div className="ms-work-card__body">
                 <span className="ms-work-card__tag">{item.tag}</span>
