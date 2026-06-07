@@ -8,6 +8,7 @@ import { getSql, isDbEnabled } from "@/lib/db";
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
 export type SocialItem = { title: string; desc: string; tag?: string };
+export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted" };
 export type MetricRow = { label: string; before: string; after: string; note: string };
 export type Campaign = {
   name: string; period: string; type: string; spend: string;
@@ -34,7 +35,7 @@ export type ClientData = {
     vitals: Vital[];
     diagnosis?: LocalizedText;
   };
-  social: { headline: LocalizedText; items: SocialItem[] };
+  social: { headline: LocalizedText; posts: SocialPost[] };
   analysis: {
     organic: { headline: LocalizedText; metrics: MetricRow[]; reading?: LocalizedText };
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
@@ -90,7 +91,7 @@ export function blankClientData(): ClientData {
     accent: "",
     plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" } },
     dashboard: { headline: { en: "", ar: "" }, diagnosis: { en: "", ar: "" }, cards: [], vitals: [] },
-    social: { headline: { en: "", ar: "" }, items: [] },
+    social: { headline: { en: "", ar: "" }, posts: [] },
     analysis: {
       organic: { headline: { en: "", ar: "" }, reading: { en: "", ar: "" }, metrics: [] },
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
@@ -193,12 +194,13 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       ],
     },
     social: {
-      headline: { en: "The monthly content plan.", ar: "خطة المحتوى الشهرية." },
-      items: [
-        { title: "Educational Reels", desc: "Simple explanations of common problems — discovery-first.", tag: "Reels" },
-        { title: "Daily Stories", desc: "Polls, FAQs, behind-the-scenes — relationship and presence.", tag: "Stories" },
-        { title: "Trust posts", desc: "Clinic process, patient-friendly explanations, credibility.", tag: "Trust" },
-        { title: "Paid testing", desc: "Test hooks with ads, then push what earns attention.", tag: "Paid" },
+      headline: { en: "This month's content calendar.", ar: "روزنامة المحتوى لهذا الشهر." },
+      posts: [
+        { date: "2026-06-03", platform: "Instagram", title: "Educational Reel — common myths", notes: "Reels-first, discovery", status: "posted" },
+        { date: "2026-06-07", platform: "Instagram", title: "Story poll + Q&A", notes: "Engagement", status: "scheduled" },
+        { date: "2026-06-12", platform: "TikTok", title: "Clinic behind-the-scenes", notes: "Trust", status: "planned" },
+        { date: "2026-06-18", platform: "Instagram", title: "Patient-friendly explainer", notes: "Education", status: "planned" },
+        { date: "2026-06-24", platform: "Instagram", title: "Before/after carousel", notes: "Proof", status: "planned" },
       ],
     },
     analysis: {
