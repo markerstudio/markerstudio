@@ -518,3 +518,79 @@ body.ar .ms-proj-next__name { font-family: var(--font-arabic-display); }
 @media (prefers-reduced-motion: reduce) {
   .animate-element, .animate-slide-right, .animate-testimonial { animation: none; opacity: 1; filter: none; transform: none; }
 }
+
+/* ===============================================================
+   CLIENT PORTAL — built on the same .ms-* design language as the site
+   (crisp corners, sparse shadows, brand type). Lives under /portal.
+   =============================================================== */
+.ms-portal { background: var(--marker-paper); min-height: 100vh; }
+
+.ms-portal-tabs { display: flex; gap: 4px; overflow-x: auto; margin-inline-start: auto; scrollbar-width: none; }
+.ms-portal-tabs::-webkit-scrollbar { display: none; }
+.ms-portal-tab { border: 0; background: transparent; color: var(--marker-charcoal); font: 600 13px/1 var(--font-display); padding: 9px 12px; border-radius: var(--r-sm); cursor: pointer; white-space: nowrap; transition: color 140ms, background 140ms; }
+.ms-portal-tab:hover { color: var(--marker-orange); }
+.ms-portal-tab.is-active { background: var(--marker-orange); color: #fff; }
+body.ar .ms-portal-tab { font-family: var(--font-arabic); }
+.ms-portal-signout { padding: 9px 14px; font-size: 13px; }
+
+/* Hero band — charcoal, like the site's dark sections */
+.ms-portal-hero { background: var(--marker-charcoal); color: #fff; padding: 56px 0; }
+.ms-portal-hero__eyebrow { display: block; color: var(--marker-orange); font: 600 12px/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; margin-bottom: 16px; }
+.ms-portal-hero__title { font: 800 clamp(40px, 6vw, 72px)/0.98 var(--font-display); letter-spacing: -0.03em; margin: 0 0 16px; }
+body.ar .ms-portal-hero__title { font-family: var(--font-arabic-display); }
+.ms-portal-hero__sub { color: rgba(255,255,255,.75); font: 400 18px/1.55 var(--font-body); max-width: 60ch; margin: 0; }
+.ms-portal-hero__meta { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
+.ms-portal-status { display: inline-flex; align-items: center; gap: 8px; font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; padding: 9px 12px; border-radius: var(--r-sm); }
+.ms-portal-status--on { background: rgba(43,182,115,.18); color: #7ee0b0; }
+.ms-portal-status--off { background: rgba(255,255,255,.1); color: rgba(255,255,255,.82); }
+.ms-portal-dates { font: 600 13px/1 var(--font-body); color: rgba(255,255,255,.7); }
+
+/* Grid + cards */
+.ms-portal-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; }
+.pc-3 { grid-column: span 3; } .pc-4 { grid-column: span 4; } .pc-5 { grid-column: span 5; }
+.pc-6 { grid-column: span 6; } .pc-7 { grid-column: span 7; } .pc-8 { grid-column: span 8; } .pc-12 { grid-column: span 12; }
+.ms-pcard { background: #fff; border: 1px solid var(--border); border-radius: var(--r-md); padding: 24px; box-shadow: var(--shadow-1); }
+.ms-pcard--dark { background: var(--marker-charcoal); color: #fff; border-color: var(--marker-charcoal); }
+.ms-pcard--cream { background: var(--marker-cream); }
+.ms-pcard--story { min-height: 170px; display: flex; flex-direction: column; justify-content: space-between; gap: 14px; }
+.ms-pmuted { color: var(--fg-muted); margin: 0; }
+.ms-pcard--dark .ms-pmuted { color: rgba(255,255,255,.66); }
+.ms-pcard__h { font: 700 22px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0 0 8px; color: var(--marker-ink); }
+.ms-pcard--dark .ms-pcard__h { color: #fff; }
+body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
+
+.ms-portal-pill { display: inline-flex; padding: 6px 10px; border-radius: var(--r-sm); font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; background: var(--marker-charcoal-10); color: var(--marker-charcoal); white-space: nowrap; }
+.ms-portal-pill--orange { background: var(--marker-orange); color: #fff; }
+.ms-portal-pill--green { background: rgba(43,182,115,.14); color: #1f9d63; }
+.ms-portal-pill--red { background: rgba(215,38,61,.12); color: #c94b4b; }
+.ms-portal-pill--blue { background: rgba(46,111,181,.12); color: #2e6fb5; }
+.ms-portal-big { font: 800 40px/1 var(--font-display); color: var(--marker-orange); letter-spacing: -0.04em; }
+.ms-portal-mini { font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); }
+
+.ms-portal-bars { display: grid; gap: 6px; }
+.ms-portal-bar { display: grid; grid-template-columns: 92px 1fr 58px; gap: 10px; align-items: center; font: 700 11px/1 var(--font-display); color: var(--fg-muted); padding: 6px 0; }
+.ms-portal-bar i { display: block; height: 6px; background: var(--marker-charcoal-10); border-radius: 999px; overflow: hidden; }
+.ms-portal-bar i em { display: block; height: 100%; background: var(--marker-orange); border-radius: 999px; }
+
+.ms-portal-metric { display: grid; grid-template-columns: 1fr 120px 120px 1.2fr; gap: 14px; align-items: center; padding: 16px 0; border-bottom: 1px solid var(--border); }
+.ms-portal-metric:last-child { border-bottom: 0; }
+.ms-portal-metric__title { font: 800 16px/1.2 var(--font-display); color: var(--marker-ink); }
+
+.ms-portal-campaign { border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px; background: #fff; }
+.ms-portal-campaign + .ms-portal-campaign { margin-top: 12px; }
+.ms-portal-campaign__head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.ms-portal-stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 14px; }
+.ms-portal-stat { background: var(--marker-cream); border-radius: var(--r-sm); padding: 12px; }
+.ms-portal-stat strong { display: block; color: var(--marker-orange); font: 800 18px/1 var(--font-display); }
+.ms-portal-stat span { font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }
+
+.ms-portal-invoice { display: grid; grid-template-columns: 1fr 150px 110px; gap: 14px; align-items: center; border: 1px solid var(--border); border-radius: var(--r-md); padding: 16px; background: #fff; }
+.ms-portal-invoice + .ms-portal-invoice { margin-top: 10px; }
+
+@media (max-width: 768px) {
+  .pc-3, .pc-4, .pc-5, .pc-6, .pc-7, .pc-8 { grid-column: span 12; }
+  .ms-portal-metric { grid-template-columns: 1fr 1fr; }
+  .ms-portal-metric__note { grid-column: 1 / -1; }
+  .ms-portal-stats { grid-template-columns: repeat(2, 1fr); }
+  .ms-portal-invoice { grid-template-columns: 1fr; }
+}
