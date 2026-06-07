@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import ProjectView from "@/components/ProjectView";
-import { getProject, getProjectSlugs } from "@/lib/projects";
+import { getProject, getProjectSlugs, getNextProject } from "@/lib/projects";
 
-export function generateStaticParams() {
-  return getProjectSlugs().map((slug) => ({ slug }));
+// ISR: regenerate so admin edits surface without a redeploy. Unknown slugs are
+// rendered on demand (dynamicParams defaults to true).
+export const revalidate = 30;
+
+export async function generateStaticParams() {
+  const slugs = await getProjectSlugs();
+  return slugs.map((slug) => ({ slug }));
 }
 
-export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
-  const project = getProject(params.slug);
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const project = await getProject(params.slug);
   if (!project) return { title: "Work — Marker Studio®" };
   return {
     title: `${project.name.en} — Marker Studio®`,
@@ -21,8 +26,9 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
   };
 }
 
-export default function ProjectPage({ params }: { params: { slug: string } }) {
-  const project = getProject(params.slug);
+export default async function ProjectPage({ params }: { params: { slug: string } }) {
+  const project = await getProject(params.slug);
   if (!project) notFound();
-  return <ProjectView project={project} />;
+  const next = await getNextProject(params.slug);
+  return <ProjectView project={project} next={next} />;
 }

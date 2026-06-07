@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 import { useLang } from "@/lib/useLang";
-import { getProjects } from "@/lib/projects";
+import { type Project } from "@/lib/projects";
 
 const LOGO = "/assets/logo-primary-transparent.png";
 
@@ -179,9 +179,8 @@ function ClientsMarquee({ t }: { t: SiteContent }) {
   );
 }
 
-function WorkGrid({ t, lang }: { t: SiteContent; lang: Lang }) {
+function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects: Project[] }) {
   const layout = ["lg", "sm", "sm", "md", "md"];
-  const projects = getProjects();
   return (
     <section className="ms-section ms-section--cream" id="work">
       <div className="ms-container">
@@ -519,7 +518,7 @@ function SiteFooter({ t }: { t: SiteContent }) {
   );
 }
 
-export default function MarkerSite() {
+export default function MarkerSite({ projects }: { projects: Project[] }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
 
@@ -529,7 +528,7 @@ export default function MarkerSite() {
       <main>
         <Hero t={t} />
         <ClientsMarquee t={t} />
-        <WorkGrid t={t} lang={lang} />
+        <WorkGrid t={t} lang={lang} projects={projects} />
         <ServicesGrid t={t} />
         <StudioBlock t={t} />
         <MetricStrip t={t} />
