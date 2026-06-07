@@ -4,7 +4,7 @@ import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import { getClient } from "@/lib/clients";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, createInvite } from "../../../actions";
+import { createClientUser, deleteClientUser, createInvite, syncNotion } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -21,6 +21,9 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   json: { text: "Portal content was not valid JSON — fix it and save again." },
   invalid: { text: "Enter a valid email and an 8+ character password." },
   exists: { text: "A user with that email already exists." },
+  "notion-token": { text: "NOTION_TOKEN is not set. Add it in Vercel → Environment Variables and redeploy." },
+  "notion-id": { text: "Couldn't read a Notion database ID from that — paste the database URL or 32-char ID." },
+  "notion-fetch": { text: "Couldn't reach that Notion database. Check the ID and that it's shared with your integration." },
 };
 
 type ClientUser = { id: number; email: string; name: string };
@@ -45,7 +48,14 @@ export default async function EditClientPage({
     logins = [];
   }
 
-  const msg = searchParams.ok ? MSG[searchParams.ok] : searchParams.error ? MSG[searchParams.error] : null;
+  const okKey = searchParams.ok;
+  const msg = okKey?.startsWith("synced-")
+    ? { text: `Synced ${okKey.slice(7)} posts from Notion into the Social calendar.`, ok: true }
+    : okKey
+    ? MSG[okKey]
+    : searchParams.error
+    ? MSG[searchParams.error]
+    : null;
 
   return (
     <div>
@@ -116,6 +126,22 @@ export default async function EditClientPage({
         </div>
         <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
         <InviteList invites={invites} slug={client.slug} />
+      </div>
+
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+        <h2 className="font-bold mb-1">Notion sync</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          Pull a Notion database (your content calendar) into this client&apos;s Social calendar. In Notion, share the database
+          with your integration, then paste its link or ID. It maps Date → day, Title → post, and &quot;Platform&quot; / &quot;Status&quot; if present.
+        </p>
+        <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
+          <input type="hidden" name="slug" value={client.slug} />
+          <div className="flex-1 min-w-[240px]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Notion database URL or ID</label>
+            <input name="notionDbId" defaultValue={client.data.notionDbId || ""} className={inputCls} placeholder="https://www.notion.so/…?v=…" />
+          </div>
+          <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull from Notion</button>
+        </form>
       </div>
     </div>
   );
