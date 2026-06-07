@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useLang } from "@/lib/useLang";
 import { logout, updateClientData } from "@/app/admin/actions";
+import SocialCalendar from "@/components/SocialCalendar";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
 
 const MARKER_LOGO = "/assets/logo-primary-transparent.png";
@@ -225,19 +226,8 @@ export default function PortalView({
                 <h2 className="ms-section__title">{f(tr(d.social?.headline), (v) => up((c) => (c.social.headline[lang] = v)), false, ui("Headline…", "عنوان…"))}</h2>
               </div>
             </div>
-            <div className="ms-portal-grid">
-              {(d.social?.items ?? []).map((s, i) => (
-                <div key={i} className="ms-pcard ms-pcard--story pc-3">
-                  {del(() => up((c) => c.social.items.splice(i, 1)))}
-                  <span className="ms-portal-pill">{f(s.tag ?? "", (v) => up((c) => (c.social.items[i].tag = v)), false, "Tag")}</span>
-                  <div>
-                    <h3 className="ms-pcard__h">{f(s.title, (v) => up((c) => (c.social.items[i].title = v)), false, "Title")}</h3>
-                    <p className="ms-pmuted">{f(s.desc, (v) => up((c) => (c.social.items[i].desc = v)), true, "Description")}</p>
-                  </div>
-                </div>
-              ))}
-              {edit && <div className="pc-3" style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => c.social.items.push({ title: "", desc: "", tag: "" })), ui("Add item", "عنصر"))}</div>}
-            </div>
+            <SocialCalendar posts={d.social?.posts ?? []} editable={edit} lang={lang} onChange={(posts) => up((c) => (c.social.posts = posts))} />
+            {edit && <p className="ms-pmuted" style={{ marginTop: 10, fontSize: 13 }}>{ui("Click a day to add or edit posts.", "اضغط على يوم لإضافة أو تعديل المنشورات.")}</p>}
           </div>
         </section>
       )}

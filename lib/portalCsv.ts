@@ -58,11 +58,13 @@ export function toCSV(d: ClientData): string {
   });
 
   bi("social.headline", d.social?.headline);
-  const items = d.social?.items?.length ? d.social.items : [{ title: "", desc: "", tag: "" }];
-  items.forEach((s, i) => {
-    val(`social.items[${i}].title`, s.title);
-    val(`social.items[${i}].desc`, s.desc);
-    val(`social.items[${i}].tag`, s.tag ?? "");
+  const posts = d.social?.posts?.length ? d.social.posts : [{ date: "", platform: "", title: "", notes: "", status: "planned" as const }];
+  posts.forEach((p, i) => {
+    val(`social.posts[${i}].date`, p.date);
+    val(`social.posts[${i}].platform`, p.platform);
+    val(`social.posts[${i}].title`, p.title);
+    val(`social.posts[${i}].notes`, p.notes);
+    val(`social.posts[${i}].status`, p.status);
   });
 
   bi("analysis.organic.headline", d.analysis?.organic?.headline);
@@ -131,7 +133,7 @@ function emptyData(): ClientData {
     accent: "",
     plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" } },
     dashboard: { headline: { en: "", ar: "" }, diagnosis: { en: "", ar: "" }, cards: [], vitals: [] },
-    social: { headline: { en: "", ar: "" }, items: [] },
+    social: { headline: { en: "", ar: "" }, posts: [] },
     analysis: {
       organic: { headline: { en: "", ar: "" }, reading: { en: "", ar: "" }, metrics: [] },
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
@@ -166,7 +168,11 @@ function setPath(obj: Record<string, unknown>, path: string, en: string, ar: str
   if (BILINGUAL.has(path)) o[last] = { en, ar };
   else if (path.endsWith(".pct")) o[last] = Math.max(0, Math.min(100, Number(value) || 0));
   else if (path === "plan.active") o[last] = /^(true|yes|1|نعم|نشط|active)$/i.test(value.trim());
-  else if (path.endsWith(".status")) o[last] = ["paid", "due", "overdue"].includes(value.trim()) ? value.trim() : "due";
+  else if (path.endsWith(".status")) {
+    const v = value.trim();
+    if (path.startsWith("invoices")) o[last] = ["paid", "due", "overdue"].includes(v) ? v : "due";
+    else o[last] = ["planned", "scheduled", "posted"].includes(v) ? v : "planned";
+  }
   else o[last] = value;
 }
 
@@ -177,7 +183,7 @@ function pruneArrays(d: any): ClientData {
     (arr ?? []).filter((x) => x && has(x, keys));
   d.dashboard.cards = clean(d.dashboard.cards, ["tag", "value", "desc"]);
   d.dashboard.vitals = clean(d.dashboard.vitals, ["label", "note"]);
-  d.social.items = clean(d.social.items, ["title", "desc", "tag"]);
+  d.social.posts = clean(d.social.posts, ["date", "platform", "title"]);
   d.analysis.organic.metrics = clean(d.analysis.organic.metrics, ["label", "before", "after", "note"]);
   d.analysis.paid.campaigns = clean(d.analysis.paid.campaigns, ["name", "period", "spend", "reach", "desc"]);
   d.invoices = clean(d.invoices, ["cycle", "desc", "amount"]);
