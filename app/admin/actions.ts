@@ -155,3 +155,33 @@ export async function deleteProject(formData: FormData) {
   revalidatePath(`/work/${slug}`);
   redirect("/admin");
 }
+
+// --- User management -------------------------------------------------------
+
+export async function createUser(formData: FormData) {
+  if (!(await getSession())) redirect("/admin/login");
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const name = String(formData.get("name") || "").trim() || "Admin";
+  const password = String(formData.get("password") || "");
+  if (!email || password.length < 8) redirect("/admin/users?error=invalid");
+
+  const sql = getSql();
+  const hash = await bcrypt.hash(password, 10);
+  let duplicate = false;
+  try {
+    await sql`INSERT INTO users (email, name, password_hash) VALUES (${email}, ${name}, ${hash})`;
+  } catch {
+    duplicate = true; // unique-violation on email (or other write error)
+  }
+  redirect(duplicate ? "/admin/users?error=exists" : "/admin/users?ok=added");
+}
+
+export async function deleteUser(formData: FormData) {
+  if (!(await getSession())) redirect("/admin/login");
+  const id = Number(formData.get("id") || 0);
+  const sql = getSql();
+  const count = (await sql`SELECT count(*)::int AS n FROM users`) as unknown as { n: number }[];
+  if (count[0].n <= 1) redirect("/admin/users?error=last"); // never remove the last admin
+  await sql`DELETE FROM users WHERE id = ${id}`;
+  redirect("/admin/users?ok=removed");
+}
