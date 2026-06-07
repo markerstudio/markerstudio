@@ -43,6 +43,7 @@ export type ClientData = {
   invoices: Invoice[];
   documents: DocItem[];
   notionDbId?: string;
+  notionPageId?: string;
 };
 
 export type Client = {
