@@ -30,6 +30,7 @@ const T = {
     acceptedTitle: "Proposal accepted",
     acceptedOn: "Accepted on",
     toPortal: "Continue to agreement →",
+    toPortalPlain: "Go to your portal →",
   },
   ar: {
     eyebrow: "العرض",
@@ -53,6 +54,7 @@ const T = {
     acceptedTitle: "تم قبول العرض",
     acceptedOn: "قُبل بتاريخ",
     toPortal: "تابع إلى الاتفاقية ←",
+    toPortalPlain: "اذهب إلى بوابتك ←",
   },
 } as const;
 
@@ -66,10 +68,13 @@ export default async function ProposalPage({ params }: { params: { slug: string 
 
   const brief = client.data.onboarding;
   if (!brief) redirect(`/portal/${client.slug}`);
+  // Clients only see the proposal once the studio has sent it; admins can preview.
+  if (s.role === "client" && !client.data.proposal?.published) redirect(`/portal/${client.slug}`);
 
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
   const acceptedAt = client.data.proposal?.acceptedAt;
+  const agreementSent = !!client.data.agreement?.published;
   const services: { name: string; features: string[] }[] = [];
   if (brief.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
   if (brief.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
@@ -113,7 +118,7 @@ export default async function ProposalPage({ params }: { params: { slug: string 
               </div>
             )}
 
-            <p className="text-sm leading-7 text-neutral-600">{t.intro}</p>
+            <p className="text-sm leading-7 text-neutral-600 whitespace-pre-wrap">{client.data.proposal?.note || t.intro}</p>
 
             {/* Packages — branding and/or marketing */}
             {services.map((svc) => (
@@ -174,8 +179,11 @@ export default async function ProposalPage({ params }: { params: { slug: string 
             {/* Accept */}
             <div className="mt-9 border-t border-neutral-100 pt-7">
               {acceptedAt ? (
-                <Link href={`/portal/${client.slug}/agreement`} className="inline-flex h-11 items-center justify-center rounded-md bg-neutral-900 px-6 text-sm font-semibold text-white hover:bg-black">
-                  {t.toPortal}
+                <Link
+                  href={agreementSent ? `/portal/${client.slug}/agreement` : `/portal/${client.slug}`}
+                  className="inline-flex h-11 items-center justify-center rounded-md bg-neutral-900 px-6 text-sm font-semibold text-white hover:bg-black"
+                >
+                  {agreementSent ? t.toPortal : t.toPortalPlain}
                 </Link>
               ) : (
                 <form action={acceptProposal} className="flex flex-col items-start gap-3">

@@ -229,6 +229,52 @@ export async function mergeOnboardingIntoClient(formData: FormData) {
   redirect(`/admin/clients/${toSlug}/edit?ok=connected`);
 }
 
+// --- Proposal & agreement (studio-prepared, then sent to the client) --------
+
+// Send / unsend the proposal to the client. Until sent, the client can't see it.
+export async function sendProposal(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const send = String(formData.get("send") || "") === "1";
+  const note = String(formData.get("note") || "").trim();
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = (rows[0].data || {}) as ClientData;
+  data.proposal = {
+    ...data.proposal,
+    published: send,
+    note,
+    sentAt: send ? data.proposal?.sentAt || new Date().toISOString() : data.proposal?.sentAt,
+  };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=${send ? "proposal-sent" : "proposal-unsent"}`);
+}
+
+// Send / unsend the agreement (optionally with an agreed value) to the client.
+export async function sendAgreement(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const send = String(formData.get("send") || "") === "1";
+  const value = String(formData.get("value") || "").trim();
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = (rows[0].data || {}) as ClientData;
+  data.agreement = {
+    ...data.agreement,
+    published: send,
+    value,
+    sentAt: send ? data.agreement?.sentAt || new Date().toISOString() : data.agreement?.sentAt,
+  };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=${send ? "agreement-sent" : "agreement-unsent"}`);
+}
+
 // --- Inquiries (contact-form submissions) ----------------------------------
 
 export async function markInquiryRead(formData: FormData) {
