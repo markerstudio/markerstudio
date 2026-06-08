@@ -177,7 +177,7 @@ export default async function EditClientPage({
 
       {brief && <OnboardingBriefActions brief={brief} />}
 
-      {brief && (
+      {client && (
         <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
           <p className="text-sm text-neutral-500 mb-5">
