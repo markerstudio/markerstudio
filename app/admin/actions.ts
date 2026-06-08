@@ -299,6 +299,50 @@ export async function quickCreateClient(formData: FormData) {
   redirect(`/portal/${slug}?edit=1`);
 }
 
+// Create a new client directly from a Notion Clients Database page.
+export async function quickCreateFromNotion(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  await ensureClientSchema();
+  if (!process.env.NOTION_TOKEN) redirect("/admin/clients?error=notion-token");
+  const pageId = extractNotionId(String(formData.get("notionPageId") || ""));
+  if (!pageId) redirect("/admin/clients?error=notion-id");
+
+  let info;
+  try {
+    info = await fetchNotionClient(pageId);
+  } catch {
+    redirect("/admin/clients?error=notion-fetch");
+  }
+
+  const name = info.name || "Client";
+  const sql = getSql();
+  const base = slugify(name);
+  let slug = base;
+  let n = 2;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const r = (await sql`SELECT 1 FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as unknown[];
+    if (r.length === 0) break;
+    slug = `${base}-${n++}`;
+  }
+
+  const data = blankClientData();
+  data.notionPageId = pageId;
+  data.plan = {
+    name: info.planName || "",
+    active: info.active,
+    start: info.start || "",
+    end: info.end || "",
+    notionUrl: "",
+    note: { en: info.note || "", ar: "" },
+    balance: info.balance || "",
+  };
+  if (info.invoices.length) data.invoices = info.invoices;
+
+  await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
+  redirect(`/portal/${slug}?edit=1`);
+}
+
 // Save portal content from in-place editing (called programmatically, not a form).
 export async function updateClientData(slug: string, dataJson: string): Promise<{ ok: boolean; error?: string }> {
   if (!(await getSession())) return { ok: false, error: "unauthorized" };
@@ -375,6 +419,7 @@ export async function syncNotionClient(formData: FormData) {
     end: info.end || data.plan?.end || "",
     notionUrl: data.plan?.notionUrl ?? "",
     note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
+    balance: info.balance || data.plan?.balance || "",
   };
   if (info.invoices.length) data.invoices = info.invoices;
 

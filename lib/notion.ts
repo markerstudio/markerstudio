@@ -26,10 +26,42 @@ async function notionGet(path: string): Promise<any> {
   return res.json();
 }
 
+async function notionPost(path: string, body: any): Promise<any> {
+  const token = process.env.NOTION_TOKEN;
+  if (!token) throw new Error("NOTION_TOKEN not set");
+  const res = await fetch(`https://api.notion.com${path}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Notion-Version": "2022-06-28", "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    cache: "no-store",
+  });
+  if (!res.ok) throw new Error(`Notion ${res.status}`);
+  return res.json();
+}
+
+// The "Sources" database (Budget Tracker) holds the per-client "Money Left"
+// formula and links back to the client via its "Clients Database" relation.
+const SOURCES_DB = process.env.NOTION_SOURCES_DB || "1822487b8e7e81a2a412d3b1d6cc8108";
+
+async function fetchMoneyLeft(clientPageId: string): Promise<string> {
+  try {
+    const q = await notionPost(`/v1/databases/${SOURCES_DB}/query`, {
+      filter: { property: "Clients Database", relation: { contains: clientPageId } },
+      page_size: 1,
+    });
+    const ml = q.results?.[0]?.properties?.["Money Left"];
+    const v = ml?.type === "formula" ? ml.formula?.number ?? ml.formula?.string : ml?.number;
+    if (v !== undefined && v !== null && v !== "") return typeof v === "number" ? `${v.toLocaleString()} ILS` : String(v);
+  } catch {
+    /* ignore — no source linked, or query failed */
+  }
+  return "";
+}
+
 // Pull a single client record from the Clients Database (a page), plus its
 // linked Income rows mapped to invoices.
 export async function fetchNotionClient(pageId: string): Promise<{
-  name: string; start: string; end: string; active: boolean; planName: string; note: string; invoices: Invoice[];
+  name: string; start: string; end: string; active: boolean; planName: string; note: string; balance: string; invoices: Invoice[];
 }> {
   const page = await notionGet(`/v1/pages/${pageId}`);
   const p = page.properties || {};
@@ -43,6 +75,9 @@ export async function fetchNotionClient(pageId: string): Promise<{
   const active = (p["Status"]?.select?.name || "").toLowerCase() === "active";
   const planName = (p["Service"]?.multi_select || []).map((x: any) => x.name).join(" · ");
   const note = rich("Notes");
+
+  // "Money Left" comes from the linked Source row in the Budget Tracker.
+  const balance = await fetchMoneyLeft(pageId);
 
   const rel = (p["Payments"]?.relation || []) as { id: string }[];
   const invoices: Invoice[] = [];
@@ -66,7 +101,7 @@ export async function fetchNotionClient(pageId: string): Promise<{
       /* skip a payment that can't be read */
     }
   }
-  return { name, start, end, active, planName, note, invoices };
+  return { name, start, end, active, planName, note, balance, invoices };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

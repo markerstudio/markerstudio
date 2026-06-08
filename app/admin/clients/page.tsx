@@ -1,11 +1,18 @@
 import Link from "next/link";
 import { isDbEnabled, getSql } from "@/lib/db";
 import { getClients } from "@/lib/clients";
-import { deleteClient, importExampleClient, quickCreateClient } from "../actions";
+import { deleteClient, importExampleClient, quickCreateClient, quickCreateFromNotion } from "../actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientsHome() {
+const ERR: Record<string, string> = {
+  name: "Enter a client name.",
+  "notion-token": "NOTION_TOKEN isn't set. Add it in Vercel → Environment Variables and redeploy.",
+  "notion-id": "Couldn't read a Notion page ID — paste the Clients Database row URL or its 32-char ID.",
+  "notion-fetch": "Couldn't reach that Notion page. Check the ID and that it's shared with your integration.",
+};
+
+export default async function ClientsHome({ searchParams }: { searchParams: { error?: string } }) {
   const dbOff = !isDbEnabled();
   let needsSetup = false;
   let clients: Awaited<ReturnType<typeof getClients>> = [];
@@ -29,13 +36,27 @@ export default async function ClientsHome() {
         </div>
       </div>
 
-      <form action={quickCreateClient} className="bg-white border border-neutral-200 rounded-xl p-4 mb-6 flex items-end gap-3 flex-wrap">
-        <div className="flex-1 min-w-[200px]">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">New client — just the name</label>
-          <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
-        </div>
-        <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create &amp; edit portal →</button>
-      </form>
+      {searchParams.error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <form action={quickCreateClient} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">New client — just the name</label>
+            <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+          </div>
+          <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create →</button>
+        </form>
+
+        <form action={quickCreateFromNotion} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
+          <div className="flex-1 min-w-[180px]">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Or import from Notion</label>
+            <input name="notionPageId" required placeholder="Clients Database row URL / ID" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+          </div>
+          <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Import →</button>
+        </form>
+      </div>
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>

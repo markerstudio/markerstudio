@@ -198,6 +198,12 @@ export default function PortalView({
                   {f(d.plan?.start ?? "", (v) => up((c) => (c.plan.start = v)), false, "Start")} <span>→</span> {f(d.plan?.end ?? "", (v) => up((c) => (c.plan.end = v)), false, "End")}
                 </div>
                 <p className="ms-pmuted" style={{ marginTop: 12 }}>{f(tr(d.plan?.note), (v) => up((c) => (c.plan.note[lang] = v)), true, ui("Note…", "ملاحظة…"))}</p>
+                {(edit || d.plan?.balance) && (
+                  <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
+                    <span className="ms-portal-mini">{ui("Money left", "المبلغ المتبقّي")}</span>
+                    <div className="ms-portal-big" style={{ marginTop: 4 }}>{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
+                  </div>
+                )}
               </div>
               <div className="ms-pcard ms-pcard--dark pc-5">
                 <span className="ms-section__eyebrow">{ui("Plan document", "وثيقة الخطة")}</span>
