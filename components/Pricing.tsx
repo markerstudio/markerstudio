@@ -87,7 +87,7 @@ export default function Pricing({ t }: { t: SiteContent }) {
         </div>
 
         <div className="ms-pricing__grid" key={category.key}>
-          {category.plans.map((plan) => (
+          {category.plans.map((plan, i) => (
             <div
               key={plan.name}
               className={`ms-plan ${plan.featured ? "ms-plan--featured" : ""}`}
@@ -116,7 +116,7 @@ export default function Pricing({ t }: { t: SiteContent }) {
               </ul>
 
               <a
-                href="#contact"
+                href={category.key === "branding" ? `/onboarding?pkg=${i}` : "#contact"}
                 className={`ms-btn ms-plan__cta ${
                   plan.featured ? "ms-btn-primary" : "ms-btn-outline"
                 }`}

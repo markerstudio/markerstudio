@@ -71,7 +71,12 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
               {c.logo && <img src={c.logo} alt="" className="max-w-[70%] max-h-[60%] object-contain invert brightness-0 opacity-90" />}
             </span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{c.name}</div>
+              <div className="font-semibold truncate flex items-center gap-2">
+                {c.name}
+                {c.data?.status === "pending" && (
+                  <span className="shrink-0 text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none uppercase tracking-wide">New</span>
+                )}
+              </div>
               <div className="text-xs text-neutral-500 truncate">/portal/{c.slug}</div>
             </div>
             <Link href={`/portal/${c.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View ↗</Link>

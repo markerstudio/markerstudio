@@ -18,6 +18,37 @@ export type StoryCard = { tag: string; value: string; desc: string };
 export type Vital = { label: string; pct: number; note: string };
 export type DocItem = { title: string; type: string; url: string };
 
+// Captured by the public /onboarding flow (mirrors marker.ps/create). Stored on
+// the client's data so the studio can read the full brief in the admin.
+export type OnboardingBrief = {
+  plan?: string; // package the prospect picked (e.g. "Growth Branding")
+  planFeatures?: string[]; // the features of that package, captured at submit
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  location: string;
+  brandName: string;
+  brandDescription: string;
+  logoLanguage: string[];
+  products: string;
+  competitors: string;
+  businessGoals: string;
+  audienceGender: string[];
+  audienceAge: string[];
+  onlinePresence: string;
+  symbolShape: string;
+  colorInMind: string;
+  colorDetail: string;
+  exactLogoText: string;
+  tagline: string;
+  existingDesign: string;
+  additionalNotes: string;
+  newsletter: boolean;
+  lang: string;
+  submittedAt: string;
+};
+
 export type ClientData = {
   hero: LocalizedText; // hero subtitle
   accent?: string; // big watermark word in the hero
@@ -50,6 +81,10 @@ export type ClientData = {
     brandingLeft?: string; // remaining branding balance
   };
   documents: DocItem[];
+  status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
+  onboarding?: OnboardingBrief; // the brief captured at signup
+  proposal?: { acceptedAt?: string }; // set when the client accepts their proposal
+  agreement?: { acceptedAt?: string; signedName?: string }; // set when they e-sign the service agreement
   notionDbId?: string;
   notionPageId?: string;
 };
