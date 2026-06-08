@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { getProjects } from "@/lib/projects";
+import { getProjects, SEED_PROJECTS } from "@/lib/projects";
 import { isDbEnabled, getSql } from "@/lib/db";
-import { deleteProject } from "./actions";
+import { deleteProject, importSeedProjects } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminHome() {
+export default async function AdminHome({ searchParams }: { searchParams: { imported?: string } }) {
   const dbOff = !isDbEnabled();
   let needsSetup = false;
   let projects: Awaited<ReturnType<typeof getProjects>> = [];
@@ -18,6 +18,9 @@ export default async function AdminHome() {
     }
   }
 
+  const dbSlugs = new Set(projects.map((p) => p.slug));
+  const missingSeed = SEED_PROJECTS.filter((p) => !dbSlugs.has(p.slug));
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
@@ -26,6 +29,23 @@ export default async function AdminHome() {
           + New project
         </Link>
       </div>
+
+      {searchParams.imported !== undefined && (
+        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">
+          Imported {searchParams.imported} project{searchParams.imported === "1" ? "" : "s"} from seed. The public site is updated.
+        </p>
+      )}
+
+      {!dbOff && !needsSetup && missingSeed.length > 0 && (
+        <div className="flex items-center justify-between gap-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
+          <span>
+            {missingSeed.length} built-in case stud{missingSeed.length === 1 ? "y" : "ies"} ({missingSeed.map((p) => p.name.en).join(", ")}) {missingSeed.length === 1 ? "isn't" : "aren't"} in your database yet.
+          </span>
+          <form action={importSeedProjects}>
+            <button className="shrink-0 bg-amber-600 text-white font-semibold rounded-md px-4 py-2 hover:bg-amber-700 transition-colors">Import now →</button>
+          </form>
+        </div>
+      )}
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
