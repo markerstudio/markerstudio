@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useLang } from "@/lib/useLang";
-import { logout, updateClientData } from "@/app/admin/actions";
+import { useRouter } from "next/navigation";
+import { logout, updateClientData, resyncFromNotion } from "@/app/admin/actions";
 import SocialCalendar from "@/components/SocialCalendar";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
 
@@ -37,6 +38,24 @@ export default function PortalView({
   const [data, setData] = useState<ClientData>(client.data);
   const [edit, setEdit] = useState<boolean>(initialEdit && canEdit);
   const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
+  const [sync, setSync] = useState<"" | "syncing" | "synced" | "error">("");
+  const [syncMsg, setSyncMsg] = useState("");
+  const router = useRouter();
+  const linkedToNotion = !!(client.data.notionPageId || client.data.notionDbId);
+
+  async function doSync() {
+    setSync("syncing");
+    setSyncMsg("");
+    const r = await resyncFromNotion(client.slug);
+    if (r.ok) {
+      setSync("synced");
+      router.refresh();
+      setTimeout(() => setSync(""), 2500);
+    } else {
+      setSync("error");
+      setSyncMsg(r.error || "Sync failed.");
+    }
+  }
 
   const d = data;
   const tr = (b?: LocalizedText) => (b ? b[lang] : "");
@@ -461,7 +480,15 @@ export default function PortalView({
               <button className="ms-btn ms-btn-ghost" style={{ color: "#fff" }} onClick={() => { setData(client.data); setEdit(false); setSaving(""); }}>Done</button>
             </>
           ) : (
-            <button className="ms-btn ms-btn-primary" onClick={() => setEdit(true)}>Edit portal</button>
+            <>
+              {linkedToNotion && (
+                <button className="ms-btn ms-btn-ghost" style={{ color: "#fff" }} onClick={doSync} disabled={sync === "syncing"}>
+                  {sync === "syncing" ? "Syncing…" : sync === "synced" ? "Synced ✓" : sync === "error" ? "Retry sync" : "↻ Sync Notion"}
+                </button>
+              )}
+              {sync === "error" && syncMsg && <span style={{ color: "#ffb4a8", fontSize: 12 }}>{syncMsg}</span>}
+              <button className="ms-btn ms-btn-primary" onClick={() => setEdit(true)}>Edit portal</button>
+            </>
           )}
         </div>
       )}

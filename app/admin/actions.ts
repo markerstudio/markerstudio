@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
@@ -364,6 +364,58 @@ export async function updateClientData(slug: string, dataJson: string): Promise<
   } catch {
     return { ok: false, error: "db" };
   }
+  revalidatePath(`/portal/${slug}`);
+  return { ok: true };
+}
+
+// Manual "Sync now" from the portal — pulls the client record (finance, plan,
+// invoices) and, if linked, the content calendar, in one go. Busts the
+// auto-refresh cache so the change shows immediately. Returns a status string.
+export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; error?: string }> {
+  if (!(await getSession())) return { ok: false, error: "unauthorized" };
+  if (!process.env.NOTION_TOKEN) return { ok: false, error: "Notion isn't connected (NOTION_TOKEN not set)." };
+
+  const sql = getSql();
+  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  if (!rows[0]) return { ok: false, error: "Client not found." };
+  const data = rows[0].data;
+  if (!data.notionPageId && !data.notionDbId) return { ok: false, error: "This client isn't linked to Notion yet — set it up in Edit." };
+
+  try {
+    if (data.notionPageId) {
+      const info = await fetchNotionClient(data.notionPageId);
+      data.plan = {
+        name: info.planName || data.plan?.name || "",
+        active: info.active,
+        start: info.start || data.plan?.start || "",
+        end: info.end || data.plan?.end || "",
+        notionUrl: data.plan?.notionUrl ?? "",
+        note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
+        balance: info.balance || data.plan?.balance || "",
+      };
+      data.finance = {
+        monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
+        progress: info.progress || data.finance?.progress || 0,
+        brandingFee: info.brandingFee || data.finance?.brandingFee || "",
+        brandingProgress: info.brandingProgress || data.finance?.brandingProgress || 0,
+        brandingLeft: info.brandingLeft || data.finance?.brandingLeft || "",
+      };
+      if (info.invoices.length) data.invoices = info.invoices;
+    }
+    if (data.notionDbId) {
+      const posts = await fetchNotionPosts(data.notionDbId);
+      data.social = { headline: data.social?.headline ?? { en: "", ar: "" }, posts };
+    }
+  } catch {
+    return { ok: false, error: "Couldn't reach Notion. Check sharing/permissions and try again." };
+  }
+
+  try {
+    await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  } catch {
+    return { ok: false, error: "Saved sync failed (database)." };
+  }
+  revalidateTag("notion-live");
   revalidatePath(`/portal/${slug}`);
   return { ok: true };
 }
