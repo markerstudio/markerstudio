@@ -10,14 +10,21 @@ const LOGO = "/assets/logo-primary-transparent.png";
 export default function ProjectView({ project, next }: { project: Project; next: Project }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
+  const backArrow = t.cta.arrow === "←" ? "→" : "←";
 
   const labels = {
-    en: { back: "All work", overview: "Overview", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project" },
-    ar: { back: "كل الأعمال", overview: "نظرة عامة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي" },
+    en: { back: "All work", overview: "The story", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project", impact: "The impact" },
+    ar: { back: "كل الأعمال", overview: "القصّة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي", impact: "الأثر" },
   }[lang];
 
+  const chapters = [
+    { key: "01", label: labels.challenge, text: project.challenge[lang] },
+    { key: "02", label: labels.approach, text: project.approach[lang] },
+    { key: "03", label: labels.results, text: project.results[lang] },
+  ];
+
   return (
-    <div data-screen-label={`Project · ${project.name[lang]}`}>
+    <div data-screen-label={`Project · ${project.name[lang]}`} style={{ ["--pj" as string]: project.color }}>
       {/* slim header */}
       <header className="ms-header">
         <div className="ms-container ms-header__inner">
@@ -38,72 +45,73 @@ export default function ProjectView({ project, next }: { project: Project; next:
       </header>
 
       <main>
-        {/* hero — on the brand colour */}
-        <section className="ms-proj-hero" style={{ background: project.color }}>
-          <div className="ms-container">
-            <Link href="/#work" className="ms-proj-back">
-              <span>{t.cta.arrow === "←" ? "→" : "←"}</span> {labels.back}
+        {/* ===== HERO — editorial cover on the brand colour ===== */}
+        <section className="ms-pj-hero" style={{ background: project.color }}>
+          <span className="ms-pj-hero__ghost" aria-hidden>{project.year}</span>
+          <div className="ms-container ms-pj-hero__inner">
+            <Link href="/#work" className="ms-pj-back">
+              <span>{backArrow}</span> {labels.back}
             </Link>
-            <div className="ms-proj-hero__grid">
-              <div>
-                <span className="ms-proj-tag">{project.tag[lang]}</span>
-                <h1 className="ms-proj-title">{project.name[lang]}</h1>
-                <p className="ms-proj-summary">{project.summary[lang]}</p>
+
+            <div className="ms-pj-hero__grid">
+              <div className="ms-pj-hero__lead">
+                <span className="ms-pj-kicker">{project.tag[lang]}</span>
+                <h1 className="ms-pj-title">{project.name[lang]}</h1>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="ms-pj-rule" src="/assets/brushstroke-orange.png" alt="" aria-hidden />
+                <p className="ms-pj-summary">{project.summary[lang]}</p>
               </div>
-              <div className="ms-proj-logo">
+              <div className="ms-pj-hero__logo">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={project.logo} alt={project.name[lang]} />
               </div>
             </div>
-            <div className="ms-proj-facts">
-              <div className="ms-proj-fact">
-                <span className="ms-proj-fact__label">{labels.year}</span>
-                <span className="ms-proj-fact__value">{project.year}</span>
+
+            <div className="ms-pj-facts">
+              <div className="ms-pj-fact">
+                <span className="ms-pj-fact__label">{labels.year}</span>
+                <span className="ms-pj-fact__value">{project.year}</span>
               </div>
-              <div className="ms-proj-fact">
-                <span className="ms-proj-fact__label">{labels.services}</span>
-                <span className="ms-proj-fact__value">{project.services[lang].join(" · ")}</span>
+              <div className="ms-pj-fact">
+                <span className="ms-pj-fact__label">{labels.services}</span>
+                <span className="ms-pj-fact__value">{project.services[lang].join(" · ")}</span>
               </div>
-              <div className="ms-proj-fact">
-                <span className="ms-proj-fact__label">{labels.deliverables}</span>
-                <span className="ms-proj-fact__value">{project.deliverables[lang].join(" · ")}</span>
+              <div className="ms-pj-fact">
+                <span className="ms-pj-fact__label">{labels.deliverables}</span>
+                <span className="ms-pj-fact__value">{project.deliverables[lang].join(" · ")}</span>
               </div>
             </div>
           </div>
         </section>
 
-        {/* body */}
-        <section className="ms-section">
-          <div className="ms-container ms-proj-body">
-            <div className="ms-proj-body__rail">
-              <span className="ms-section__eyebrow">{labels.overview}</span>
-            </div>
-            <div className="ms-proj-body__main">
-              <div className="ms-proj-block">
-                <h3 className="ms-proj-block__title">{labels.challenge}</h3>
-                <p className="ms-proj-block__text">{project.challenge[lang]}</p>
-              </div>
-              <div className="ms-proj-block">
-                <h3 className="ms-proj-block__title">{labels.approach}</h3>
-                <p className="ms-proj-block__text">{project.approach[lang]}</p>
-              </div>
-              <div className="ms-proj-block">
-                <h3 className="ms-proj-block__title">{labels.results}</h3>
-                <p className="ms-proj-block__text">{project.results[lang]}</p>
-              </div>
+        {/* ===== STORY — numbered editorial chapters ===== */}
+        <section className="ms-section ms-pj-story">
+          <div className="ms-container">
+            <span className="ms-section__eyebrow">{labels.overview}</span>
+            <div className="ms-pj-chapters">
+              {chapters.map((c) => (
+                <article key={c.key} className="ms-pj-chapter">
+                  <span className="ms-pj-chapter__num" aria-hidden>{c.key}</span>
+                  <div className="ms-pj-chapter__body">
+                    <h3 className="ms-pj-chapter__label">{c.label}</h3>
+                    <p className="ms-pj-chapter__text">{c.text}</p>
+                  </div>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
-        {/* metrics (optional) */}
+        {/* ===== METRICS — the impact, exploded ===== */}
         {project.metrics && project.metrics.length > 0 && (
-          <section className="ms-section ms-section--dark">
+          <section className="ms-section ms-pj-impact">
             <div className="ms-container">
-              <div className="ms-metrics">
+              <span className="ms-section__eyebrow" style={{ color: "var(--marker-orange)" }}>{labels.impact}</span>
+              <div className="ms-pj-metrics">
                 {project.metrics.map((m, i) => (
-                  <div key={i} className="ms-metric">
-                    <div className="ms-metric__value">{m.value}</div>
-                    <div className="ms-metric__label">{m.label[lang]}</div>
+                  <div key={i} className="ms-pj-metric">
+                    <div className="ms-pj-metric__value">{m.value}</div>
+                    <div className="ms-pj-metric__label">{m.label[lang]}</div>
                   </div>
                 ))}
               </div>
@@ -111,24 +119,25 @@ export default function ProjectView({ project, next }: { project: Project; next:
           </section>
         )}
 
-        {/* gallery (optional) */}
+        {/* ===== GALLERY — feature-first, asymmetric ===== */}
         {project.gallery && project.gallery.length > 0 && (
           <section className="ms-section ms-section--cream">
-            <div className="ms-container ms-proj-gallery">
+            <div className="ms-container ms-pj-gallery">
               {project.gallery.map((src, i) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={i} src={src} alt={`${project.name[lang]} ${i + 1}`} loading="lazy" />
+                <img key={i} src={src} alt={`${project.name[lang]} ${i + 1}`} loading="lazy" className={i === 0 ? "ms-pj-gallery__feature" : ""} />
               ))}
             </div>
           </section>
         )}
 
-        {/* next project */}
-        <Link href={`/work/${next.slug}`} className="ms-proj-next" style={{ background: next.color }}>
-          <div className="ms-container ms-proj-next__inner">
-            <span className="ms-proj-next__label">{labels.next}</span>
-            <span className="ms-proj-next__name">
-              {next.name[lang]} <span>{t.cta.arrow}</span>
+        {/* ===== NEXT PROJECT ===== */}
+        <Link href={`/work/${next.slug}`} className="ms-pj-next" style={{ background: next.color }}>
+          <span className="ms-pj-next__ghost" aria-hidden>{next.name[lang]}</span>
+          <div className="ms-container ms-pj-next__inner">
+            <span className="ms-pj-next__label">{labels.next}</span>
+            <span className="ms-pj-next__name">
+              {next.name[lang]} <span className="ms-pj-next__arrow">{t.cta.arrow}</span>
             </span>
           </div>
         </Link>
