@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { acceptProposal } from "@/app/onboarding-actions";
+import PortalTabs from "@/components/PortalTabs";
+import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Your proposal · Marker Studio", robots: { index: false, follow: false } };
@@ -77,8 +79,11 @@ export default async function ProposalPage({ params }: { params: { slug: string 
 
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
+  const isAdmin = s.role === "admin";
   const acceptedAt = client.data.proposal?.acceptedAt;
   const agreementSent = !!client.data.agreement?.published;
+  const showProposalTab = isAdmin || !!client.data.proposal?.published;
+  const showAgreementTab = isAdmin || !!client.data.agreement?.published;
   const services: { name: string; features: string[] }[] = [];
   if (brief.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
   if (brief.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
@@ -106,11 +111,15 @@ export default async function ProposalPage({ params }: { params: { slug: string 
   return (
     <main dir={lang === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#F5F2EC] px-4 py-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center">
+        <div className="print:hidden mb-6 flex items-center justify-between gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
+          <PrintButton label={lang === "ar" ? "تحميل PDF" : "Download PDF"} />
         </div>
 
+        <PortalTabs slug={client.slug} current="proposal" showProposal={showProposalTab} showAgreement={showAgreementTab} lang={lang} />
+      </div>
+      <div className="mx-auto max-w-3xl">
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 bg-gradient-to-b from-orange-50 to-white px-6 py-8 sm:px-9">
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-orange">{t.eyebrow}</span>

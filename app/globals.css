@@ -856,3 +856,14 @@ body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
   .ms-portal-stats { grid-template-columns: repeat(2, 1fr); }
   .ms-portal-invoice { grid-template-columns: 1fr; }
 }
+
+/* ===============================================================
+   PRINT — clean PDF export for proposal & agreement pages
+   =============================================================== */
+@media print {
+  .print\:hidden { display: none !important; }
+  body { background: #fff !important; }
+  main { background: #fff !important; padding: 0 !important; }
+  /* Flatten the document card so it fills the page without a frame. */
+  main .rounded-2xl { box-shadow: none !important; border: none !important; }
+}
