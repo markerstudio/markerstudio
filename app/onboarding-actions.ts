@@ -146,10 +146,10 @@ export async function submitOnboarding(_prev: OnboardingState, fd: FormData): Pr
 
   await createSession({ id: userId, email, name: `${firstName} ${lastName}`, role: "client", clientId });
   revalidatePath("/admin/clients");
-  redirect(`/portal/${slug}/proposal`);
+  redirect(`/portal/${slug}`);
 }
 
-// Client (or admin) accepts the proposal generated from their onboarding brief.
+// Client accepts the proposal — only possible once the studio has sent it.
 export async function acceptProposal(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   const s = await getSession();
@@ -162,16 +162,17 @@ export async function acceptProposal(formData: FormData) {
   if (s.role === "client" && s.clientId !== c.id) redirect("/portal");
 
   const data = (c.data || {}) as ClientData;
-  data.proposal = { ...(data.proposal || {}), acceptedAt: new Date().toISOString() };
+  if (!data.proposal?.published) redirect(`/portal/${slug}`); // not sent yet
+  data.proposal = { ...data.proposal, acceptedAt: new Date().toISOString() };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${c.id}`;
 
   revalidatePath(`/portal/${slug}`);
   revalidatePath(`/portal/${slug}/proposal`);
   revalidatePath("/admin/clients");
-  redirect(`/portal/${slug}/agreement`);
+  redirect(`/portal/${slug}/proposal`);
 }
 
-// Client (or admin) e-signs the service agreement.
+// Client e-signs the service agreement — only possible once the studio sent it.
 export async function signAgreement(formData: FormData) {
   const slug = String(formData.get("slug") || "").trim();
   const signedName = String(formData.get("signedName") || "").trim();
@@ -184,10 +185,12 @@ export async function signAgreement(formData: FormData) {
   const c = rows[0];
   if (!c) redirect("/portal");
   if (s.role === "client" && s.clientId !== c.id) redirect("/portal");
-  if (!agreed || signedName.length < 2) redirect(`/portal/${slug}/agreement?error=1`);
 
   const data = (c.data || {}) as ClientData;
-  data.agreement = { acceptedAt: new Date().toISOString(), signedName };
+  if (!data.agreement?.published) redirect(`/portal/${slug}`); // not sent yet
+  if (!agreed || signedName.length < 2) redirect(`/portal/${slug}/agreement?error=1`);
+
+  data.agreement = { ...data.agreement, acceptedAt: new Date().toISOString(), signedName };
   if (data.status === "pending") data.status = "active";
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${c.id}`;
 

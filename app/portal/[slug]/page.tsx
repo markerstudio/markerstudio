@@ -59,18 +59,20 @@ export default async function PortalPage({
   }
 
   const ar = client.data.onboarding?.lang === "ar";
-  const onboarded = !!client.data.onboarding;
+  const proposalSent = !!client.data.proposal?.published;
   const proposalAccepted = !!client.data.proposal?.acceptedAt;
+  const agreementSent = !!client.data.agreement?.published;
   const agreementSigned = !!client.data.agreement?.acceptedAt;
 
+  // Banners only appear once the studio has actually sent each document.
   let banner: { text: string; cta: string; href: string } | null = null;
-  if (onboarded && !proposalAccepted) {
+  if (proposalSent && !proposalAccepted) {
     banner = {
       text: ar ? "عرضك جاهز للمراجعة." : "Your proposal is ready to review.",
       cta: ar ? "عرض العرض ←" : "View proposal →",
       href: `/portal/${client.slug}/proposal`,
     };
-  } else if (onboarded && proposalAccepted && !agreementSigned) {
+  } else if (agreementSent && !agreementSigned) {
     banner = {
       text: ar ? "اتفاقية الخدمة جاهزة للتوقيع." : "Your service agreement is ready to sign.",
       cta: ar ? "مراجعة وتوقيع ←" : "Review & sign →",

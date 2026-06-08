@@ -77,8 +77,8 @@ export default async function AgreementPage({
 
   const brief = client.data.onboarding;
   if (!brief) redirect(`/portal/${client.slug}`);
-  // Agreement comes after the proposal is accepted.
-  if (!client.data.proposal?.acceptedAt) redirect(`/portal/${client.slug}/proposal`);
+  // Clients only see the agreement once the studio has sent it; admins can preview.
+  if (s.role === "client" && !client.data.agreement?.published) redirect(`/portal/${client.slug}`);
 
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
@@ -95,6 +95,7 @@ export default async function AgreementPage({
     scope,
     purpose: brief.brandDescription || "",
   });
+  if (client.data.agreement?.value) ag.summary.value = client.data.agreement.value;
 
   const summaryRows = [
     { label: t.client, value: ag.summary.client },

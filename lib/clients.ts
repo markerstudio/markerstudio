@@ -85,8 +85,10 @@ export type ClientData = {
   documents: DocItem[];
   status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
   onboarding?: OnboardingBrief; // the brief captured at signup
-  proposal?: { acceptedAt?: string }; // set when the client accepts their proposal
-  agreement?: { acceptedAt?: string; signedName?: string }; // set when they e-sign the service agreement
+  // Proposal & agreement are prepared by the studio and only shown to the
+  // client once `published` is set (sent). They are not auto-generated to the client.
+  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string };
+  agreement?: { published?: boolean; sentAt?: string; acceptedAt?: string; signedName?: string; value?: string };
   notionDbId?: string;
   notionPageId?: string;
 };
