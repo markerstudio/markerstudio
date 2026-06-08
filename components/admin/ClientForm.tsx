@@ -5,27 +5,31 @@ import Link from "next/link";
 import { saveClient } from "@/app/admin/actions";
 import { toCSV, fromCSV } from "@/lib/portalCsv";
 import SocialCalendar from "@/components/SocialCalendar";
-import { blankClientData, type Client, type ClientData, type LocalizedText, type StoryCard, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
+import { blankClientData, type Client, type ClientData, type LocalizedText, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
 
-function aiPrompt(data: ClientData): string {
-  return `You are filling a bilingual (English + Arabic) marketing client portal for Marker Studio.
-Below is a CSV with columns: field,en,ar,value. Fill it using the Meta Ads / Instagram analytics and client info I provide.
+// AI prompt scoped to the ANALYTICS section only — built from the analysis rows
+// of the CSV so the AI returns just those, and we merge only analysis back in.
+function analyticsPrompt(data: ClientData): string {
+  const full = toCSV(data).replace(/^﻿/, "");
+  const lines = full.split("\r\n");
+  const csv = [lines[0], ...lines.filter((l) => l.startsWith("analysis."))].join("\n");
+  return `You are filling the ANALYTICS section of a bilingual (English + Arabic) marketing report for Marker Studio, from a Meta Ads Manager / Instagram Insights export.
 
-Rules:
-- For bilingual rows, fill BOTH "en" and "ar" with natural language (Arabic that reads naturally, not a literal translation). For all other rows fill "value" only.
-- Add more indexed rows for every item in the data — e.g. analysis.paid.campaigns[1].*, analysis.organic.metrics[2].*, social.posts[3].*, invoices[2].* — copy the column names exactly, just change the number.
-- Use real numbers from the report. Leave a cell blank if you don't have it. Never rename the "field" column.
-- Formats: social.posts[n].date = YYYY-MM-DD; social.posts[n].status = planned | scheduled | posted; invoices[n].status = paid | due | overdue; dashboard.vitals[n].pct and finance.progress = a number 0–100.
-- Output ONLY the CSV (the header line plus all rows). No commentary, no code fences.
+Below is a CSV with columns: field,en,ar,value. Fill ONLY these analysis rows:
+- analysis.organic.* = Instagram organic results. metrics[n] are before/after numbers (e.g. Views, Reach, Accounts engaged, Profile visits, Followers, Link clicks): put the prior-period number in "value" of *.before and the current number in *.after, a short label in *.label, and a one-line insight in *.note.
+- analysis.paid.* = the Meta ad campaigns. One campaigns[n] per campaign with name, period, type (Awareness/Traffic/Engagement/…), spend, reach, impressions, freq, cpm, and a one-line desc. Put total ad spend in analysis.paid.spend.
+- For headline/reading/note rows fill BOTH "en" and "ar" (natural Arabic, not literal).
+- Add more rows by copying a line and changing the [n] index. Keep the "field" column EXACTLY. Use real numbers; leave blank if unknown.
+- Output ONLY the CSV (header + rows). No commentary, no code fences.
 
 === PASTE YOUR META / INSTAGRAM REPORT BELOW THIS LINE ===
-[paste the client's analytics here]
+[paste the analytics export here]
 
-=== CSV TO FILL ===
-${toCSV(data)}`;
+=== ANALYTICS CSV TO FILL ===
+${csv}`;
 }
 
 function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
@@ -94,14 +98,15 @@ export default function ClientForm({ client }: { client?: Client }) {
   const formRef = useRef<HTMLFormElement>(null);
 
   function copyPrompt() {
-    navigator.clipboard?.writeText(aiPrompt(data));
+    navigator.clipboard?.writeText(analyticsPrompt(data));
     setAiCopied(true);
     setTimeout(() => setAiCopied(false), 1800);
   }
   function applyPaste() {
     try {
-      setData(fromCSV(pasteText));
-      setCsvMsg("Filled from the AI output ✓ — review below, then Save changes.");
+      const parsed = fromCSV(pasteText);
+      setData((d) => ({ ...d, analysis: parsed.analysis })); // merge analytics only
+      setCsvMsg("Analytics filled ✓ — review below, then Save changes.");
       setPasteText("");
     } catch {
       setCsvMsg("Couldn't read that — paste the CSV the AI returned (the field,en,ar,value table).");
@@ -134,22 +139,6 @@ export default function ClientForm({ client }: { client?: Client }) {
     <form ref={formRef} action={saveClient} className="space-y-6">
       {client && <input type="hidden" name="originalSlug" value={client.slug} />}
       <input type="hidden" name="data" value={JSON.stringify(data)} />
-
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h2 className="font-bold mb-1">✨ Fill with AI (paste analytics)</h2>
-        <p className="text-sm text-neutral-600 mb-3">
-          <b>1.</b> Copy the prompt. <b>2.</b> Paste it into ChatGPT / Claude together with your Meta / Instagram report.
-          <b> 3.</b> Paste the AI&apos;s reply below and Apply — it fills the whole portal (analysis, social, finance…). Review, then Save.
-        </p>
-        <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
-          {aiCopied ? "Copied ✓" : "Copy AI prompt"}
-        </button>
-        <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={applyPaste} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply to form</button>
-          {csvMsg && <span className="text-sm text-neutral-700">{csvMsg}</span>}
-        </div>
-      </div>
 
       <Group title="Identity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -185,19 +174,9 @@ export default function ClientForm({ client }: { client?: Client }) {
         <p className="text-xs text-neutral-400 mt-1">Leave End blank in Notion (or here) and the plan shows as “Ongoing”.</p>
       </Group>
 
-      <Group title="Dashboard">
+      <Group title="Dashboard" hint="The Dashboard is an auto quick-view (plan, money left, next post, top result). You just set a one-line headline and a few optional health bars.">
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
-        <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
-        <label className={lbl}>Story cards</label>
-        <Rows<StoryCard> items={data.dashboard.cards} onChange={(cards) => patch({ dashboard: { ...data.dashboard, cards } })} blank={{ tag: "", value: "", desc: "" }} addLabel="Add card"
-          render={(c, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
-              <Text label="Tag" value={c.tag} onChange={(tag) => set({ tag })} />
-              <Text label="Value" value={c.value} onChange={(value) => set({ value })} />
-              <Text label="Description" value={c.desc} onChange={(desc) => set({ desc })} />
-            </div>
-          )} />
-        <label className={`${lbl} mt-4`}>Account vitals</label>
+        <label className={`${lbl} mt-2`}>Account health bars (optional)</label>
         <Rows<Vital> items={data.dashboard.vitals} onChange={(vitals) => patch({ dashboard: { ...data.dashboard, vitals } })} blank={{ label: "", pct: 50, note: "" }} addLabel="Add vital"
           render={(v, set) => (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
@@ -215,6 +194,22 @@ export default function ClientForm({ client }: { client?: Client }) {
         <Bi label="Headline" value={data.social.headline} onChange={(headline) => patch({ social: { ...data.social, headline } })} />
         <SocialCalendar posts={data.social.posts} editable lang="en" onChange={(posts) => patch({ social: { ...data.social, posts } })} />
       </Group>
+
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+        <h2 className="font-bold mb-1">✨ Fill analytics with AI</h2>
+        <p className="text-sm text-neutral-600 mb-3">
+          <b>1.</b> Copy the prompt. <b>2.</b> Paste it into ChatGPT / Claude with your Meta / Instagram export.
+          <b> 3.</b> Paste the AI&apos;s reply below and Apply — it fills only the <b>Analysis</b> fields below. Then Save.
+        </p>
+        <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
+          {aiCopied ? "Copied ✓" : "Copy analytics prompt"}
+        </button>
+        <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
+        <div className="mt-2 flex items-center gap-3">
+          <button type="button" onClick={applyPaste} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply analytics</button>
+          {csvMsg && <span className="text-sm text-neutral-700">{csvMsg}</span>}
+        </div>
+      </div>
 
       <Group title="Analysis — Organic">
         <Bi label="Headline" value={data.analysis.organic.headline} onChange={(headline) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, headline } } })} />

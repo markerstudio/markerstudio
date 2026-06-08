@@ -41,6 +41,12 @@ export default function PortalView({
   const d = data;
   const tr = (b?: LocalizedText) => (b ? b[lang] : "");
   const ui = (en: string, ar: string) => (lang === "ar" ? ar : en);
+
+  // Dashboard quick-view: derive a few highlights from the other sections.
+  const today = new Date().toISOString().slice(0, 10);
+  const upcoming = (d.social?.posts ?? []).filter((p) => p.date && p.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
+  const nextPost = upcoming[0];
+  const topMetric = (d.analysis?.organic?.metrics ?? []).find((m) => m.after);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const up = (fn: (c: any) => void) => setData((prev) => { const c = JSON.parse(JSON.stringify(prev)); fn(c); return c; });
 
@@ -120,27 +126,42 @@ export default function PortalView({
                 </div>
               </div>
               <div className="ms-portal-grid">
-                {(d.dashboard?.cards ?? []).map((c, i) => (
-                  <div key={i} className="ms-pcard ms-pcard--story pc-3">
-                    {del(() => up((x) => x.dashboard.cards.splice(i, 1)))}
-                    <span className="ms-portal-pill">{f(c.tag, (v) => up((x) => (x.dashboard.cards[i].tag = v)), false, "Tag")}</span>
-                    <div>
-                      <div className="ms-portal-big">{f(c.value, (v) => up((x) => (x.dashboard.cards[i].value = v)), false, "Value")}</div>
-                      <p className="ms-pmuted">{f(c.desc, (v) => up((x) => (x.dashboard.cards[i].desc = v)), true, "Description")}</p>
-                    </div>
+                <div className="ms-pcard pc-3">
+                  <span className="ms-portal-mini">{ui("Plan", "الخطة")}</span>
+                  <div style={{ marginTop: 8 }}>
+                    <span className={`ms-portal-pill ${d.plan?.active ? "ms-portal-pill--green" : "ms-portal-pill--red"}`}>{d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}</span>
                   </div>
-                ))}
-                {edit && <div className="pc-3" style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => c.dashboard.cards.push({ tag: "", value: "", desc: "" })), ui("Add card", "بطاقة"))}</div>}
+                  <p className="ms-pmuted" style={{ marginTop: 8, fontSize: 13 }}>{d.plan?.end ? `${d.plan?.start} → ${d.plan?.end}` : d.plan?.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</p>
+                </div>
+                <div className="ms-pcard pc-3">
+                  <span className="ms-portal-mini">{ui("Money left", "المتبقّي")}</span>
+                  <div className="ms-portal-big" style={{ marginTop: 8 }}>{d.plan?.balance || "—"}</div>
+                </div>
+                <div className="ms-pcard pc-3">
+                  <span className="ms-portal-mini">{ui("Paid", "المدفوع")}</span>
+                  <div className="ms-portal-big" style={{ marginTop: 8, color: "var(--marker-ink)" }}>{d.finance?.progress ?? 0}%</div>
+                  <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${d.finance?.progress ?? 0}%`, background: "var(--marker-orange)" }} /></div>
+                </div>
+                <div className="ms-pcard pc-3">
+                  <span className="ms-portal-mini">{ui("Next post", "المنشور القادم")}</span>
+                  {nextPost ? (
+                    <><div style={{ marginTop: 8, fontWeight: 800 }}>{nextPost.date}</div><p className="ms-pmuted" style={{ fontSize: 13 }}>{[nextPost.platform, nextPost.title].filter(Boolean).join(" · ")}</p></>
+                  ) : (
+                    <div className="ms-pmuted" style={{ marginTop: 8 }}>—</div>
+                  )}
+                </div>
 
-                {(edit || tr(d.dashboard?.diagnosis)) && (
-                  <div className="ms-pcard ms-pcard--dark pc-7">
-                    <span className="ms-section__eyebrow">{ui("Diagnosis", "التشخيص")}</span>
-                    <p className="ms-pmuted" style={{ fontSize: 17 }}>{f(tr(d.dashboard?.diagnosis), (v) => up((c) => (c.dashboard.diagnosis[lang] = v)), true, ui("Diagnosis…", "تشخيص…"))}</p>
+                {topMetric && (
+                  <div className="ms-pcard pc-6">
+                    <span className="ms-portal-mini">{ui("Top result", "أبرز نتيجة")}</span>
+                    <div className="ms-portal-big" style={{ marginTop: 8 }}>{topMetric.after}</div>
+                    <p className="ms-pmuted">{topMetric.label}{topMetric.before ? ` · ${ui("from", "من")} ${topMetric.before}` : ""}</p>
                   </div>
                 )}
+
                 {(edit || (d.dashboard?.vitals ?? []).length > 0) && (
-                  <div className="ms-pcard pc-5">
-                    <span className="ms-section__eyebrow">{ui("Account vitals", "مؤشرات الحساب")}</span>
+                  <div className={`ms-pcard ${topMetric ? "pc-6" : "pc-12"}`}>
+                    <span className="ms-section__eyebrow">{ui("Account health", "صحة الحساب")}</span>
                     <div className="ms-portal-bars">
                       {(d.dashboard?.vitals ?? []).map((v, i) => (
                         <div key={i} className="ms-portal-bar" style={edit ? { gridTemplateColumns: "1fr", gap: 4 } : undefined}>
