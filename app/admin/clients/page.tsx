@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { isDbEnabled, getSql } from "@/lib/db";
 import { getClients } from "@/lib/clients";
+import { listNotionClients } from "@/lib/notion";
 import { deleteClient, importExampleClient, quickCreateClient, quickCreateFromNotion } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +25,7 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
       needsSetup = true;
     }
   }
+  const notionClients = await listNotionClients();
 
   return (
     <div>
@@ -52,11 +54,26 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
         <form action={quickCreateFromNotion} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Or import from Notion</label>
-            <input name="notionPageId" required placeholder="Clients Database row URL / ID" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+            {notionClients.length > 0 ? (
+              <select name="notionPageId" required className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
+                <option value="">Choose a client…</option>
+                {notionClients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            ) : (
+              <input name="notionPageId" required placeholder="Clients Database row URL / ID" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+            )}
           </div>
           <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Import →</button>
         </form>
       </div>
+
+      {notionClients.length === 0 && (
+        <p className="text-xs text-neutral-500 -mt-3 mb-6">
+          Tip: to get a client dropdown here, set <code>NOTION_TOKEN</code> in Vercel and share your <b>Clients Database</b> with the integration (Notion → ••• → Connections).
+        </p>
+      )}
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>
