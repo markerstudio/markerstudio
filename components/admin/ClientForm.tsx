@@ -129,7 +129,10 @@ export default function ClientForm({ client }: { client?: Client }) {
           <Text label="Start" value={data.plan.start} onChange={(start) => patch({ plan: { ...data.plan, start } })} placeholder="Feb 26" />
           <Text label="End" value={data.plan.end} onChange={(end) => patch({ plan: { ...data.plan, end } })} placeholder="May 26" />
         </div>
-        <div className="mb-4"><Text label="Notion link (optional)" value={data.plan.notionUrl ?? ""} onChange={(notionUrl) => patch({ plan: { ...data.plan, notionUrl } })} placeholder="https://notion.so/…" /></div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-4">
+          <Text label="Notion link (optional)" value={data.plan.notionUrl ?? ""} onChange={(notionUrl) => patch({ plan: { ...data.plan, notionUrl } })} placeholder="https://notion.so/…" />
+          <Text label="Money left / balance" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 3,600 ILS" />
+        </div>
         <Bi label="Plan note" value={data.plan.note} onChange={(note) => patch({ plan: { ...data.plan, note } })} area />
       </Group>
 

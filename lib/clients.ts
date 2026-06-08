@@ -28,6 +28,7 @@ export type ClientData = {
     end: string;
     notionUrl?: string;
     note?: LocalizedText;
+    balance?: string; // "money left" / outstanding balance
   };
   dashboard: {
     headline: LocalizedText;
@@ -91,7 +92,7 @@ export function blankClientData(): ClientData {
   return {
     hero: { en: "", ar: "" },
     accent: "",
-    plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" } },
+    plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" }, balance: "" },
     dashboard: { headline: { en: "", ar: "" }, diagnosis: { en: "", ar: "" }, cards: [], vitals: [] },
     social: { headline: { en: "", ar: "" }, posts: [] },
     analysis: {
