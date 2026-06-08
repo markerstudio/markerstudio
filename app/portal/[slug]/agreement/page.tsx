@@ -20,6 +20,8 @@ const T = {
     value: "Agreement value",
     pkg: "Package confirmation",
     payment: "Payment method",
+    pricingTitle: "Pricing",
+    totalLabel: "Total",
     acceptance: "Acceptance",
     acceptanceBody: "By signing below, both parties confirm that they understand and accept the scope, package value, phase-based payment terms, responsibilities, and conditions of this Agreement.",
     agreeLabel: "I have read and accept the terms and conditions of this Agreement.",
@@ -45,6 +47,8 @@ const T = {
     value: "قيمة الاتفاقية",
     pkg: "تأكيد الباقة",
     payment: "طريقة الدفع",
+    pricingTitle: "التسعير",
+    totalLabel: "الإجمالي",
     acceptance: "القبول",
     acceptanceBody: "بالتوقيع أدناه، يؤكّد الطرفان فهمهما وقبولهما للنطاق وقيمة الباقة وشروط الدفع على مراحل والمسؤوليات وشروط هذه الاتفاقية.",
     agreeLabel: "لقد قرأت وأوافق على شروط وأحكام هذه الاتفاقية.",
@@ -84,8 +88,12 @@ export default async function AgreementPage({
   const t = T[lang];
   const signed = client.data.agreement?.acceptedAt;
 
-  const packageName = [brief.plan, brief.marketingPlan].filter(Boolean).join(" + ");
-  const scope = [...(brief.planFeatures || []), ...(brief.marketingFeatures || [])];
+  const extraServices = [
+    ...(brief.services || []).filter((sv) => sv !== "Other"),
+    ...(brief.servicesOther ? [brief.servicesOther] : []),
+  ];
+  const packageName = [brief.plan, brief.marketingPlan, ...extraServices].filter(Boolean).join(" + ");
+  const scope = [...(brief.planFeatures || []), ...(brief.marketingFeatures || []), ...extraServices];
 
   const ag = buildAgreement({
     clientName: brief.brandName,
@@ -95,7 +103,17 @@ export default async function AgreementPage({
     scope,
     purpose: brief.brandDescription || "",
   });
-  if (client.data.agreement?.value) ag.summary.value = client.data.agreement.value;
+
+  const pricing = client.data.pricing;
+  const pricingTotal = (pricing?.items || []).reduce((sum, it) => {
+    const n = parseFloat((it.amount || "").replace(/[^0-9.]/g, ""));
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  if (pricing?.items?.length) {
+    ag.summary.value = pricing.note || (pricingTotal > 0 ? pricingTotal.toLocaleString("en-US") : ag.summary.value);
+  } else if (client.data.agreement?.value) {
+    ag.summary.value = client.data.agreement.value;
+  }
 
   const summaryRows = [
     { label: t.client, value: ag.summary.client },
@@ -144,6 +162,28 @@ export default async function AgreementPage({
                 </div>
               ))}
             </dl>
+
+            {/* Pricing breakdown */}
+            {pricing?.items?.length ? (
+              <div className="mt-6">
+                <h2 className="text-lg font-bold text-neutral-900">{t.pricingTitle}</h2>
+                <dl className="mt-3 overflow-hidden rounded-lg border border-neutral-200">
+                  {pricing.items.map((it, i) => (
+                    <div key={i} className={`flex items-center justify-between gap-4 px-4 py-2.5 text-sm ${i % 2 ? "bg-white" : "bg-neutral-50"}`}>
+                      <dt className="text-neutral-700">{it.label}</dt>
+                      <dd className="font-semibold text-neutral-900">{it.amount}</dd>
+                    </div>
+                  ))}
+                  {pricingTotal > 0 && (
+                    <div className="flex items-center justify-between gap-4 border-t border-neutral-200 px-4 py-2.5 text-sm">
+                      <dt className="font-bold text-neutral-900">{t.totalLabel}</dt>
+                      <dd className="font-bold text-neutral-900">{pricingTotal.toLocaleString("en-US")}</dd>
+                    </div>
+                  )}
+                </dl>
+                {pricing.note && <p className="mt-2 text-xs text-neutral-500">{pricing.note}</p>}
+              </div>
+            ) : null}
 
             {/* Sections */}
             <div className="mt-8 space-y-6">

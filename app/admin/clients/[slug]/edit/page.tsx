@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
+import PricingEditor from "@/components/admin/PricingEditor";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient, sendProposal, sendAgreement } from "../../../actions";
@@ -25,6 +26,7 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "proposal-unsent": { text: "Proposal hidden from the client.", ok: true },
   "agreement-sent": { text: "Agreement sent — the client can now review and e-sign it.", ok: true },
   "agreement-unsent": { text: "Agreement hidden from the client.", ok: true },
+  "pricing-saved": { text: "Pricing saved — it shows on the proposal and agreement.", ok: true },
   json: { text: "Portal content was not valid JSON — fix it and save again." },
   invalid: { text: "Enter a valid email and an 8+ character password." },
   exists: { text: "A user with that email already exists." },
@@ -48,6 +50,8 @@ function OnboardingBriefPanel({ brief }: { brief: OnboardingBrief }) {
   add("Branding features", brief.planFeatures);
   add("Marketing package", brief.marketingPlan);
   add("Marketing features", brief.marketingFeatures);
+  add("Services", brief.services);
+  add("Other service", brief.servicesOther);
   add("Contact", `${brief.firstName} ${brief.lastName}`.trim());
   add("Email", brief.email);
   add("Phone", brief.phone);
@@ -104,6 +108,16 @@ export default async function EditClientPage({
   const brief = client.data.onboarding;
   const pending = client.data.status === "pending";
   const others = brief ? (await getClients()).filter((c) => c.slug !== client.slug) : [];
+
+  // Seed the pricing editor from what the client selected (once saved, use that).
+  const seededPricing = client.data.pricing?.items?.length
+    ? client.data.pricing.items
+    : [
+        ...(brief?.plan ? [{ label: brief.plan, amount: "" }] : []),
+        ...(brief?.marketingPlan ? [{ label: brief.marketingPlan, amount: "" }] : []),
+        ...((brief?.services || []).map((sv) => ({ label: sv, amount: "" }))),
+        ...(brief?.servicesOther ? [{ label: brief.servicesOther, amount: "" }] : []),
+      ];
 
   let logins: ClientUser[] = [];
   let invites: InviteRow[] = [];
@@ -170,6 +184,9 @@ export default async function EditClientPage({
             Prepare each document, then send it. It only appears on the client&apos;s portal once you send it.
           </p>
 
+          {/* Pricing — itemised quote shown on both documents */}
+          <PricingEditor slug={client.slug} initial={seededPricing} note={client.data.pricing?.note || ""} />
+
           {/* Proposal */}
           <div className="border border-neutral-200 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between gap-3 mb-2">
@@ -219,12 +236,9 @@ export default async function EditClientPage({
               </div>
               <Link href={`/portal/${client.slug}/agreement`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">Preview ↗</Link>
             </div>
+            <p className="text-xs text-neutral-500 mb-3">Pricing above appears in the agreement summary &amp; payment breakdown.</p>
             <form action={sendAgreement} className="space-y-3">
               <input type="hidden" name="slug" value={client.slug} />
-              <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Agreed value (optional)</label>
-                <input name="value" defaultValue={client.data.agreement?.value || ""} placeholder="e.g. 7,500 ILS excl. VAT" className={inputCls} />
-              </div>
               <div className="flex gap-2">
                 <button name="send" value="1" className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">
                   {client.data.agreement?.published ? "Update / resend" : "Send to client"}

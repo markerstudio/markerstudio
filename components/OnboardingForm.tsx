@@ -22,11 +22,14 @@ const TXT = {
     title: "Let's build your brand",
     sub: "Fill this in and we'll set up your private portal — you'll be signed in the moment you finish.",
     servicesHeading: "Your service(s)",
-    servicesHint: "Choose branding, marketing, or both — include or skip each.",
+    servicesHint: "Pick a package, or choose individual services below — at least one.",
     branding: "Branding",
     marketing: "Marketing",
     include: "Include",
-    atLeastOne: "Please include at least one service to continue.",
+    orServices: "Or pick individual services",
+    orServicesHint: "Prefer specific deliverables instead of a package? Select what you need.",
+    otherPlaceholder: "Tell us what else you need…",
+    atLeastOne: "Please pick at least one package or service to continue.",
     recommended: "recommended",
     sec1: "Your information",
     sec2: "Brand details",
@@ -72,6 +75,9 @@ const TXT = {
     title: "لنبنِ علامتك",
     sub: "املأ النموذج وسنجهّز بوابتك الخاصة — ستُسجَّل دخولك فور الانتهاء.",
     servicesHeading: "خدماتك",
+    orServices: "أو اختر خدمات مفردة",
+    orServicesHint: "تفضّل خدمات محدّدة بدل باقة؟ اختر ما تحتاجه.",
+    otherPlaceholder: "أخبرنا بما تحتاجه أيضاً…",
     servicesHint: "اختر البراندنج أو التسويق أو كليهما — ضمّن أو تخطَّ كلاً منهما.",
     branding: "البراندنج",
     marketing: "التسويق",
@@ -121,6 +127,19 @@ const TXT = {
 } as const;
 
 const AGES = ["0–18", "19–30", "31–50", "50+"];
+
+// À-la-carte services — the canonical English label is submitted; the Arabic
+// label is display-only. "Other" reveals a free-text field.
+const SERVICES: { en: string; ar: string; icon: string }[] = [
+  { en: "Website", ar: "موقع إلكتروني", icon: "🌐" },
+  { en: "Menu design", ar: "تصميم منيو", icon: "🍽️" },
+  { en: "Catalog design", ar: "تصميم كتالوج", icon: "📖" },
+  { en: "App design", ar: "تصميم تطبيق", icon: "📱" },
+  { en: "Packaging design", ar: "تصميم تغليف", icon: "📦" },
+  { en: "Print & stationery", ar: "مطبوعات وقرطاسية", icon: "🖨️" },
+  { en: "Social media kit", ar: "حزمة سوشال ميديا", icon: "✦" },
+  { en: "Other", ar: "أخرى", icon: "➕" },
+];
 
 type Plan = { name: string; features: string[]; featured?: boolean };
 
@@ -240,8 +259,10 @@ export default function OnboardingForm({ branding, marketing }: { branding: numb
   const [marketingOn, setMarketingOn] = useState(mInit);
   const [bSel, setBSel] = useState(bInit ? branding : Math.min(1, Math.max(0, brandingPlans.length - 1)));
   const [mSel, setMSel] = useState(mInit ? marketing : Math.min(1, Math.max(0, marketingPlans.length - 1)));
+  const [svc, setSvc] = useState<string[]>([]);
+  const toggleSvc = (key: string) => setSvc((prev) => (prev.includes(key) ? prev.filter((x) => x !== key) : [...prev, key]));
 
-  const noService = !brandingOn && !marketingOn;
+  const noService = !brandingOn && !marketingOn && svc.length === 0;
   const [state, action] = useFormState(submitOnboarding, { ok: false } as OnboardingState);
 
   const bPlan = brandingPlans[bSel];
@@ -266,6 +287,9 @@ export default function OnboardingForm({ branding, marketing }: { branding: numb
           ))}
         </>
       )}
+      {svc.map((sname) => (
+        <input key={sname} type="hidden" name="services" value={sname} />
+      ))}
       {/* Honeypot */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] h-px w-px opacity-0" />
 
@@ -288,6 +312,35 @@ export default function OnboardingForm({ branding, marketing }: { branding: numb
           <ServiceBlock name={t.branding} includeLabel={t.include} recommended={t.recommended} on={brandingOn} setOn={setBrandingOn} plans={brandingPlans} sel={bSel} setSel={setBSel} group="__branding" />
           <ServiceBlock name={t.marketing} includeLabel={t.include} recommended={t.recommended} on={marketingOn} setOn={setMarketingOn} plans={marketingPlans} sel={mSel} setSel={setMSel} group="__marketing" />
         </div>
+
+        {/* À-la-carte services */}
+        <div className="mt-6">
+          <div className="mb-1 text-sm font-semibold text-neutral-900">{t.orServices}</div>
+          <p className="mb-3 text-sm text-neutral-500">{t.orServicesHint}</p>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+            {SERVICES.map((s) => {
+              const on = svc.includes(s.en);
+              return (
+                <button
+                  type="button"
+                  key={s.en}
+                  onClick={() => toggleSvc(s.en)}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-3 text-start text-sm transition ${
+                    on ? "border-orange bg-orange-50 text-neutral-900" : "border-neutral-300 text-neutral-700 hover:border-neutral-400"
+                  }`}
+                >
+                  <span className="text-lg leading-none">{s.icon}</span>
+                  <span className="flex-1">{lang === "ar" ? s.ar : s.en}</span>
+                  {on && <Check className="h-4 w-4 shrink-0 text-orange" />}
+                </button>
+              );
+            })}
+          </div>
+          {svc.includes("Other") && (
+            <input name="servicesOther" className={`${input} mt-3`} placeholder={t.otherPlaceholder} />
+          )}
+        </div>
+
         {noService && <p className="mt-3 text-sm font-medium text-red-600">{t.atLeastOne}</p>}
       </section>
 

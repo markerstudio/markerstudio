@@ -267,12 +267,38 @@ export async function sendAgreement(formData: FormData) {
   data.agreement = {
     ...data.agreement,
     published: send,
-    value,
+    value: value || data.agreement?.value, // preserve existing if not provided
     sentAt: send ? data.agreement?.sentAt || new Date().toISOString() : data.agreement?.sentAt,
   };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=${send ? "agreement-sent" : "agreement-unsent"}`);
+}
+
+// Save the itemised quote (one line per package / service). Shown on the
+// proposal & agreement once present.
+export async function savePricing(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  let parsed: unknown = [];
+  try {
+    parsed = JSON.parse(String(formData.get("items") || "[]"));
+  } catch {
+    parsed = [];
+  }
+  const items = (Array.isArray(parsed) ? parsed : [])
+    .map((i) => ({ label: String((i as { label?: unknown })?.label || "").trim(), amount: String((i as { amount?: unknown })?.amount || "").trim() }))
+    .filter((i) => i.label || i.amount);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = (rows[0].data || {}) as ClientData;
+  data.pricing = { items, note };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=pricing-saved`);
 }
 
 // --- Inquiries (contact-form submissions) ----------------------------------
