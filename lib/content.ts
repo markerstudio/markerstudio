@@ -102,8 +102,9 @@ export interface SiteContent {
     title: string[];
     sub: string;
     form: {
-      name: string; email: string; brand: string; service: string;
-      message: string; submit: string; serviceOptions: string[];
+      name: string; email: string; phone: string; brand: string; service: string;
+      message: string; submit: string; sending: string; success: string; error: string;
+      serviceOptions: string[];
     };
   };
   footer: {
@@ -354,9 +355,12 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       title: ["Tell us about", "your brand."],
       sub: "We respond to every brief within two working days. Bring numbers, screenshots, and your worst Instagram metric — we like a challenge.",
       form: {
-        name: "Your name", email: "Email", brand: "Brand or project", service: "Service",
+        name: "Your name", email: "Email", phone: "Phone", brand: "Brand or project", service: "Service",
         message: "What are you trying to mark?", submit: "Send brief",
-        serviceOptions: ["Brand identity", "Social & content", "Campaigns", "Not sure yet"],
+        sending: "Sending…",
+        success: "Thanks — we've got your brief and will reply within two working days.",
+        error: "Something went wrong. Please email create@marker.ps directly.",
+        serviceOptions: ["Branding", "Marketing", "Website", "Not sure yet"],
       },
     },
     footer: {
@@ -608,9 +612,12 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       title: ["حدّثنا عن", "علامتك."],
       sub: "نردّ على كل طلب خلال يومَي عمل. أحضر أرقامك، لقطاتك، وأسوأ مؤشر إنستغرام لديك — نحبّ التحدّي.",
       form: {
-        name: "اسمك", email: "البريد", brand: "العلامة أو المشروع", service: "الخدمة",
+        name: "اسمك", email: "البريد", phone: "الهاتف", brand: "العلامة أو المشروع", service: "الخدمة",
         message: "ما الذي تريد أن تعلّم عليه؟", submit: "أرسل الطلب",
-        serviceOptions: ["هوية", "محتوى", "حملات", "لست متأكداً"],
+        sending: "جارٍ الإرسال…",
+        success: "شكراً — وصلنا طلبك وسنردّ خلال يومَي عمل.",
+        error: "حدث خطأ ما. يرجى مراسلتنا مباشرة على create@marker.ps.",
+        serviceOptions: ["البراندنج", "التسويق", "موقع إلكتروني", "لست متأكداً"],
       },
     },
     footer: {

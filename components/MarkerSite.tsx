@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 import Pricing from "@/components/Pricing";
+import ContactForm from "@/components/ContactForm";
 import { useLang } from "@/lib/useLang";
 import { type Project } from "@/lib/projects";
 
@@ -434,7 +435,7 @@ function CtaBanner({ t }: { t: SiteContent }) {
   );
 }
 
-function ContactBlock({ t }: { t: SiteContent }) {
+function ContactBlock({ t, lang }: { t: SiteContent; lang: Lang }) {
   return (
     <section className="ms-section ms-section--dark" id="contact">
       <div className="ms-container">
@@ -453,39 +454,7 @@ function ContactBlock({ t }: { t: SiteContent }) {
               <div>📍 {t.footer.contact.addr}</div>
             </div>
           </div>
-          <form className="ms-contact__form" onSubmit={(e) => e.preventDefault()}>
-            <div className="ms-contact__field">
-              <label>{t.contact.form.name}</label>
-              <input type="text" placeholder="Elias Boulos" />
-            </div>
-            <div className="ms-contact__field">
-              <label>{t.contact.form.email}</label>
-              <input type="email" placeholder="you@brand.com" />
-            </div>
-            <div className="ms-contact__field">
-              <label>{t.contact.form.brand}</label>
-              <input type="text" placeholder="Aurora Goods" />
-            </div>
-            <div className="ms-contact__field">
-              <label>{t.contact.form.service}</label>
-              <select>
-                {t.contact.form.serviceOptions.map((s) => (
-                  <option key={s}>{s}</option>
-                ))}
-              </select>
-            </div>
-            <div className="ms-contact__field">
-              <label>{t.contact.form.message}</label>
-              <textarea placeholder="…" />
-            </div>
-            <button
-              type="submit"
-              className="ms-btn ms-btn-primary"
-              style={{ width: "100%", justifyContent: "center" }}
-            >
-              {t.contact.form.submit} <span>{t.cta.arrow}</span>
-            </button>
-          </form>
+          <ContactForm t={t} lang={lang} />
         </div>
       </div>
     </section>
@@ -548,7 +517,7 @@ export default function MarkerSite({ projects }: { projects: Project[] }) {
         <ProcessSteps t={t} />
         <FaqAccordion t={t} />
         <CtaBanner t={t} />
-        <ContactBlock t={t} />
+        <ContactBlock t={t} lang={lang} />
       </main>
       <SiteFooter t={t} />
     </div>

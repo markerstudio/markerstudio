@@ -197,6 +197,28 @@ export async function deleteProject(formData: FormData) {
   redirect("/admin");
 }
 
+// --- Inquiries (contact-form submissions) ----------------------------------
+
+export async function markInquiryRead(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  await getSql()`UPDATE inquiries SET read_at = now() WHERE id = ${id}`;
+  redirect("/admin/inquiries");
+}
+
+export async function markAllInquiriesRead() {
+  if (!(await getSession())) redirect("/login");
+  await getSql()`UPDATE inquiries SET read_at = now() WHERE read_at IS NULL`;
+  redirect("/admin/inquiries");
+}
+
+export async function deleteInquiry(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  await getSql()`DELETE FROM inquiries WHERE id = ${id}`;
+  redirect("/admin/inquiries?ok=removed");
+}
+
 // --- User management -------------------------------------------------------
 
 export async function createUser(formData: FormData) {
