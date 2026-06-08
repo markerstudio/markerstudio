@@ -337,6 +337,7 @@ export async function quickCreateFromNotion(formData: FormData) {
     note: { en: info.note || "", ar: "" },
     balance: info.balance || "",
   };
+  data.finance = { paid: info.paid || "", progress: info.progress || 0 };
   if (info.invoices.length) data.invoices = info.invoices;
 
   await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
@@ -421,6 +422,7 @@ export async function syncNotionClient(formData: FormData) {
     note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
     balance: info.balance || data.plan?.balance || "",
   };
+  data.finance = { paid: info.paid || data.finance?.paid || "", progress: info.progress || data.finance?.progress || 0 };
   if (info.invoices.length) data.invoices = info.invoices;
 
   const name = info.name || undefined;

@@ -13,7 +13,7 @@ const TABS = [
   { id: "plan", en: "Plan", ar: "الخطة" },
   { id: "social", en: "Social", ar: "السوشال" },
   { id: "analysis", en: "Analysis", ar: "التحليل" },
-  { id: "invoices", en: "Invoices", ar: "الفواتير" },
+  { id: "invoices", en: "Finance", ar: "المالية" },
   { id: "documents", en: "Documents", ar: "المستندات" },
 ] as const;
 
@@ -105,7 +105,7 @@ export default function PortalView({
                   <span className={`ms-portal-status ${d.plan.active ? "ms-portal-status--on" : "ms-portal-status--off"}`}>
                     {d.plan.active ? ui("Plan active", "الخطة نشطة") : ui("Plan paused", "الخطة متوقفة")}
                   </span>
-                  <span className="ms-portal-dates">{d.plan.start} → {d.plan.end}</span>
+                  <span className="ms-portal-dates">{d.plan.end ? `${d.plan.start} → ${d.plan.end}` : d.plan.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</span>
                 </div>
               )}
             </div>
@@ -195,15 +195,15 @@ export default function PortalView({
               <div className="ms-pcard pc-7">
                 <span className="ms-portal-mini">{ui("Cycle", "الدورة")}</span>
                 <div className="ms-portal-big" style={{ fontSize: 30, color: "var(--marker-ink)", marginTop: 6, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                  {f(d.plan?.start ?? "", (v) => up((c) => (c.plan.start = v)), false, "Start")} <span>→</span> {f(d.plan?.end ?? "", (v) => up((c) => (c.plan.end = v)), false, "End")}
+                  {edit ? (
+                    <>{f(d.plan?.start ?? "", (v) => up((c) => (c.plan.start = v)), false, "Start")} <span>→</span> {f(d.plan?.end ?? "", (v) => up((c) => (c.plan.end = v)), false, ui("End (blank = ongoing)", "النهاية"))}</>
+                  ) : d.plan?.end ? (
+                    `${d.plan.start} → ${d.plan.end}`
+                  ) : (
+                    `${d.plan?.start ? d.plan.start + " · " : ""}${ui("Ongoing", "مستمرّة")}`
+                  )}
                 </div>
                 <p className="ms-pmuted" style={{ marginTop: 12 }}>{f(tr(d.plan?.note), (v) => up((c) => (c.plan.note[lang] = v)), true, ui("Note…", "ملاحظة…"))}</p>
-                {(edit || d.plan?.balance) && (
-                  <div style={{ marginTop: 18, paddingTop: 16, borderTop: "1px solid var(--border)" }}>
-                    <span className="ms-portal-mini">{ui("Money left", "المبلغ المتبقّي")}</span>
-                    <div className="ms-portal-big" style={{ marginTop: 4 }}>{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
-                  </div>
-                )}
               </div>
               <div className="ms-pcard ms-pcard--dark pc-5">
                 <span className="ms-section__eyebrow">{ui("Plan document", "وثيقة الخطة")}</span>
@@ -305,15 +305,43 @@ export default function PortalView({
         </section>
       )}
 
-      {/* INVOICES */}
+      {/* FINANCE */}
       {tab === "invoices" && (
         <section className="ms-section">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
-                <span className="ms-section__eyebrow">{ui("Invoices", "الفواتير")}</span>
-                <h2 className="ms-section__title">{ui("Billing cycles.", "دورات الفوترة.")}</h2>
+                <span className="ms-section__eyebrow">{ui("Finance", "المالية")}</span>
+                <h2 className="ms-section__title">{ui("Payments & balance.", "المدفوعات والرصيد.")}</h2>
               </div>
+            </div>
+
+            <div className="ms-portal-grid">
+              <div className="ms-pcard pc-4">
+                <span className="ms-portal-mini">{ui("Money left", "المبلغ المتبقّي")}</span>
+                <div className="ms-portal-big" style={{ marginTop: 8 }}>{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
+              </div>
+              <div className="ms-pcard pc-4">
+                <span className="ms-portal-mini">{ui("Paid to date", "المدفوع حتى الآن")}</span>
+                <div className="ms-portal-big" style={{ marginTop: 8, color: "var(--marker-ink)" }}>{f(d.finance?.paid ?? "", (v) => up((c) => { if (!c.finance) c.finance = { paid: "", progress: 0 }; c.finance.paid = v; }), false, "—")}</div>
+              </div>
+              <div className="ms-pcard pc-4">
+                <span className="ms-portal-mini">{ui("Progress", "نسبة السداد")}</span>
+                {edit ? (
+                  <input type="range" min={0} max={100} value={d.finance?.progress ?? 0} className="w-full accent-orange" style={{ marginTop: 12 }} onChange={(e) => up((c) => { if (!c.finance) c.finance = { paid: "", progress: 0 }; c.finance.progress = Number(e.target.value); })} />
+                ) : (
+                  <>
+                    <div className="ms-portal-big" style={{ marginTop: 8 }}>{d.finance?.progress ?? 0}%</div>
+                    <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
+                      <div style={{ height: "100%", width: `${d.finance?.progress ?? 0}%`, background: "var(--marker-orange)", borderRadius: 999 }} />
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="ms-section__header" style={{ marginTop: 40 }}>
+              <div><span className="ms-section__eyebrow">{ui("Payment history", "سجلّ المدفوعات")}</span></div>
             </div>
             <div>
               {(d.invoices ?? []).map((inv, i) => (
@@ -337,7 +365,7 @@ export default function PortalView({
                   )}
                 </div>
               ))}
-              <div style={{ marginTop: 12 }}>{add(() => up((c) => c.invoices.push({ cycle: "", desc: "", amount: "", status: "due" })), ui("Add invoice", "فاتورة"))}</div>
+              <div style={{ marginTop: 12 }}>{add(() => up((c) => c.invoices.push({ cycle: "", desc: "", amount: "", status: "due" })), ui("Add payment", "دفعة"))}</div>
             </div>
           </div>
         </section>
