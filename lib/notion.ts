@@ -43,6 +43,26 @@ async function notionPost(path: string, body: any): Promise<any> {
 // formula and links back to the client via its "Clients Database" relation.
 const SOURCES_DB = process.env.NOTION_SOURCES_DB || "1822487b8e7e81a2a412d3b1d6cc8108";
 
+// The Clients Database — used to list clients for the import dropdown.
+const CLIENTS_DB = process.env.NOTION_CLIENTS_DB || "16c2487b8e7e806bbe28da2772e3bb43";
+
+// List clients from the Notion Clients Database (for the import dropdown).
+export async function listNotionClients(): Promise<{ id: string; name: string }[]> {
+  if (!process.env.NOTION_TOKEN) return [];
+  try {
+    const q = await notionPost(`/v1/databases/${CLIENTS_DB}/query`, { page_size: 100 });
+    return (q.results || [])
+      .map((pg: any) => {
+        const t = pg.properties?.["Name"]?.title || [];
+        return { id: pg.id as string, name: t.map((x: any) => x.plain_text).join("") };
+      })
+      .filter((c: { name: string }) => c.name)
+      .sort((a: { name: string }, b: { name: string }) => a.name.localeCompare(b.name));
+  } catch {
+    return [];
+  }
+}
+
 async function fetchMoneyLeft(clientPageId: string): Promise<string> {
   try {
     const q = await notionPost(`/v1/databases/${SOURCES_DB}/query`, {
