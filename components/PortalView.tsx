@@ -132,10 +132,10 @@ export default function PortalView({
                   <span>{d.plan?.end ? `${d.plan?.start} → ${d.plan?.end}` : d.plan?.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</span>
                 </div>
                 {(edit || d.plan?.balance) && (
-                  <div className="ms-ed-fig"><b>{d.plan?.balance || "—"}</b><span>{ui("Left this month", "المتبقّي")}</span></div>
+                  <div className="ms-ed-fig"><b>{d.plan?.balance || "—"}</b><span>{ui("Money left", "المبلغ المتبقّي")}</span></div>
                 )}
                 {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
-                  <div className="ms-ed-fig"><b>{d.finance?.progress ?? 0}%</b><span>{ui("This month covered", "تغطية الشهر")}</span></div>
+                  <div className="ms-ed-fig"><b>{d.finance?.progress ?? 0}%</b><span>{ui("Paid", "نسبة السداد")}</span></div>
                 )}
                 {topMetric && (
                   <div className="ms-ed-fig"><b>{topMetric.after}</b><span>{topMetric.label}</span></div>
@@ -347,13 +347,13 @@ export default function PortalView({
               )}
               {(edit || d.plan?.balance) && (
                 <div className="ms-pcard pc-4">
-                  <span className="ms-portal-mini">{ui("Left this month", "المتبقّي لهذا الشهر")}</span>
+                  <span className="ms-portal-mini">{ui("Money left", "المبلغ المتبقّي")}</span>
                   <div className="ms-portal-big" style={{ marginTop: 8 }}>{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
                 </div>
               )}
               {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
                 <div className="ms-pcard pc-4">
-                  <span className="ms-portal-mini">{ui("This month covered", "نسبة تغطية الشهر")}</span>
+                  <span className="ms-portal-mini">{ui("Paid", "نسبة السداد")}</span>
                   {edit ? (
                     <input type="range" min={0} max={100} value={d.finance?.progress ?? 0} className="w-full accent-orange" style={{ marginTop: 12 }} onChange={(e) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.progress = Number(e.target.value); })} />
                   ) : (

@@ -61,14 +61,9 @@ function incomeRowToInvoice(ip: any): (Invoice & { _d: string; branding: boolean
   const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
   const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
 
-  // A payment is "branding" if its name, or any select/status/multi-select value, mentions branding.
-  const branding = /brand/i.test(nm) || Object.values<any>(ip).some((pr) => {
-    const v = pr?.type === "select" ? pr.select?.name
-      : pr?.type === "status" ? pr.status?.name
-      : pr?.type === "multi_select" ? (pr.multi_select || []).map((x: any) => x.name).join(" ")
-      : "";
-    return /brand/i.test(v || "");
-  });
+  // A payment counts toward branding when its NAME mentions branding
+  // (e.g. "Branding", "Branding deposit"). Income rows have no category field.
+  const branding = /brand/i.test(nm);
 
   return {
     cycle: nm || payDate || dueDate || "Payment",
@@ -108,15 +103,15 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
     const props = q.results?.[0]?.properties;
     if (!props) return out;
 
-    // Branding (fixed) fee — a number/formula property whose name mentions "branding".
+    // Branding (fixed) fee — the "Branding Cost" number (any number/formula
+    // property whose name mentions "branding").
     for (const [name, prop] of Object.entries<any>(props)) {
       if (!/brand/i.test(name)) continue;
       const n = prop?.type === "formula" ? prop.formula?.number : prop?.number;
       if (typeof n === "number" && n > 0) { out.brandingFee = `${n.toLocaleString()} ILS`; break; }
     }
 
-    // Money Left = how much of the current period is still owed (can exceed one
-    // month when payments are overdue).
+    // Money Left = total still owed (combined: branding + monthly + extras − paid).
     const ml = props["Money Left"];
     const mlNum = ml?.type === "formula" ? ml.formula?.number : ml?.number;
     if (mlNum != null) out.balance = `${mlNum.toLocaleString()} ILS`;
@@ -126,13 +121,15 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
     const fee = props["Monthly Income"]?.number;
     if (fee != null) out.monthlyFee = `${fee.toLocaleString()} ILS`;
 
-    // Coverage of the current month: (fee - left) / fee. Overdue (left ≥ fee) → 0%.
-    if (typeof fee === "number" && fee > 0 && typeof mlNum === "number") {
-      out.progress = Math.max(0, Math.min(100, Math.round(((fee - mlNum) / fee) * 100)));
-    } else {
-      const pp = props["Paid Percentage"]?.formula?.number ?? props["Progress"]?.formula?.number;
-      if (typeof pp === "number") out.progress = Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp)));
-    }
+    // Coverage: use the source's own combined Progress / Paid Percentage formula
+    // (Money Left is combined, so we must NOT recompute it from the monthly fee).
+    const pf = props["Progress"]?.formula ?? props["Paid Percentage"]?.formula;
+    const pp = typeof pf?.number === "number"
+      ? pf.number
+      : typeof pf?.string === "string"
+        ? parseFloat(pf.string.replace(/[^0-9.]/g, ""))
+        : NaN;
+    if (!Number.isNaN(pp)) out.progress = Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp)));
   } catch {
     /* ignore — no source linked, or query failed */
   }
