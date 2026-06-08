@@ -296,7 +296,7 @@ export async function quickCreateClient(formData: FormData) {
     slug = `${base}-${n++}`;
   }
   await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(blankClientData())}::jsonb)`;
-  redirect(`/portal/${slug}?edit=1`);
+  redirect(`/admin/clients/${slug}/edit`);
 }
 
 // Create a new client directly from a Notion Clients Database page.
@@ -337,11 +337,11 @@ export async function quickCreateFromNotion(formData: FormData) {
     note: { en: info.note || "", ar: "" },
     balance: info.balance || "",
   };
-  data.finance = { paid: info.paid || "", progress: info.progress || 0 };
+  data.finance = { monthlyFee: info.monthlyFee || "", progress: info.progress || 0 };
   if (info.invoices.length) data.invoices = info.invoices;
 
   await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
-  redirect(`/portal/${slug}?edit=1`);
+  redirect(`/admin/clients/${slug}/edit?ok=imported`);
 }
 
 // Save portal content from in-place editing (called programmatically, not a form).
@@ -422,7 +422,7 @@ export async function syncNotionClient(formData: FormData) {
     note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
     balance: info.balance || data.plan?.balance || "",
   };
-  data.finance = { paid: info.paid || data.finance?.paid || "", progress: info.progress || data.finance?.progress || 0 };
+  data.finance = { monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "", progress: info.progress || data.finance?.progress || 0 };
   if (info.invoices.length) data.invoices = info.invoices;
 
   const name = info.name || undefined;

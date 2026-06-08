@@ -13,7 +13,7 @@ const inputCls =
 
 const MSG: Record<string, { text: string; ok?: boolean }> = {
   saved: { text: "Client saved.", ok: true },
-  imported: { text: "Example imported.", ok: true },
+  imported: { text: "Imported from Notion ✓ — review and Save changes.", ok: true },
   login: { text: "Client login created.", ok: true },
   removed: { text: "Login removed.", ok: true },
   invite: { text: "Invite link created — copy it below and send it to your client.", ok: true },

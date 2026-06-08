@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { isDbEnabled, getSql } from "@/lib/db";
+import { isDbEnabled } from "@/lib/db";
 import { getClients } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
 import { deleteClient, quickCreateClient, quickCreateFromNotion } from "../actions";
@@ -15,16 +15,7 @@ const ERR: Record<string, string> = {
 
 export default async function ClientsHome({ searchParams }: { searchParams: { error?: string } }) {
   const dbOff = !isDbEnabled();
-  let needsSetup = false;
-  let clients: Awaited<ReturnType<typeof getClients>> = [];
-  if (!dbOff) {
-    try {
-      await getSql()`SELECT 1 FROM users LIMIT 1`;
-      clients = await getClients();
-    } catch {
-      needsSetup = true;
-    }
-  }
+  const clients = dbOff ? [] : await getClients();
   const notionClients = await listNotionClients();
 
   return (
@@ -71,11 +62,6 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>
       )}
-      {needsSetup && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
-          Database not initialised yet. <Link href="/admin/setup" className="font-semibold underline">Run setup →</Link>
-        </p>
-      )}
 
       <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100">
         {clients.map((c) => (
@@ -96,7 +82,7 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
             </form>
           </div>
         ))}
-        {!dbOff && !needsSetup && clients.length === 0 && (
+        {!dbOff && clients.length === 0 && (
           <div className="px-4 py-10 text-center text-sm text-neutral-500">
             No clients yet — create one, or click <b>Import example</b> to load the Dr. Jack demo.
           </div>
