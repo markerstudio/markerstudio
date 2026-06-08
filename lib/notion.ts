@@ -47,6 +47,40 @@ const SOURCES_DB = process.env.NOTION_SOURCES_DB || "1822487b8e7e81a2a412d3b1d6c
 // The Clients Database — used to list clients for the import dropdown.
 const CLIENTS_DB = process.env.NOTION_CLIENTS_DB || "16c2487b8e7e806bbe28da2772e3bb43";
 
+// The Income database — payments. Clients link to it via its "Clients Database"
+// relation, which is the reliable way to read a client's payments (the reverse
+// "Payments" relation on the client page is often a separate, empty one-way link).
+const INCOME_DB = process.env.NOTION_INCOME_DB || "1822487b8e7e81d4821bede793d640d5";
+
+// Map one Income row's properties to an invoice + whether it's a "branding" payment.
+function incomeRowToInvoice(ip: any): (Invoice & { _d: string; branding: boolean; ilsPaid: number }) {
+  const ils = ip["ILS"]?.number;
+  const usd = ip["USD"]?.number;
+  const amount = ils != null ? `${ils.toLocaleString()} ILS` : usd != null ? `$${usd.toLocaleString()}` : "";
+  const payDate = ip["Pay Date"]?.date?.start ? String(ip["Pay Date"].date.start).slice(0, 10) : "";
+  const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
+  const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
+
+  // A payment is "branding" if its name, or any select/status/multi-select value, mentions branding.
+  const branding = /brand/i.test(nm) || Object.values<any>(ip).some((pr) => {
+    const v = pr?.type === "select" ? pr.select?.name
+      : pr?.type === "status" ? pr.status?.name
+      : pr?.type === "multi_select" ? (pr.multi_select || []).map((x: any) => x.name).join(" ")
+      : "";
+    return /brand/i.test(v || "");
+  });
+
+  return {
+    cycle: nm || payDate || dueDate || "Payment",
+    desc: payDate ? `Paid ${payDate}` : dueDate ? `Due ${dueDate}` : "",
+    amount,
+    status: payDate ? "paid" : "due",
+    _d: payDate || dueDate || "",
+    branding,
+    ilsPaid: branding && payDate && typeof ils === "number" ? ils : 0,
+  };
+}
+
 // List clients from the Notion Clients Database (for the import dropdown).
 export async function listNotionClients(): Promise<{ id: string; name: string }[]> {
   if (!process.env.NOTION_TOKEN) return [];
@@ -128,45 +162,39 @@ export async function fetchNotionClient(pageId: string): Promise<{
   // Money Left + Monthly fee + coverage from the linked Source row (Budget Tracker).
   const fin = await fetchSourceFinance(pageId);
 
-  // Payment history from the linked Income rows.
-  const rel = (p["Payments"]?.relation || []) as { id: string }[];
-  const rows: (Invoice & { _d: string })[] = [];
+  // Payment history. Primary path: query the Income DB for rows whose "Clients
+  // Database" relation points back to this client (reliable, one request).
+  // Fallback: the client page's own "Payments" relation (one GET per row).
+  const rows: ReturnType<typeof incomeRowToInvoice>[] = [];
   let brandingPaid = 0; // sum of paid payments marked "branding"
-  for (const r of rel.slice(0, 80)) {
-    try {
-      const inc = await notionGet(`/v1/pages/${r.id}`);
-      const ip = inc.properties || {};
-      const ils = ip["ILS"]?.number;
-      const usd = ip["USD"]?.number;
-      const amount = ils != null ? `${ils.toLocaleString()} ILS` : usd != null ? `$${usd.toLocaleString()}` : "";
-      const payDate = ip["Pay Date"]?.date?.start ? String(ip["Pay Date"].date.start).slice(0, 10) : "";
-      const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
-      const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
-
-      // A payment is "branding" if its name, or any select/status/multi-select
-      // property value, mentions branding.
-      const isBranding = /brand/i.test(nm) || Object.values<any>(ip).some((pr) => {
-        const v = pr?.type === "select" ? pr.select?.name
-          : pr?.type === "status" ? pr.status?.name
-          : pr?.type === "multi_select" ? (pr.multi_select || []).map((x: any) => x.name).join(" ")
-          : "";
-        return /brand/i.test(v || "");
-      });
-      if (isBranding && payDate && typeof ils === "number") brandingPaid += ils;
-
-      rows.push({
-        cycle: nm || payDate || dueDate || "Payment",
-        desc: payDate ? `Paid ${payDate}` : dueDate ? `Due ${dueDate}` : "",
-        amount,
-        status: payDate ? "paid" : "due",
-        _d: payDate || dueDate || "",
-      });
-    } catch {
-      /* skip a payment that can't be read */
+  try {
+    const q = await notionPost(`/v1/databases/${INCOME_DB}/query`, {
+      filter: { property: "Clients Database", relation: { contains: pageId } },
+      page_size: 100,
+    });
+    for (const r of q.results || []) {
+      const row = incomeRowToInvoice(r.properties || {});
+      brandingPaid += row.ilsPaid;
+      rows.push(row);
+    }
+  } catch {
+    /* Income query failed — fall back to the relation below */
+  }
+  if (rows.length === 0) {
+    const rel = (p["Payments"]?.relation || []) as { id: string }[];
+    for (const r of rel.slice(0, 80)) {
+      try {
+        const inc = await notionGet(`/v1/pages/${r.id}`);
+        const row = incomeRowToInvoice(inc.properties || {});
+        brandingPaid += row.ilsPaid;
+        rows.push(row);
+      } catch {
+        /* skip a payment that can't be read */
+      }
     }
   }
   rows.sort((a, b) => (a._d < b._d ? 1 : a._d > b._d ? -1 : 0)); // newest first
-  const invoices: Invoice[] = rows.map(({ _d, ...inv }) => inv);
+  const invoices: Invoice[] = rows.map(({ _d, branding, ilsPaid, ...inv }) => inv);
 
   // Branding coverage: branding payments against the fixed branding fee.
   const bFee = parseFloat((fin.brandingFee || "").replace(/[^0-9.]/g, "")) || 0;
