@@ -13,8 +13,8 @@ export default function ProjectView({ project, next }: { project: Project; next:
   const backArrow = t.cta.arrow === "←" ? "→" : "←";
 
   const labels = {
-    en: { back: "All work", overview: "The story", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project", impact: "The impact" },
-    ar: { back: "كل الأعمال", overview: "القصّة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي", impact: "الأثر" },
+    en: { back: "All work", overview: "The story", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project", impact: "The impact", wild: "In the wild", wildSub: "The identity, applied." },
+    ar: { back: "كل الأعمال", overview: "القصّة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي", impact: "الأثر", wild: "على أرض الواقع", wildSub: "الهوية، مُطبَّقة." },
   }[lang];
 
   const chapters = [
@@ -98,6 +98,49 @@ export default function ProjectView({ project, next }: { project: Project; next:
                   </div>
                 </article>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ===== MOCKUPS — the brand applied, in device frames ===== */}
+        <section className="ms-section ms-section--cream ms-pj-show">
+          <div className="ms-container">
+            <span className="ms-section__eyebrow">{labels.wild}</span>
+            <h2 className="ms-section__title">{labels.wildSub}</h2>
+
+            <div className="ms-pj-show__grid">
+              {/* Browser / website mock */}
+              <div className="ms-mock ms-mock--browser">
+                <div className="ms-mock__bar">
+                  <span className="ms-mock__dot" /><span className="ms-mock__dot" /><span className="ms-mock__dot" />
+                  <span className="ms-mock__url">{project.slug}.com</span>
+                </div>
+                <div className="ms-mock__screen" style={{ background: project.color }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={project.logo} alt="" aria-hidden />
+                  <span className="ms-mock__cap">{project.tag[lang]}</span>
+                </div>
+              </div>
+
+              {/* Phone / social mock */}
+              <div className="ms-mock ms-mock--phone">
+                <div className="ms-mock__notch" />
+                <div className="ms-mock__screen" style={{ background: project.color }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={project.logo} alt="" aria-hidden />
+                  <span className="ms-mock__handle">@{project.slug.replace(/-/g, "")}</span>
+                </div>
+              </div>
+
+              {/* Business card mock */}
+              <div className="ms-mock ms-mock--card" style={{ background: project.color }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className="ms-mock__cardlogo" src={project.logo} alt="" aria-hidden />
+                <div className="ms-mock__cardfoot">
+                  <span>{project.name[lang]}</span>
+                  <span>{project.year}</span>
+                </div>
+              </div>
             </div>
           </div>
         </section>
