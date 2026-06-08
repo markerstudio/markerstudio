@@ -198,7 +198,7 @@ export const getLiveNotionClient = unstable_cache(
     }
   },
   ["notion-live-client"],
-  { revalidate: 300 },
+  { revalidate: 300, tags: ["notion-live"] },
 );
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
