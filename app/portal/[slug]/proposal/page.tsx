@@ -3,6 +3,8 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { acceptProposal } from "@/app/onboarding-actions";
+import PortalTabs from "@/components/PortalTabs";
+import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Your proposal · Marker Studio", robots: { index: false, follow: false } };
@@ -23,6 +25,8 @@ const T = {
     ],
     investment: "Investment",
     investmentNote: "A tailored quote based on this scope — we'll confirm the exact figure with you before any work begins.",
+    servicesLabel: "Services",
+    totalLabel: "Total",
     recap: "What we captured",
     fields: { description: "Brand", products: "Products", goals: "Goals", audience: "Audience", presence: "Online presence", tagline: "Tagline" },
     acceptCta: "Accept proposal",
@@ -47,6 +51,8 @@ const T = {
     ],
     investment: "الاستثمار",
     investmentNote: "عرض سعر مفصّل حسب هذا النطاق — سنؤكّد الرقم النهائي معك قبل بدء أي عمل.",
+    servicesLabel: "الخدمات",
+    totalLabel: "الإجمالي",
     recap: "ما سجّلناه",
     fields: { description: "العلامة", products: "المنتجات", goals: "الأهداف", audience: "الجمهور", presence: "الوجود الرقمي", tagline: "الشعار" },
     acceptCta: "اقبل العرض",
@@ -73,11 +79,23 @@ export default async function ProposalPage({ params }: { params: { slug: string 
 
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
+  const isAdmin = s.role === "admin";
   const acceptedAt = client.data.proposal?.acceptedAt;
   const agreementSent = !!client.data.agreement?.published;
+  const showProposalTab = isAdmin || !!client.data.proposal?.published;
+  const showAgreementTab = isAdmin || !!client.data.agreement?.published;
   const services: { name: string; features: string[] }[] = [];
   if (brief.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
   if (brief.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
+  const extraServices = [
+    ...(brief.services || []).filter((sv) => sv !== "Other"),
+    ...(brief.servicesOther ? [brief.servicesOther] : []),
+  ];
+  const pricing = client.data.pricing;
+  const pricingTotal = (pricing?.items || []).reduce((sum, it) => {
+    const n = parseFloat((it.amount || "").replace(/[^0-9.]/g, ""));
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
 
   const recap: { label: string; value: string }[] = [];
   const push = (label: string, v?: string | string[]) => {
@@ -93,11 +111,15 @@ export default async function ProposalPage({ params }: { params: { slug: string 
   return (
     <main dir={lang === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#F5F2EC] px-4 py-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center">
+        <div className="print:hidden mb-6 flex items-center justify-between gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
+          <PrintButton label={lang === "ar" ? "تحميل PDF" : "Download PDF"} />
         </div>
 
+        <PortalTabs slug={client.slug} current="proposal" showProposal={showProposalTab} showAgreement={showAgreementTab} lang={lang} />
+      </div>
+      <div className="mx-auto max-w-3xl">
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 bg-gradient-to-b from-orange-50 to-white px-6 py-8 sm:px-9">
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-orange">{t.eyebrow}</span>
@@ -141,6 +163,21 @@ export default async function ProposalPage({ params }: { params: { slug: string 
               </div>
             ))}
 
+            {/* À-la-carte services */}
+            {extraServices.length > 0 && (
+              <div className="mt-4 rounded-xl border border-neutral-200 p-5">
+                <div className="text-xs font-semibold uppercase tracking-wider text-orange">{t.servicesLabel}</div>
+                <ul className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {extraServices.map((sv) => (
+                    <li key={sv} className="flex items-start gap-2 text-sm text-neutral-700">
+                      <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-orange" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6 9 17l-5-5" /></svg>
+                      <span>{sv}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Scope */}
             <div className="mt-8">
               <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500">{t.scope}</h2>
@@ -158,7 +195,27 @@ export default async function ProposalPage({ params }: { params: { slug: string 
             {/* Investment */}
             <div className="mt-8 rounded-lg border border-neutral-200 bg-neutral-50 p-5">
               <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{t.investment}</div>
-              <p className="mt-1 text-sm text-neutral-700">{t.investmentNote}</p>
+              {pricing?.items?.length ? (
+                <>
+                  <dl className="mt-3 divide-y divide-neutral-200">
+                    {pricing.items.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between gap-4 py-2 text-sm">
+                        <dt className="text-neutral-700">{it.label}</dt>
+                        <dd className="font-semibold text-neutral-900">{it.amount}</dd>
+                      </div>
+                    ))}
+                    {pricingTotal > 0 && (
+                      <div className="flex items-center justify-between gap-4 pt-2 text-sm">
+                        <dt className="font-semibold text-neutral-900">{t.totalLabel}</dt>
+                        <dd className="font-bold text-neutral-900">{pricingTotal.toLocaleString("en-US")}</dd>
+                      </div>
+                    )}
+                  </dl>
+                  {pricing.note && <p className="mt-3 text-xs text-neutral-500">{pricing.note}</p>}
+                </>
+              ) : (
+                <p className="mt-1 text-sm text-neutral-700">{t.investmentNote}</p>
+              )}
             </div>
 
             {/* Recap */}

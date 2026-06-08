@@ -25,6 +25,8 @@ export type OnboardingBrief = {
   planFeatures?: string[]; // features of the branding package
   marketingPlan?: string; // marketing package picked (e.g. "Intensive"), if any
   marketingFeatures?: string[]; // features of the marketing package
+  services?: string[]; // à-la-carte services picked instead of / alongside a package
+  servicesOther?: string; // free-text "other" service request
   firstName: string;
   lastName: string;
   email: string;
@@ -89,6 +91,8 @@ export type ClientData = {
   // client once `published` is set (sent). They are not auto-generated to the client.
   proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string };
   agreement?: { published?: boolean; sentAt?: string; acceptedAt?: string; signedName?: string; value?: string };
+  // Itemised quote — one line per package / service, shown on the proposal & agreement.
+  pricing?: { items: { label: string; amount: string }[]; note?: string };
   notionDbId?: string;
   notionPageId?: string;
 };

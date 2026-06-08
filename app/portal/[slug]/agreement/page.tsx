@@ -4,6 +4,8 @@ import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { buildAgreement } from "@/lib/agreement";
 import AgreementSign from "@/components/AgreementSign";
+import PortalTabs from "@/components/PortalTabs";
+import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Service Agreement · Marker Studio", robots: { index: false, follow: false } };
@@ -20,6 +22,8 @@ const T = {
     value: "Agreement value",
     pkg: "Package confirmation",
     payment: "Payment method",
+    pricingTitle: "Pricing",
+    totalLabel: "Total",
     acceptance: "Acceptance",
     acceptanceBody: "By signing below, both parties confirm that they understand and accept the scope, package value, phase-based payment terms, responsibilities, and conditions of this Agreement.",
     agreeLabel: "I have read and accept the terms and conditions of this Agreement.",
@@ -45,6 +49,8 @@ const T = {
     value: "قيمة الاتفاقية",
     pkg: "تأكيد الباقة",
     payment: "طريقة الدفع",
+    pricingTitle: "التسعير",
+    totalLabel: "الإجمالي",
     acceptance: "القبول",
     acceptanceBody: "بالتوقيع أدناه، يؤكّد الطرفان فهمهما وقبولهما للنطاق وقيمة الباقة وشروط الدفع على مراحل والمسؤوليات وشروط هذه الاتفاقية.",
     agreeLabel: "لقد قرأت وأوافق على شروط وأحكام هذه الاتفاقية.",
@@ -83,9 +89,16 @@ export default async function AgreementPage({
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
   const signed = client.data.agreement?.acceptedAt;
+  const isAdmin = s.role === "admin";
+  const showProposalTab = isAdmin || !!client.data.proposal?.published;
+  const showAgreementTab = isAdmin || !!client.data.agreement?.published;
 
-  const packageName = [brief.plan, brief.marketingPlan].filter(Boolean).join(" + ");
-  const scope = [...(brief.planFeatures || []), ...(brief.marketingFeatures || [])];
+  const extraServices = [
+    ...(brief.services || []).filter((sv) => sv !== "Other"),
+    ...(brief.servicesOther ? [brief.servicesOther] : []),
+  ];
+  const packageName = [brief.plan, brief.marketingPlan, ...extraServices].filter(Boolean).join(" + ");
+  const scope = [...(brief.planFeatures || []), ...(brief.marketingFeatures || []), ...extraServices];
 
   const ag = buildAgreement({
     clientName: brief.brandName,
@@ -95,7 +108,17 @@ export default async function AgreementPage({
     scope,
     purpose: brief.brandDescription || "",
   });
-  if (client.data.agreement?.value) ag.summary.value = client.data.agreement.value;
+
+  const pricing = client.data.pricing;
+  const pricingTotal = (pricing?.items || []).reduce((sum, it) => {
+    const n = parseFloat((it.amount || "").replace(/[^0-9.]/g, ""));
+    return sum + (Number.isFinite(n) ? n : 0);
+  }, 0);
+  if (pricing?.items?.length) {
+    ag.summary.value = pricing.note || (pricingTotal > 0 ? pricingTotal.toLocaleString("en-US") : ag.summary.value);
+  } else if (client.data.agreement?.value) {
+    ag.summary.value = client.data.agreement.value;
+  }
 
   const summaryRows = [
     { label: t.client, value: ag.summary.client },
@@ -109,11 +132,15 @@ export default async function AgreementPage({
   return (
     <main dir={lang === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#F5F2EC] px-4 py-8">
       <div className="mx-auto max-w-3xl">
-        <div className="mb-6 flex items-center">
+        <div className="print:hidden mb-6 flex items-center justify-between gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
+          <PrintButton label={lang === "ar" ? "تحميل PDF" : "Download PDF"} />
         </div>
 
+        <PortalTabs slug={client.slug} current="agreement" showProposal={showProposalTab} showAgreement={showAgreementTab} lang={lang} />
+      </div>
+      <div className="mx-auto max-w-3xl">
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="bg-orange px-6 py-8 text-white sm:px-9">
             <span className="text-xs font-semibold uppercase tracking-[0.18em] text-white/80">{t.eyebrow}</span>
@@ -144,6 +171,28 @@ export default async function AgreementPage({
                 </div>
               ))}
             </dl>
+
+            {/* Pricing breakdown */}
+            {pricing?.items?.length ? (
+              <div className="mt-6">
+                <h2 className="text-lg font-bold text-neutral-900">{t.pricingTitle}</h2>
+                <dl className="mt-3 overflow-hidden rounded-lg border border-neutral-200">
+                  {pricing.items.map((it, i) => (
+                    <div key={i} className={`flex items-center justify-between gap-4 px-4 py-2.5 text-sm ${i % 2 ? "bg-white" : "bg-neutral-50"}`}>
+                      <dt className="text-neutral-700">{it.label}</dt>
+                      <dd className="font-semibold text-neutral-900">{it.amount}</dd>
+                    </div>
+                  ))}
+                  {pricingTotal > 0 && (
+                    <div className="flex items-center justify-between gap-4 border-t border-neutral-200 px-4 py-2.5 text-sm">
+                      <dt className="font-bold text-neutral-900">{t.totalLabel}</dt>
+                      <dd className="font-bold text-neutral-900">{pricingTotal.toLocaleString("en-US")}</dd>
+                    </div>
+                  )}
+                </dl>
+                {pricing.note && <p className="mt-2 text-xs text-neutral-500">{pricing.note}</p>}
+              </div>
+            ) : null}
 
             {/* Sections */}
             <div className="mt-8 space-y-6">

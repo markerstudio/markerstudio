@@ -34,12 +34,14 @@ export async function submitOnboarding(_prev: OnboardingState, fd: FormData): Pr
   const brandingFeatures = all("brandingFeatures");
   const marketingPlan = g("marketingPlan");
   const marketingFeatures = all("marketingFeatures");
+  const services = all("services");
+  const servicesOther = g("servicesOther");
 
   if (!firstName || !lastName || !/.+@.+\..+/.test(email) || !phone || !brandName) {
     return { ok: false, error: t("Please fill in your name, email, phone, and brand name.", "يرجى تعبئة الاسم والبريد والهاتف واسم العلامة.") };
   }
-  if (!brandingPlan && !marketingPlan) {
-    return { ok: false, error: t("Please include at least one service (branding or marketing).", "يرجى تضمين خدمة واحدة على الأقل (براندنج أو تسويق).") };
+  if (!brandingPlan && !marketingPlan && services.length === 0) {
+    return { ok: false, error: t("Please pick at least one package or service.", "يرجى اختيار باقة أو خدمة واحدة على الأقل.") };
   }
   if (password.length < 8) {
     return { ok: false, error: t("Choose a password of at least 8 characters.", "اختر كلمة مرور من ٨ أحرف على الأقل.") };
@@ -76,6 +78,8 @@ export async function submitOnboarding(_prev: OnboardingState, fd: FormData): Pr
     planFeatures: brandingFeatures,
     marketingPlan,
     marketingFeatures,
+    services,
+    servicesOther,
     firstName, lastName, email, phone, location,
     brandName,
     brandDescription: g("brandDescription"),
@@ -105,7 +109,7 @@ export async function submitOnboarding(_prev: OnboardingState, fd: FormData): Pr
   if (brief.brandDescription) {
     data.hero = ar ? { en: "", ar: brief.brandDescription } : { en: brief.brandDescription, ar: "" };
   }
-  const planName = [brandingPlan, marketingPlan].filter(Boolean).join(" + ");
+  const planName = [brandingPlan, marketingPlan, ...services].filter(Boolean).join(" + ");
   if (planName) data.plan.name = planName;
 
   // Unique slug from the brand name.
