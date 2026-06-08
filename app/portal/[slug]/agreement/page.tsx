@@ -84,12 +84,15 @@ export default async function AgreementPage({
   const t = T[lang];
   const signed = client.data.agreement?.acceptedAt;
 
+  const packageName = [brief.plan, brief.marketingPlan].filter(Boolean).join(" + ");
+  const scope = [...(brief.planFeatures || []), ...(brief.marketingFeatures || [])];
+
   const ag = buildAgreement({
     clientName: brief.brandName,
     representative: `${brief.firstName} ${brief.lastName}`.trim(),
     phone: brief.phone,
-    packageName: brief.plan || "",
-    scope: brief.planFeatures || [],
+    packageName,
+    scope,
     purpose: brief.brandDescription || "",
   });
 

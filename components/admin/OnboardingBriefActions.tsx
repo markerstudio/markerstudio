@@ -12,8 +12,10 @@ function toMarkdown(b: OnboardingBrief): string {
   };
   return (
     `# Onboarding brief — ${b.brandName || "Brand"}\n\n` +
-    line("Package", b.plan) +
-    line("Selected features", b.planFeatures) +
+    line("Branding package", b.plan) +
+    line("Branding features", b.planFeatures) +
+    line("Marketing package", b.marketingPlan) +
+    line("Marketing features", b.marketingFeatures) +
     line("Contact", `${b.firstName} ${b.lastName}`.trim()) +
     line("Email", b.email) +
     line("Phone", b.phone) +

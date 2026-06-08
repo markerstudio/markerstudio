@@ -70,7 +70,9 @@ export default async function ProposalPage({ params }: { params: { slug: string 
   const lang = brief.lang === "ar" ? "ar" : "en";
   const t = T[lang];
   const acceptedAt = client.data.proposal?.acceptedAt;
-  const features = brief.planFeatures && brief.planFeatures.length ? brief.planFeatures : [];
+  const services: { name: string; features: string[] }[] = [];
+  if (brief.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
+  if (brief.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
 
   const recap: { label: string; value: string }[] = [];
   const push = (label: string, v?: string | string[]) => {
@@ -113,16 +115,16 @@ export default async function ProposalPage({ params }: { params: { slug: string 
 
             <p className="text-sm leading-7 text-neutral-600">{t.intro}</p>
 
-            {/* Package */}
-            {brief.plan && (
-              <div className="mt-7 rounded-xl border border-orange/30 bg-orange-50/40 p-5">
+            {/* Packages — branding and/or marketing */}
+            {services.map((svc) => (
+              <div key={svc.name} className="mt-4 rounded-xl border border-orange/30 bg-orange-50/40 p-5">
                 <div className="text-xs font-semibold uppercase tracking-wider text-orange">{t.packageLabel}</div>
-                <div className="mt-1 text-xl font-bold text-neutral-900">{brief.plan}</div>
-                {features.length > 0 && (
+                <div className="mt-1 text-xl font-bold text-neutral-900">{svc.name}</div>
+                {svc.features.length > 0 && (
                   <>
                     <div className="mt-4 mb-2 text-xs font-semibold uppercase tracking-wider text-neutral-500">{t.includes}</div>
                     <ul className="space-y-2">
-                      {features.map((f) => (
+                      {svc.features.map((f) => (
                         <li key={f} className="flex items-start gap-2 text-sm text-neutral-700">
                           <svg viewBox="0 0 24 24" className="mt-0.5 h-4 w-4 shrink-0 text-orange" fill="none" stroke="currentColor" strokeWidth={3}><path d="M20 6 9 17l-5-5" /></svg>
                           <span>{f}</span>
@@ -132,7 +134,7 @@ export default async function ProposalPage({ params }: { params: { slug: string 
                   </>
                 )}
               </div>
-            )}
+            ))}
 
             {/* Scope */}
             <div className="mt-8">

@@ -21,9 +21,12 @@ const TXT = {
   en: {
     title: "Let's build your brand",
     sub: "Fill this in and we'll set up your private portal — you'll be signed in the moment you finish.",
-    pkgHeading: "Your package",
-    pkgHint: "Confirm the package you'd like — switch if you change your mind.",
-    included: "What's included",
+    servicesHeading: "Your service(s)",
+    servicesHint: "Choose branding, marketing, or both — include or skip each.",
+    branding: "Branding",
+    marketing: "Marketing",
+    include: "Include",
+    atLeastOne: "Please include at least one service to continue.",
     recommended: "recommended",
     sec1: "Your information",
     sec2: "Brand details",
@@ -64,14 +67,16 @@ const TXT = {
     submit: "Create my portal",
     sending: "Creating…",
     back: "← Back to site",
-    optional: "optional",
   },
   ar: {
     title: "لنبنِ علامتك",
     sub: "املأ النموذج وسنجهّز بوابتك الخاصة — ستُسجَّل دخولك فور الانتهاء.",
-    pkgHeading: "باقتك",
-    pkgHint: "أكّد الباقة التي تريدها — بإمكانك تغييرها.",
-    included: "ما تشمله",
+    servicesHeading: "خدماتك",
+    servicesHint: "اختر البراندنج أو التسويق أو كليهما — ضمّن أو تخطَّ كلاً منهما.",
+    branding: "البراندنج",
+    marketing: "التسويق",
+    include: "تضمين",
+    atLeastOne: "يرجى تضمين خدمة واحدة على الأقل للمتابعة.",
     recommended: "موصى بها",
     sec1: "معلوماتك",
     sec2: "تفاصيل العلامة",
@@ -112,11 +117,12 @@ const TXT = {
     submit: "أنشئ بوابتي",
     sending: "جارٍ الإنشاء…",
     back: "→ العودة للموقع",
-    optional: "اختياري",
   },
 } as const;
 
 const AGES = ["0–18", "19–30", "31–50", "50+"];
+
+type Plan = { name: string; features: string[]; featured?: boolean };
 
 function Check({ className = "h-4 w-4 shrink-0 text-orange" }: { className?: string }) {
   return (
@@ -130,39 +136,136 @@ function Req() {
   return <span className="text-red-500">*</span>;
 }
 
-function SubmitButton({ label: text, sending }: { label: string; sending: string }) {
+function SubmitButton({ label: text, sending, disabled }: { label: string; sending: string; disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
     <button
       type="submit"
-      disabled={pending}
-      className="inline-flex h-11 items-center justify-center rounded-md bg-orange px-6 text-sm font-semibold text-white transition-colors hover:bg-orange-deep disabled:opacity-60"
+      disabled={disabled || pending}
+      className="inline-flex h-11 items-center justify-center rounded-md bg-orange px-6 text-sm font-semibold text-white transition-colors hover:bg-orange-deep disabled:cursor-not-allowed disabled:opacity-50"
     >
       {pending ? sending : text}
     </button>
   );
 }
 
-export default function OnboardingForm({ pkg }: { pkg: number }) {
+// A toggleable service block: header switch + (when on) its plan radio cards.
+function ServiceBlock({
+  name,
+  includeLabel,
+  recommended,
+  on,
+  setOn,
+  plans,
+  sel,
+  setSel,
+  group,
+}: {
+  name: string;
+  includeLabel: string;
+  recommended: string;
+  on: boolean;
+  setOn: (v: boolean) => void;
+  plans: Plan[];
+  sel: number;
+  setSel: (i: number) => void;
+  group: string;
+}) {
+  return (
+    <div className={`rounded-xl border p-4 transition ${on ? "border-orange/40 bg-orange-50/30" : "border-neutral-300"}`}>
+      <label className="flex cursor-pointer items-center justify-between gap-3">
+        <span className="font-semibold text-neutral-900">{name}</span>
+        <span className="flex items-center gap-2 text-sm text-neutral-500">
+          {includeLabel}
+          <input
+            type="checkbox"
+            checked={on}
+            onChange={(e) => setOn(e.target.checked)}
+            className="h-4 w-4 rounded border-neutral-300 text-orange focus:ring-orange/30"
+          />
+        </span>
+      </label>
+
+      {on && (
+        <div className="mt-4 space-y-3">
+          {plans.map((plan, i) => (
+            <label
+              key={plan.name}
+              className={`relative block cursor-pointer rounded-lg border bg-white p-4 transition ${
+                sel === i ? "border-orange ring-2 ring-orange/20" : "border-neutral-300 hover:border-neutral-400"
+              }`}
+            >
+              <input type="radio" name={group} className="sr-only" checked={sel === i} onChange={() => setSel(i)} />
+              <div className="flex items-center justify-between gap-3">
+                <span className="flex items-center gap-2 font-semibold text-neutral-900">
+                  <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${sel === i ? "border-orange" : "border-neutral-400"}`}>
+                    {sel === i && <span className="h-2 w-2 rounded-full bg-orange" />}
+                  </span>
+                  {plan.name}
+                </span>
+                {plan.featured && (
+                  <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-deep">{recommended}</span>
+                )}
+              </div>
+              <ul className="mt-3 space-y-1.5 ps-6">
+                {plan.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-sm text-neutral-600">
+                    <Check />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function OnboardingForm({ branding, marketing }: { branding: number; marketing: number }) {
   const [lang, setLang] = useLang();
   const t = TXT[lang];
 
-  const branding = MARKER_CONTENT[lang].pricing.categories.find((c) => c.key === "branding");
-  const plans = branding?.plans ?? [];
-  const initial = Number.isInteger(pkg) && pkg >= 0 && pkg < plans.length ? pkg : Math.min(1, plans.length - 1);
-  const [sel, setSel] = useState(initial);
-  const selected = plans[sel];
+  const cats = MARKER_CONTENT[lang].pricing.categories;
+  const brandingPlans = (cats.find((c) => c.key === "branding")?.plans ?? []) as Plan[];
+  const marketingPlans = (cats.find((c) => c.key === "marketing")?.plans ?? []) as Plan[];
 
+  const bInit = Number.isInteger(branding) && branding >= 0;
+  const mInit = Number.isInteger(marketing) && marketing >= 0;
+
+  // Whichever package they clicked is on + selected; default to branding when
+  // someone opens /onboarding directly with no package.
+  const [brandingOn, setBrandingOn] = useState(bInit || (!bInit && !mInit));
+  const [marketingOn, setMarketingOn] = useState(mInit);
+  const [bSel, setBSel] = useState(bInit ? branding : Math.min(1, Math.max(0, brandingPlans.length - 1)));
+  const [mSel, setMSel] = useState(mInit ? marketing : Math.min(1, Math.max(0, marketingPlans.length - 1)));
+
+  const noService = !brandingOn && !marketingOn;
   const [state, action] = useFormState(submitOnboarding, { ok: false } as OnboardingState);
+
+  const bPlan = brandingPlans[bSel];
+  const mPlan = marketingPlans[mSel];
 
   return (
     <form action={action} className="mx-auto max-w-3xl rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm sm:p-9">
-      {/* Hidden state carried into the submission */}
       <input type="hidden" name="lang" value={lang} />
-      <input type="hidden" name="plan" value={selected?.name ?? ""} />
-      {(selected?.features ?? []).map((f) => (
-        <input key={f} type="hidden" name="planFeatures" value={f} />
-      ))}
+      {brandingOn && bPlan && (
+        <>
+          <input type="hidden" name="brandingPlan" value={bPlan.name} />
+          {bPlan.features.map((f) => (
+            <input key={f} type="hidden" name="brandingFeatures" value={f} />
+          ))}
+        </>
+      )}
+      {marketingOn && mPlan && (
+        <>
+          <input type="hidden" name="marketingPlan" value={mPlan.name} />
+          {mPlan.features.map((f) => (
+            <input key={f} type="hidden" name="marketingFeatures" value={f} />
+          ))}
+        </>
+      )}
       {/* Honeypot */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] h-px w-px opacity-0" />
 
@@ -177,50 +280,16 @@ export default function OnboardingForm({ pkg }: { pkg: number }) {
         </div>
       </div>
 
-      {/* Package selector — prefilled from the package they clicked */}
-      {plans.length > 0 && (
-        <section>
-          <h2 className={sectionTitle}>{t.pkgHeading} <Req /></h2>
-          <p className="mt-1 mb-4 text-sm text-neutral-500">{t.pkgHint}</p>
-          <div className="space-y-3">
-            {plans.map((plan, i) => (
-              <label
-                key={plan.name}
-                className={`relative block cursor-pointer rounded-lg border p-4 transition ${
-                  sel === i ? "border-orange ring-2 ring-orange/20" : "border-neutral-300 hover:border-neutral-400"
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="__pkg"
-                  className="sr-only"
-                  checked={sel === i}
-                  onChange={() => setSel(i)}
-                />
-                <div className="flex items-center justify-between gap-3">
-                  <span className="flex items-center gap-2 font-semibold text-neutral-900">
-                    <span className={`flex h-4 w-4 items-center justify-center rounded-full border ${sel === i ? "border-orange" : "border-neutral-400"}`}>
-                      {sel === i && <span className="h-2 w-2 rounded-full bg-orange" />}
-                    </span>
-                    {plan.name}
-                  </span>
-                  {plan.featured && (
-                    <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold text-orange-deep">{t.recommended}</span>
-                  )}
-                </div>
-                <ul className="mt-3 space-y-1.5 ps-6">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-neutral-600">
-                      <Check />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-              </label>
-            ))}
-          </div>
-        </section>
-      )}
+      {/* Services — branding and/or marketing */}
+      <section>
+        <h2 className={sectionTitle}>{t.servicesHeading} <Req /></h2>
+        <p className="mt-1 mb-4 text-sm text-neutral-500">{t.servicesHint}</p>
+        <div className="space-y-4">
+          <ServiceBlock name={t.branding} includeLabel={t.include} recommended={t.recommended} on={brandingOn} setOn={setBrandingOn} plans={brandingPlans} sel={bSel} setSel={setBSel} group="__branding" />
+          <ServiceBlock name={t.marketing} includeLabel={t.include} recommended={t.recommended} on={marketingOn} setOn={setMarketingOn} plans={marketingPlans} sel={mSel} setSel={setMSel} group="__marketing" />
+        </div>
+        {noService && <p className="mt-3 text-sm font-medium text-red-600">{t.atLeastOne}</p>}
+      </section>
 
       <div className={sep} />
 
@@ -258,7 +327,7 @@ export default function OnboardingForm({ pkg }: { pkg: number }) {
 
       <div className={sep} />
 
-      {/* Brand details */}
+      {/* Brand details — applies to both services */}
       <section>
         <h2 className={sectionTitle}>{t.sec2}</h2>
         <div className="mt-4 space-y-5">
@@ -270,17 +339,19 @@ export default function OnboardingForm({ pkg }: { pkg: number }) {
             <label className={label}>{t.brandDescription}</label>
             <textarea name="brandDescription" className={area} />
           </div>
-          <div>
-            <span className={label}>{t.logoLanguage}</span>
-            <div className="grid grid-cols-3 gap-3">
-              {[t.arabic, t.english, t.other].map((opt) => (
-                <label key={opt} className={`${optionCard} justify-center`}>
-                  <input type="checkbox" name="logoLanguage" value={opt} className="sr-only" />
-                  {opt}
-                </label>
-              ))}
+          {brandingOn && (
+            <div>
+              <span className={label}>{t.logoLanguage}</span>
+              <div className="grid grid-cols-3 gap-3">
+                {[t.arabic, t.english, t.other].map((opt) => (
+                  <label key={opt} className={`${optionCard} justify-center`}>
+                    <input type="checkbox" name="logoLanguage" value={opt} className="sr-only" />
+                    {opt}
+                  </label>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           <div>
             <label className={label}>{t.products}</label>
             <textarea name="products" className={area} />
@@ -329,49 +400,52 @@ export default function OnboardingForm({ pkg }: { pkg: number }) {
         </div>
       </section>
 
-      <div className={sep} />
-
-      {/* Design details */}
-      <section>
-        <h2 className={sectionTitle}>{t.sec3}</h2>
-        <div className="mt-4 space-y-5">
-          <div>
-            <label className={label}>{t.symbolShape}</label>
-            <textarea name="symbolShape" className={area} />
-          </div>
-          <div>
-            <span className={label}>{t.colorInMind}</span>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ v: "yes", l: t.yes }, { v: "no", l: t.no }].map((o) => (
-                <label key={o.v} className={`${optionCard} justify-center`}>
-                  <input type="radio" name="colorInMind" value={o.v} className="sr-only" />
-                  {o.l}
-                </label>
-              ))}
+      {/* Design details — only when branding is included */}
+      {brandingOn && (
+        <>
+          <div className={sep} />
+          <section>
+            <h2 className={sectionTitle}>{t.sec3}</h2>
+            <div className="mt-4 space-y-5">
+              <div>
+                <label className={label}>{t.symbolShape}</label>
+                <textarea name="symbolShape" className={area} />
+              </div>
+              <div>
+                <span className={label}>{t.colorInMind}</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {[{ v: "yes", l: t.yes }, { v: "no", l: t.no }].map((o) => (
+                    <label key={o.v} className={`${optionCard} justify-center`}>
+                      <input type="radio" name="colorInMind" value={o.v} className="sr-only" />
+                      {o.l}
+                    </label>
+                  ))}
+                </div>
+                <input name="colorDetail" className={`${input} mt-3`} placeholder={t.colorDetail} />
+              </div>
+              <div>
+                <label className={label}>{t.exactLogoText}</label>
+                <input name="exactLogoText" className={input} />
+              </div>
+              <div>
+                <label className={label}>{t.tagline}</label>
+                <input name="tagline" className={input} />
+              </div>
+              <div>
+                <span className={label}>{t.existingDesign}</span>
+                <div className="grid grid-cols-2 gap-3">
+                  {[{ v: "yes", l: t.yes }, { v: "no", l: t.no }].map((o) => (
+                    <label key={o.v} className={`${optionCard} justify-center`}>
+                      <input type="radio" name="existingDesign" value={o.v} className="sr-only" />
+                      {o.l}
+                    </label>
+                  ))}
+                </div>
+              </div>
             </div>
-            <input name="colorDetail" className={`${input} mt-3`} placeholder={t.colorDetail} />
-          </div>
-          <div>
-            <label className={label}>{t.exactLogoText}</label>
-            <input name="exactLogoText" className={input} />
-          </div>
-          <div>
-            <label className={label}>{t.tagline}</label>
-            <input name="tagline" className={input} />
-          </div>
-          <div>
-            <span className={label}>{t.existingDesign}</span>
-            <div className="grid grid-cols-2 gap-3">
-              {[{ v: "yes", l: t.yes }, { v: "no", l: t.no }].map((o) => (
-                <label key={o.v} className={`${optionCard} justify-center`}>
-                  <input type="radio" name="existingDesign" value={o.v} className="sr-only" />
-                  {o.l}
-                </label>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+          </section>
+        </>
+      )}
 
       <div className={sep} />
 
@@ -393,7 +467,7 @@ export default function OnboardingForm({ pkg }: { pkg: number }) {
 
       <div className="mt-8 flex items-center justify-between gap-4">
         <a href="/" className="text-sm font-medium text-neutral-500 hover:text-neutral-900">{t.back}</a>
-        <SubmitButton label={t.submit} sending={t.sending} />
+        <SubmitButton label={t.submit} sending={t.sending} disabled={noService} />
       </div>
     </form>
   );
