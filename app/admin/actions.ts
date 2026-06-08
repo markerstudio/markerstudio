@@ -76,6 +76,32 @@ export async function setupFirstUser(formData: FormData) {
   redirect("/login?setup=1");
 }
 
+// Import any seed projects that aren't already in the DB (by slug). Idempotent —
+// safe to click repeatedly; only inserts what's missing. Lets newly-added seed
+// case studies (e.g. brand books) appear on a DB-backed site without re-running setup.
+export async function importSeedProjects() {
+  if (!(await getSession())) redirect("/login");
+  const sql = getSql();
+  const existing = (await sql`SELECT slug FROM projects`) as unknown as { slug: string }[];
+  const have = new Set(existing.map((r) => r.slug));
+  let added = 0;
+  let order = existing.length;
+  for (const p of SEED_PROJECTS) {
+    if (have.has(p.slug)) continue;
+    const r = toRow(p);
+    const json = JSON.stringify(r.data);
+    await sql`
+      INSERT INTO projects (slug, color, logo, year, data, sort_order)
+      VALUES (${r.slug}, ${r.color}, ${r.logo}, ${r.year}, ${json}::jsonb, ${order++})
+      ON CONFLICT (slug) DO NOTHING
+    `;
+    added++;
+  }
+  revalidatePath("/");
+  revalidatePath("/admin");
+  redirect(`/admin?imported=${added}`);
+}
+
 export async function login(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
