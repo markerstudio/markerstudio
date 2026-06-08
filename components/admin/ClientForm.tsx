@@ -250,11 +250,11 @@ export default function ClientForm({ client }: { client?: Client }) {
 
       <Group title="Finance" hint="Money left + paid-to-date come from Notion (Budget Tracker) on sync, but you can override here.">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
-          <Text label="Money left" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 3,600 ILS" />
-          <Text label="Paid to date" value={data.finance?.paid ?? ""} onChange={(paid) => patch({ finance: { paid, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 5,400 ILS" />
+          <Text label="Monthly fee" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
+          <Text label="Left this month" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
           <div>
-            <label className={lbl}>Progress: {data.finance?.progress ?? 0}%</label>
-            <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { paid: data.finance?.paid ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
+            <label className={lbl}>This month covered: {data.finance?.progress ?? 0}%</label>
+            <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
           </div>
         </div>
         <label className={lbl}>Payment history</label>

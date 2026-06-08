@@ -63,8 +63,8 @@ export async function listNotionClients(): Promise<{ id: string; name: string }[
   }
 }
 
-async function fetchSourceFinance(clientPageId: string): Promise<{ balance: string; paid: string; progress: number }> {
-  const out = { balance: "", paid: "", progress: 0 };
+async function fetchSourceFinance(clientPageId: string): Promise<{ balance: string; monthlyFee: string; progress: number }> {
+  const out = { balance: "", monthlyFee: "", progress: 0 };
   try {
     const q = await notionPost(`/v1/databases/${SOURCES_DB}/query`, {
       filter: { property: "Clients Database", relation: { contains: clientPageId } },
@@ -73,17 +73,24 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
     const props = q.results?.[0]?.properties;
     if (!props) return out;
 
+    // Money Left = how much of the current period is still owed (can exceed one
+    // month when payments are overdue).
     const ml = props["Money Left"];
-    const mlv = ml?.type === "formula" ? ml.formula?.number ?? ml.formula?.string : ml?.number;
-    if (mlv !== undefined && mlv !== null && mlv !== "") out.balance = typeof mlv === "number" ? `${mlv.toLocaleString()} ILS` : String(mlv);
+    const mlNum = ml?.type === "formula" ? ml.formula?.number : ml?.number;
+    if (mlNum != null) out.balance = `${mlNum.toLocaleString()} ILS`;
+    else if (ml?.formula?.string) out.balance = ml.formula.string;
 
-    const paidIls = props["Paid Sum ILS"]?.rollup?.number;
-    const paidUsd = props["Paid Sum USD"]?.rollup?.number;
-    if (paidIls != null && paidIls !== 0) out.paid = `${paidIls.toLocaleString()} ILS`;
-    else if (paidUsd != null && paidUsd !== 0) out.paid = `$${paidUsd.toLocaleString()}`;
+    // Monthly fee.
+    const fee = props["Monthly Income"]?.number;
+    if (fee != null) out.monthlyFee = `${fee.toLocaleString()} ILS`;
 
-    const pp = props["Paid Percentage"]?.formula?.number ?? props["Progress"]?.formula?.number;
-    if (typeof pp === "number") out.progress = Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp)));
+    // Coverage of the current month: (fee - left) / fee. Overdue (left ≥ fee) → 0%.
+    if (typeof fee === "number" && fee > 0 && typeof mlNum === "number") {
+      out.progress = Math.max(0, Math.min(100, Math.round(((fee - mlNum) / fee) * 100)));
+    } else {
+      const pp = props["Paid Percentage"]?.formula?.number ?? props["Progress"]?.formula?.number;
+      if (typeof pp === "number") out.progress = Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp)));
+    }
   } catch {
     /* ignore — no source linked, or query failed */
   }
@@ -94,7 +101,7 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
 // linked Income rows mapped to invoices.
 export async function fetchNotionClient(pageId: string): Promise<{
   name: string; start: string; end: string; active: boolean; planName: string; note: string;
-  balance: string; paid: string; progress: number; invoices: Invoice[];
+  balance: string; monthlyFee: string; progress: number; invoices: Invoice[];
 }> {
   const page = await notionGet(`/v1/pages/${pageId}`);
   const p = page.properties || {};
@@ -109,7 +116,7 @@ export async function fetchNotionClient(pageId: string): Promise<{
   const planName = (p["Service"]?.multi_select || []).map((x: any) => x.name).join(" · ");
   const note = rich("Notes");
 
-  // Money Left + Paid + Progress from the linked Source row (Budget Tracker).
+  // Money Left + Monthly fee + coverage from the linked Source row (Budget Tracker).
   const fin = await fetchSourceFinance(pageId);
 
   // Payment history from the linked Income rows.
@@ -139,7 +146,7 @@ export async function fetchNotionClient(pageId: string): Promise<{
   rows.sort((a, b) => (a._d < b._d ? 1 : a._d > b._d ? -1 : 0)); // newest first
   const invoices: Invoice[] = rows.map(({ _d, ...inv }) => inv);
 
-  return { name, start, end, active, planName, note, balance: fin.balance, paid: fin.paid, progress: fin.progress, invoices };
+  return { name, start, end, active, planName, note, balance: fin.balance, monthlyFee: fin.monthlyFee, progress: fin.progress, invoices };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

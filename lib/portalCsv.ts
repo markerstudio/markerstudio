@@ -94,7 +94,7 @@ export function toCSV(d: ClientData): string {
     val(`invoices[${i}].status`, inv.status);
   });
 
-  val("finance.paid", d.finance?.paid);
+  val("finance.monthlyFee", d.finance?.monthlyFee);
   val("finance.progress", d.finance?.progress);
 
   const docs = d.documents?.length ? d.documents : [{ title: "", type: "", url: "" }];
@@ -143,7 +143,7 @@ function emptyData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
-    finance: { paid: "", progress: 0 },
+    finance: { monthlyFee: "", progress: 0 },
     documents: [],
   };
 }

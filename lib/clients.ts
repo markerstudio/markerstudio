@@ -42,7 +42,7 @@ export type ClientData = {
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
   };
   invoices: Invoice[]; // payment history
-  finance: { paid: string; progress: number }; // paid-to-date + % (money left lives on plan.balance)
+  finance: { monthlyFee: string; progress: number }; // monthly fee + % of this month covered (money left lives on plan.balance)
   documents: DocItem[];
   notionDbId?: string;
   notionPageId?: string;
@@ -101,7 +101,7 @@ export function blankClientData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
-    finance: { paid: "", progress: 0 },
+    finance: { monthlyFee: "", progress: 0 },
     documents: [],
     notionDbId: "",
   };
@@ -120,27 +120,37 @@ export function slugify(s: string): string {
   );
 }
 
+async function retry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (attempt === 1) {
+        console.error("[clients] DB read failed:", e);
+        return fallback;
+      }
+    }
+  }
+  return fallback;
+}
+
 export async function getClients(): Promise<Client[]> {
   if (!isDbEnabled()) return [];
-  try {
+  return retry(async () => {
     return (await getSql()`
       SELECT id, slug, name, logo, color, data FROM clients ORDER BY created_at ASC
     `) as unknown as ClientRow[];
-  } catch {
-    return [];
-  }
+  }, []);
 }
 
 export async function getClient(slug: string): Promise<Client | undefined> {
   if (!isDbEnabled()) return undefined;
-  try {
+  return retry(async () => {
     const rows = (await getSql()`
       SELECT id, slug, name, logo, color, data FROM clients WHERE slug = ${slug} LIMIT 1
     `) as unknown as ClientRow[];
     return rows[0];
-  } catch {
-    return undefined;
-  }
+  }, undefined);
 }
 
 export async function getClientById(id: number): Promise<Client | undefined> {
@@ -178,7 +188,7 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
         en: "The next monthly plan will be prepared together after this review.",
         ar: "الخطة الشهرية القادمة ستُحضّر معاً بعد هذه المراجعة.",
       },
-      balance: "1,800 ILS",
+      balance: "600 ILS",
     },
     dashboard: {
       headline: { en: "The account changed behavior.", ar: "الحساب غيّر سلوكه." },
@@ -246,7 +256,7 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       { cycle: "Cycle 02 · Mar 26 → Apr 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 03 · Apr 26 → May 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
     ],
-    finance: { paid: "5,400 ILS", progress: 75 },
+    finance: { monthlyFee: "1,800 ILS", progress: 67 },
     documents: [
       { title: "Proposal", type: "PDF", url: "" },
       { title: "Service agreement", type: "PDF", url: "" },
