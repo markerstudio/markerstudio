@@ -214,7 +214,7 @@ function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects:
                 style={{ background: p.color }}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="ms-work-card__logo" src={p.logo} alt={p.name[lang]} loading="lazy" />
+                <img className={`ms-work-card__logo${p.keepLogoColor ? " ms-pj-logo--color" : ""}`} src={p.logo} alt={p.name[lang]} loading="lazy" />
               </div>
               <div className="ms-work-card__body">
                 <span className="ms-work-card__tag">{p.tag[lang]}</span>

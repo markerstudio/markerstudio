@@ -17,10 +17,13 @@ const W = "https://static.wixstatic.com/media/";
 export type Bi = { en: string; ar: string };
 export type BiList = { en: string[]; ar: string[] };
 export type ProjectMetric = { value: string; label: Bi };
+export type Swatch = { hex: string; name: Bi };
 
 export type Project = {
   slug: string;
   color: string; // brand colour for the hero panel
+  accent?: string; // accent colour (numbers, eyebrows) when it differs from the hero colour
+  keepLogoColor?: boolean; // don't invert the logo to white (it's already colourful)
   logo: string;
   year: string;
   name: Bi;
@@ -31,6 +34,7 @@ export type Project = {
   challenge: Bi;
   approach: Bi;
   results: Bi;
+  palette?: Swatch[]; // colour system
   metrics?: ProjectMetric[];
   gallery?: string[];
 };
@@ -38,6 +42,52 @@ export type Project = {
 // Seed data — used as the source when no database is configured, and as the
 // import payload for /api/setup when first provisioning the DB.
 export const SEED_PROJECTS: Project[] = [
+  {
+    slug: "cookiefries",
+    color: "#121316",
+    accent: "#F72585",
+    keepLogoColor: true,
+    logo: "/assets/work/cookiefries/logo-lockup.png",
+    year: "2026",
+    name: { en: "CookieFries®", ar: "كوكي فرايز" },
+    tag: { en: "Brand identity · Packaged snack", ar: "هوية بصرية · سناك مغلّف" },
+    services: {
+      en: ["Brand strategy", "Logo & mascot system", "Packaging", "Bilingual typography"],
+      ar: ["استراتيجية العلامة", "نظام الشعار والماسكوت", "التغليف", "طباعة ثنائية اللغة"],
+    },
+    deliverables: {
+      en: ["Visual identity guidelines", "Mascot system", "Packaging", "Brand-in-action"],
+      ar: ["دليل الهوية البصرية", "نظام الماسكوت", "التغليف", "تطبيقات العلامة"],
+    },
+    summary: {
+      en: "A packaged snack that reimagines the cookie as a thin, crispy stick — built for the shelf, not the bakery. A bold, mascot-led identity made to win at first glance, in Arabic and English.",
+      ar: "سناك مغلّف يعيد تخيّل الكوكي على شكل أصابع رفيعة ومقرمشة — مصمّم للرفّ لا للمخبز. هوية جريئة يقودها الماسكوت لتكسب من النظرة الأولى، بالعربية والإنجليزية.",
+    },
+    challenge: {
+      en: "People don't want better cookies — they want something new to try. Cookie Fries had to compete with snacks, not the bakery aisle, and win on impulse: instantly recognisable and instantly readable on a crowded shelf.",
+      ar: "الناس لا يريدون كوكيز أفضل — يريدون شيئاً جديداً يجرّبونه. كان على كوكي فرايز أن ينافس السناكات لا رفّ المخبوزات، وأن يكسب باللحظة: حضورٌ ووضوحٌ فوريّان على رفٍّ مزدحم.",
+    },
+    approach: {
+      en: "We turned a familiar product into a new behaviour: cookies shaped like fries — easier to grab, share, and snack on. A circular mascot with a fries-crown leads a bold, high-contrast system, paired with a bilingual type voice (Early Sans + FF Hekaya) that stays playful without being childish.",
+      ar: "حوّلنا منتجاً مألوفاً إلى سلوكٍ جديد: كوكيز بشكل البطاطا — أسهل للإمساك والمشاركة والتناول. ماسكوت دائري بتاجٍ من الأصابع يقود نظاماً جريئاً عالي التباين، مع صوتٍ طباعيّ ثنائي اللغة (إيرلي سانس + حكاية) يبقى مرحاً دون أن يكون طفولياً.",
+    },
+    results: {
+      en: "A complete identity that's bold, clean, and instantly readable — from packaging and patterns to a neon storefront and stationery. One playful character, two languages, zero visual noise.",
+      ar: "هوية متكاملة جريئة ونظيفة وواضحة فوراً — من التغليف والنقوش إلى لافتة نيون وواجهة قرطاسية. شخصية مرحة واحدة، لغتان، وبلا ضجيج بصري.",
+    },
+    palette: [
+      { hex: "#4CC9F0", name: { en: "Main Blue", ar: "الأزرق الأساسي" } },
+      { hex: "#F72585", name: { en: "Pink", ar: "الزهري" } },
+      { hex: "#111111", name: { en: "Black", ar: "الأسود" } },
+      { hex: "#FFFFFF", name: { en: "White", ar: "الأبيض" } },
+    ],
+    gallery: [
+      "/assets/work/cookiefries/neon.jpg",
+      "/assets/work/cookiefries/billboard.jpg",
+      "/assets/work/cookiefries/stationery.jpg",
+      "/assets/work/cookiefries/pattern.png",
+    ],
+  },
   {
     slug: "canaan-hotel",
     color: "#3B4043",
