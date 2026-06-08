@@ -5,7 +5,6 @@ import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { getLiveNotionClient } from "@/lib/notion";
 import PortalView from "@/components/PortalView";
-import PortalTabs from "@/components/PortalTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -81,10 +80,6 @@ export default async function PortalPage({
     };
   }
 
-  const isAdmin = s.role === "admin";
-  const showProposalTab = isAdmin || proposalSent;
-  const showAgreementTab = isAdmin || agreementSent;
-
   return (
     <>
       {banner && (
@@ -95,11 +90,6 @@ export default async function PortalPage({
               {banner.cta}
             </Link>
           </div>
-        </div>
-      )}
-      {(showProposalTab || showAgreementTab) && (
-        <div className="bg-[#F5F2EC] px-4 pt-6">
-          <PortalTabs slug={client.slug} current="portal" showProposal={showProposalTab} showAgreement={showAgreementTab} lang={ar ? "ar" : "en"} />
         </div>
       )}
       <PortalView client={client} canEdit={canEdit} initialEdit={editing} />

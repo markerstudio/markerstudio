@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { acceptProposal } from "@/app/onboarding-actions";
-import PortalTabs from "@/components/PortalTabs";
 import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +26,7 @@ const T = {
     investmentNote: "A tailored quote based on this scope — we'll confirm the exact figure with you before any work begins.",
     servicesLabel: "Services",
     totalLabel: "Total",
+    exclVat: "All prices are exclusive of VAT.",
     recap: "What we captured",
     fields: { description: "Brand", products: "Products", goals: "Goals", audience: "Audience", presence: "Online presence", tagline: "Tagline" },
     acceptCta: "Accept proposal",
@@ -53,6 +53,7 @@ const T = {
     investmentNote: "عرض سعر مفصّل حسب هذا النطاق — سنؤكّد الرقم النهائي معك قبل بدء أي عمل.",
     servicesLabel: "الخدمات",
     totalLabel: "الإجمالي",
+    exclVat: "جميع الأسعار بدون ضريبة القيمة المضافة.",
     recap: "ما سجّلناه",
     fields: { description: "العلامة", products: "المنتجات", goals: "الأهداف", audience: "الجمهور", presence: "الوجود الرقمي", tagline: "الشعار" },
     acceptCta: "اقبل العرض",
@@ -73,23 +74,20 @@ export default async function ProposalPage({ params }: { params: { slug: string 
   if (s.role === "client" && s.clientId !== client.id) redirect("/portal");
 
   const brief = client.data.onboarding;
-  if (!brief) redirect(`/portal/${client.slug}`);
   // Clients only see the proposal once the studio has sent it; admins can preview.
   if (s.role === "client" && !client.data.proposal?.published) redirect(`/portal/${client.slug}`);
 
-  const lang = brief.lang === "ar" ? "ar" : "en";
+  const lang = brief?.lang === "ar" ? "ar" : "en";
   const t = T[lang];
-  const isAdmin = s.role === "admin";
   const acceptedAt = client.data.proposal?.acceptedAt;
   const agreementSent = !!client.data.agreement?.published;
-  const showProposalTab = isAdmin || !!client.data.proposal?.published;
-  const showAgreementTab = isAdmin || !!client.data.agreement?.published;
+  const brandName = brief?.brandName || client.name;
   const services: { name: string; features: string[] }[] = [];
-  if (brief.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
-  if (brief.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
+  if (brief?.plan) services.push({ name: brief.plan, features: brief.planFeatures || [] });
+  if (brief?.marketingPlan) services.push({ name: brief.marketingPlan, features: brief.marketingFeatures || [] });
   const extraServices = [
-    ...(brief.services || []).filter((sv) => sv !== "Other"),
-    ...(brief.servicesOther ? [brief.servicesOther] : []),
+    ...((brief?.services || []).filter((sv) => sv !== "Other")),
+    ...(brief?.servicesOther ? [brief.servicesOther] : []),
   ];
   const pricing = client.data.pricing;
   const pricingTotal = (pricing?.items || []).reduce((sum, it) => {
@@ -102,30 +100,34 @@ export default async function ProposalPage({ params }: { params: { slug: string 
     const val = Array.isArray(v) ? v.join(", ") : v;
     if (val) recap.push({ label, value: val });
   };
-  push(t.fields.description, brief.brandDescription);
-  push(t.fields.products, brief.products);
-  push(t.fields.goals, brief.businessGoals);
-  push(t.fields.audience, [...(brief.audienceGender || []), ...(brief.audienceAge || [])]);
-  push(t.fields.tagline, brief.tagline);
+  push(t.fields.description, brief?.brandDescription);
+  push(t.fields.products, brief?.products);
+  push(t.fields.goals, brief?.businessGoals);
+  push(t.fields.audience, [...(brief?.audienceGender || []), ...(brief?.audienceAge || [])]);
+  push(t.fields.tagline, brief?.tagline);
 
   return (
     <main dir={lang === "ar" ? "rtl" : "ltr"} className="min-h-screen bg-[#F5F2EC] px-4 py-8">
       <div className="mx-auto max-w-3xl">
         <div className="print:hidden mb-6 flex items-center justify-between gap-3">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
-          <PrintButton label={lang === "ar" ? "تحميل PDF" : "Download PDF"} />
+          <a href={`/portal/${client.slug}`} aria-label="Portal">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
+          </a>
+          <div className="flex items-center gap-3">
+            <a href={`/portal/${client.slug}`} className="text-sm font-medium text-neutral-600 hover:text-neutral-900">
+              {lang === "ar" ? "→ البوابة" : "← Portal"}
+            </a>
+            <PrintButton label={lang === "ar" ? "تحميل PDF" : "Download PDF"} />
+          </div>
         </div>
 
-        <PortalTabs slug={client.slug} current="proposal" showProposal={showProposalTab} showAgreement={showAgreementTab} lang={lang} />
-      </div>
-      <div className="mx-auto max-w-3xl">
         <div className="overflow-hidden rounded-2xl border border-neutral-200 bg-white shadow-sm">
           <div className="border-b border-neutral-100 bg-gradient-to-b from-orange-50 to-white px-6 py-8 sm:px-9">
             <span className="text-xs font-semibold uppercase tracking-[0.14em] text-orange">{t.eyebrow}</span>
             <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900">{t.title}</h1>
             <p className="mt-2 text-sm text-neutral-500">
-              {t.preparedFor} <span className="font-semibold text-neutral-700">{brief.brandName}</span>
+              {t.preparedFor} <span className="font-semibold text-neutral-700">{brandName}</span>
             </p>
           </div>
 
@@ -211,7 +213,7 @@ export default async function ProposalPage({ params }: { params: { slug: string 
                       </div>
                     )}
                   </dl>
-                  {pricing.note && <p className="mt-3 text-xs text-neutral-500">{pricing.note}</p>}
+                  <p className="mt-3 text-xs text-neutral-500">{pricing.note ? `${pricing.note} · ${t.exclVat}` : t.exclVat}</p>
                 </>
               ) : (
                 <p className="mt-1 text-sm text-neutral-700">{t.investmentNote}</p>
