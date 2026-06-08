@@ -79,19 +79,20 @@ export interface SiteContent {
     eyebrow: string;
     title: string[];
     sub: string;
-    currencyLabel: string;
-    fromLabel: string;
-    insideLabel: string;
     quoteNote: string;
+    cta: string;
+    popularLabel: string;
     arrow: string;
     categories: {
       key: string;
       label: string;
-      base: number; // starting price in USD — converted per currency
-      period: string;
-      note: string;
-      features: string[];
-      cta: string;
+      plans: {
+        name: string;
+        meta: string;
+        tagline: string;
+        features: string[];
+        featured?: boolean;
+      }[];
     }[];
   };
   faq: { eyebrow: string; title: string; sub: string; items: FaqItem[] };
@@ -243,48 +244,80 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       ],
     },
     pricing: {
-      eyebrow: "Investment",
+      eyebrow: "Packages",
       title: ["Pick a track,", "leave a mark."],
-      sub: "Two ways to work with Marker — an ongoing marketing engine, or a one-off custom build. Every quote is tailored; switch currency to see it your way.",
-      currencyLabel: "Currency",
-      fromLabel: "Starts from",
-      insideLabel: "What's inside",
+      sub: "Two ways to work with Marker — build your brand, or run it. Pick a package and we'll tailor a quote to your scope.",
       quoteNote: "Every brand is different — your final quote is tailored to scope. No surprises, no lock-in.",
+      cta: "Get a quote",
+      popularLabel: "Most popular",
       arrow: "→",
       categories: [
         {
-          key: "marketing",
-          label: "Marketing & Branding",
-          base: 1200,
-          period: "/ month",
-          note: "Monthly retainer · cancel anytime",
-          features: [
-            "Reels-first content strategy",
-            "Monthly calendar & production",
-            "Paid amplification, managed",
-            "Bilingual copy — Arabic & English",
-            "Community management",
-            "Monthly performance report",
-            "Priority support",
+          key: "branding",
+          label: "Branding",
+          plans: [
+            {
+              name: "Project Branding",
+              meta: "One-time project",
+              tagline: "The essentials to launch a mark.",
+              features: ["Logo design", "Mood board"],
+            },
+            {
+              name: "Growth Branding",
+              meta: "One-time project",
+              tagline: "A full identity system to grow with.",
+              featured: true,
+              features: [
+                "Everything in Project Branding",
+                "Visual identity system",
+                "Branding accessories — business cards, banners, stationery & more",
+              ],
+            },
+            {
+              name: "Complete Branding",
+              meta: "One-time project",
+              tagline: "Your brand, end to end — on every screen.",
+              features: [
+                "Everything in Growth Branding",
+                "Website design",
+                "Social media post layouts",
+              ],
+            },
           ],
-          cta: "Get a quote",
         },
         {
-          key: "custom",
-          label: "Custom Projects",
-          base: 800,
-          period: "/ project",
-          note: "One-time · scoped per project",
-          features: [
-            "Brand identity & visual system",
-            "Logo, type & colour guidelines",
-            "Bilingual brand assets",
-            "Campaign creative & launch kit",
-            "Packaging & print on request",
-            "Editable source files & handoff",
-            "One refinement round included",
+          key: "marketing",
+          label: "Marketing",
+          plans: [
+            {
+              name: "Casual",
+              meta: "Monthly",
+              tagline: "A steady presence, twice a week.",
+              features: ["Monthly plan", "~2 posts per week"],
+            },
+            {
+              name: "Intensive",
+              meta: "Monthly",
+              tagline: "Daily stories and paid reach.",
+              featured: true,
+              features: [
+                "Monthly plan",
+                "Daily stories",
+                "~3 posts per week",
+                "Ad management",
+              ],
+            },
+            {
+              name: "Rocket",
+              meta: "Monthly",
+              tagline: "Maximum output, fully managed.",
+              features: [
+                "Everything in Intensive",
+                "~4 posts per week",
+                "Full ad campaign management",
+              ],
+            },
           ],
-          cta: "Start a project",
         },
       ],
     },
@@ -465,48 +498,80 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
       ],
     },
     pricing: {
-      eyebrow: "الاستثمار",
+      eyebrow: "الباقات",
       title: ["اختر مساراً،", "واترك أثراً."],
-      sub: "طريقتان للعمل مع ماركر — محرّك تسويق مستمر، أو مشروع مخصّص لمرة واحدة. كل عرض سعر مُفصّل؛ بدّل العملة لتراه بطريقتك.",
-      currencyLabel: "العملة",
-      fromLabel: "يبدأ من",
-      insideLabel: "ما الذي تحصل عليه",
+      sub: "طريقتان للعمل مع ماركر — ابنِ علامتك، أو أدِرها. اختر باقة ونفصّل لك عرض سعر حسب نطاق عملك.",
       quoteNote: "كل علامة مختلفة — السعر النهائي يُفصَّل حسب نطاق العمل. بلا مفاجآت، وبلا التزام مقيِّد.",
+      cta: "اطلب عرض سعر",
+      popularLabel: "الأكثر طلباً",
       arrow: "←",
       categories: [
         {
-          key: "marketing",
-          label: "تسويق وعلامة",
-          base: 1200,
-          period: "/ شهرياً",
-          note: "اشتراك شهري · إلغاء وقت ما تشاء",
-          features: [
-            "استراتيجية محتوى تعتمد الريلز",
-            "تقويم وإنتاج شهري",
-            "إدارة إعلانات مدفوعة",
-            "كتابة ثنائية اللغة — عربي وإنجليزي",
-            "إدارة المجتمع والتفاعل",
-            "تقرير أداء شهري",
-            "دعم بأولوية",
+          key: "branding",
+          label: "البراندنج",
+          plans: [
+            {
+              name: "براندنج المشروع",
+              meta: "مشروع لمرة واحدة",
+              tagline: "الأساسيّات لإطلاق علامتك.",
+              features: ["تصميم شعار", "لوحة إلهام (Mood Board)"],
+            },
+            {
+              name: "براندنج النمو",
+              meta: "مشروع لمرة واحدة",
+              tagline: "نظام هوية متكامل تنمو معه.",
+              featured: true,
+              features: [
+                "كل ما في باقة المشروع",
+                "نظام هوية بصرية",
+                "مستلزمات العلامة — كروت شخصية، بنرات، قرطاسية والمزيد",
+              ],
+            },
+            {
+              name: "براندنج متكامل",
+              meta: "مشروع لمرة واحدة",
+              tagline: "علامتك كاملة — على كل شاشة.",
+              features: [
+                "كل ما في باقة النمو",
+                "تصميم موقع إلكتروني",
+                "تصاميم منشورات سوشال ميديا",
+              ],
+            },
           ],
-          cta: "اطلب عرض سعر",
         },
         {
-          key: "custom",
-          label: "مشاريع خاصة",
-          base: 800,
-          period: "/ المشروع",
-          note: "دفعة واحدة · حسب نطاق المشروع",
-          features: [
-            "هوية بصرية ونظام متكامل",
-            "شعار ودليل خطوط وألوان",
-            "أصول علامة ثنائية اللغة",
-            "محتوى حملة وحزمة إطلاق",
-            "تغليف وطباعة عند الطلب",
-            "ملفات مصدرية قابلة للتعديل",
-            "جولة تعديل واحدة مشمولة",
+          key: "marketing",
+          label: "التسويق",
+          plans: [
+            {
+              name: "كاجوال",
+              meta: "شهري",
+              tagline: "حضور ثابت، مرتين أسبوعياً.",
+              features: ["خطة شهرية", "~مرتين أسبوعياً"],
+            },
+            {
+              name: "مكثّف",
+              meta: "شهري",
+              tagline: "ستوريات يومية ووصول مدفوع.",
+              featured: true,
+              features: [
+                "خطة شهرية",
+                "ستوريات يومية",
+                "~3 مرات أسبوعياً",
+                "إدارة إعلانات",
+              ],
+            },
+            {
+              name: "روكِت",
+              meta: "شهري",
+              tagline: "أقصى إنتاج، بإدارة كاملة.",
+              features: [
+                "كل ما في الباقة المكثّفة",
+                "~4 مرات أسبوعياً",
+                "إدارة حملات إعلانية كاملة",
+              ],
+            },
           ],
-          cta: "ابدأ مشروعاً",
         },
       ],
     },
