@@ -515,6 +515,23 @@ body.ar .ms-pj-chapter__label { font-family: var(--font-arabic-display); }
 .ms-mock__cardfoot { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font: 700 13px/1.2 var(--font-display); color: rgba(255,255,255,.92); }
 .ms-mock__cardfoot span:last-child { font-family: var(--font-mono); font-weight: 500; opacity: .8; }
 
+/* ----- colourful logo (keepLogoColor) ----- */
+.ms-pj-hero__logo--light { background: #fff; border-color: rgba(0,0,0,.06); }
+.ms-pj-logo--color { filter: none !important; }
+
+/* ----- scroll reveal ----- */
+[data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity 620ms var(--ease-out), transform 620ms var(--ease-out); transition-delay: var(--d, 0ms); will-change: opacity, transform; }
+[data-reveal].is-in { opacity: 1; transform: none; }
+@media (prefers-reduced-motion: reduce) { [data-reveal] { opacity: 1 !important; transform: none !important; transition: none; } }
+
+/* ----- COLOUR SYSTEM ----- */
+.ms-pj-palette .ms-section__eyebrow { color: var(--pj, var(--marker-orange)); }
+.ms-pj-swatches { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 18px; margin-top: 28px; }
+.ms-pj-swatch__chip { height: 150px; border-radius: var(--r-lg); box-shadow: 0 14px 36px rgba(48,48,48,.12); }
+.ms-pj-swatch__meta { display: flex; flex-direction: column; gap: 3px; margin-top: 14px; }
+.ms-pj-swatch__name { font: 700 15px/1.2 var(--font-display); color: var(--marker-ink); }
+.ms-pj-swatch__hex { font: 500 12px/1 var(--font-mono); color: var(--fg-muted); letter-spacing: 0.04em; }
+
 /* ----- IMPACT : exploded metrics ----- */
 .ms-pj-impact { background: var(--marker-ink); color: #fff; }
 .ms-pj-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-top: 28px; }
