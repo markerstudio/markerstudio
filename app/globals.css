@@ -599,6 +599,33 @@ textarea.ms-edit { resize: vertical; }
 .ms-cal-del { width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--marker-danger); color: #fff; cursor: pointer; font-size: 11px; }
 @media (max-width: 640px) { .ms-cal-day { min-height: 60px; } .ms-cal-post { font-size: 0; padding: 4px; } }
 
+/* ===============================================================
+   EDITORIAL PORTAL — bold, report-cover styling
+   =============================================================== */
+.ms-portal .ms-section__eyebrow { color: var(--accent, var(--marker-orange)); letter-spacing: 0.18em; }
+.ms-portal .ms-section__title { font-size: clamp(32px, 6vw, 58px); letter-spacing: -0.03em; line-height: 1.0; }
+body.ar .ms-portal .ms-section__title { font-family: var(--font-arabic-display); }
+.ms-portal .ms-section { position: relative; }
+/* thin accent rule at the top of each content section */
+.ms-portal-sec { border-top: 2px solid var(--accent, var(--marker-orange)); }
+.ms-portal-sec .ms-container { padding-top: 8px; }
+
+/* Cover */
+.ms-portal-hero { padding: 80px 0 64px; }
+.ms-portal-hero__title { font-size: clamp(46px, 11vw, 116px); letter-spacing: -0.045em; line-height: 0.9; }
+.ms-ed-figures { display: flex; flex-wrap: wrap; margin-top: 40px; border-top: 1px solid rgba(255,255,255,.18); }
+.ms-ed-fig { padding: 20px 32px 0 0; margin-inline-end: 32px; border-inline-end: 1px solid rgba(255,255,255,.14); }
+.ms-ed-fig:last-child { border-inline-end: 0; margin-inline-end: 0; }
+.ms-ed-fig b { display: block; font: 800 32px/1 var(--font-display); color: #fff; letter-spacing: -0.02em; }
+.ms-ed-fig span { display: block; margin-top: 8px; font: 600 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; color: rgba(255,255,255,.6); }
+.ms-ed-fig small { color: rgba(255,255,255,.55); font-size: 12px; }
+.ms-ed-index { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 40px; }
+.ms-ed-index button { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.18); color: #fff; border-radius: 999px; padding: 11px 18px; font: 700 13px/1 var(--font-display); cursor: pointer; transition: background 140ms, border-color 140ms; display: inline-flex; align-items: center; gap: 8px; }
+.ms-ed-index button:hover { background: var(--marker-orange); border-color: var(--marker-orange); }
+.ms-ed-index button i { font-style: normal; opacity: .5; font-weight: 800; }
+.ms-ed-statement { font: 800 clamp(26px,4vw,46px)/1.08 var(--font-display); letter-spacing: -0.03em; color: var(--marker-ink); max-width: 20ch; margin: 0; }
+body.ar .ms-ed-statement { font-family: var(--font-arabic-display); }
+
 /* Portal mobile polish */
 @media (max-width: 768px) {
   .ms-portal-hero { padding: 44px 0; }

@@ -337,7 +337,13 @@ export async function quickCreateFromNotion(formData: FormData) {
     note: { en: info.note || "", ar: "" },
     balance: info.balance || "",
   };
-  data.finance = { monthlyFee: info.monthlyFee || "", progress: info.progress || 0 };
+  data.finance = {
+    monthlyFee: info.monthlyFee || "",
+    progress: info.progress || 0,
+    brandingFee: info.brandingFee || "",
+    brandingProgress: info.brandingProgress || 0,
+    brandingLeft: info.brandingLeft || "",
+  };
   if (info.invoices.length) data.invoices = info.invoices;
 
   await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
@@ -422,7 +428,13 @@ export async function syncNotionClient(formData: FormData) {
     note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
     balance: info.balance || data.plan?.balance || "",
   };
-  data.finance = { monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "", progress: info.progress || data.finance?.progress || 0 };
+  data.finance = {
+    monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
+    progress: info.progress || data.finance?.progress || 0,
+    brandingFee: info.brandingFee || data.finance?.brandingFee || "",
+    brandingProgress: info.brandingProgress || data.finance?.brandingProgress || 0,
+    brandingLeft: info.brandingLeft || data.finance?.brandingLeft || "",
+  };
   if (info.invoices.length) data.invoices = info.invoices;
 
   const name = info.name || undefined;
