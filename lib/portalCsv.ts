@@ -40,6 +40,7 @@ export function toCSV(d: ClientData): string {
   val("plan.start", d.plan?.start);
   val("plan.end", d.plan?.end);
   val("plan.notionUrl", d.plan?.notionUrl);
+  val("plan.balance", d.plan?.balance);
   bi("plan.note", d.plan?.note);
 
   bi("dashboard.headline", d.dashboard?.headline);
@@ -93,6 +94,9 @@ export function toCSV(d: ClientData): string {
     val(`invoices[${i}].status`, inv.status);
   });
 
+  val("finance.paid", d.finance?.paid);
+  val("finance.progress", d.finance?.progress);
+
   const docs = d.documents?.length ? d.documents : [{ title: "", type: "", url: "" }];
   docs.forEach((doc, i) => {
     val(`documents[${i}].title`, doc.title);
@@ -131,7 +135,7 @@ function emptyData(): ClientData {
   return {
     hero: { en: "", ar: "" },
     accent: "",
-    plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" } },
+    plan: { name: "", active: true, start: "", end: "", notionUrl: "", note: { en: "", ar: "" }, balance: "" },
     dashboard: { headline: { en: "", ar: "" }, diagnosis: { en: "", ar: "" }, cards: [], vitals: [] },
     social: { headline: { en: "", ar: "" }, posts: [] },
     analysis: {
@@ -139,6 +143,7 @@ function emptyData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
+    finance: { paid: "", progress: 0 },
     documents: [],
   };
 }
@@ -166,7 +171,7 @@ function setPath(obj: Record<string, unknown>, path: string, en: string, ar: str
   }
   const last = toks[toks.length - 1];
   if (BILINGUAL.has(path)) o[last] = { en, ar };
-  else if (path.endsWith(".pct")) o[last] = Math.max(0, Math.min(100, Number(value) || 0));
+  else if (path.endsWith(".pct") || path.endsWith(".progress")) o[last] = Math.max(0, Math.min(100, Number(value) || 0));
   else if (path === "plan.active") o[last] = /^(true|yes|1|نعم|نشط|active)$/i.test(value.trim());
   else if (path.endsWith(".status")) {
     const v = value.trim();

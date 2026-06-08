@@ -2,7 +2,7 @@ import Link from "next/link";
 import { isDbEnabled, getSql } from "@/lib/db";
 import { getClients } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
-import { deleteClient, importExampleClient, quickCreateClient, quickCreateFromNotion } from "../actions";
+import { deleteClient, quickCreateClient, quickCreateFromNotion } from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -29,14 +29,7 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight">Client portals</h1>
-        <div className="flex items-center gap-2">
-          <form action={importExampleClient}>
-            <button className="border border-neutral-300 rounded-md px-3 py-2 text-sm font-medium hover:bg-neutral-50">Import example</button>
-          </form>
-        </div>
-      </div>
+      <h1 className="text-2xl font-bold tracking-tight mb-6">Client portals</h1>
 
       {searchParams.error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>

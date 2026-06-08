@@ -41,7 +41,8 @@ export type ClientData = {
     organic: { headline: LocalizedText; metrics: MetricRow[]; reading?: LocalizedText };
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
   };
-  invoices: Invoice[];
+  invoices: Invoice[]; // payment history
+  finance: { paid: string; progress: number }; // paid-to-date + % (money left lives on plan.balance)
   documents: DocItem[];
   notionDbId?: string;
   notionPageId?: string;
@@ -100,6 +101,7 @@ export function blankClientData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
+    finance: { paid: "", progress: 0 },
     documents: [],
     notionDbId: "",
   };
@@ -176,6 +178,7 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
         en: "The next monthly plan will be prepared together after this review.",
         ar: "الخطة الشهرية القادمة ستُحضّر معاً بعد هذه المراجعة.",
       },
+      balance: "1,800 ILS",
     },
     dashboard: {
       headline: { en: "The account changed behavior.", ar: "الحساب غيّر سلوكه." },
@@ -243,6 +246,7 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       { cycle: "Cycle 02 · Mar 26 → Apr 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 03 · Apr 26 → May 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
     ],
+    finance: { paid: "5,400 ILS", progress: 75 },
     documents: [
       { title: "Proposal", type: "PDF", url: "" },
       { title: "Service agreement", type: "PDF", url: "" },
