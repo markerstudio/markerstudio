@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
+import Pricing from "@/components/Pricing";
 import { useLang } from "@/lib/useLang";
 import { type Project } from "@/lib/projects";
 
@@ -540,6 +541,7 @@ export default function MarkerSite({ projects }: { projects: Project[] }) {
         <ClientsMarquee t={t} />
         <WorkGrid t={t} lang={lang} projects={projects} />
         <ServicesGrid t={t} />
+        <Pricing t={t} />
         <StudioBlock t={t} />
         <MetricStrip t={t} />
         <Testimonials t={t} />

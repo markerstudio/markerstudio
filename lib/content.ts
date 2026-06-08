@@ -75,6 +75,25 @@ export interface SiteContent {
   metrics: { eyebrow: string; title: string; sub: string; items: MetricItem[] };
   testimonials: { eyebrow: string; title: string; items: QuoteItem[] };
   process: { eyebrow: string; title: string; items: NumberedItem[] };
+  pricing: {
+    eyebrow: string;
+    title: string[];
+    sub: string;
+    currencyLabel: string;
+    fromLabel: string;
+    insideLabel: string;
+    quoteNote: string;
+    arrow: string;
+    categories: {
+      key: string;
+      label: string;
+      base: number; // starting price in USD — converted per currency
+      period: string;
+      note: string;
+      features: string[];
+      cta: string;
+    }[];
+  };
   faq: { eyebrow: string; title: string; sub: string; items: FaqItem[] };
   ctaBanner: { title: string[]; sub: string; button: string };
   contact: {
@@ -221,6 +240,52 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "02", title: "Mark", desc: "We commit to a direction. One identity, one funnel, one campaign — sharp enough to bet on." },
         { num: "03", title: "Make", desc: "Production sprints. Assets shipped weekly, paid amplification dialed in, content tested." },
         { num: "04", title: "Measure", desc: "Monthly report — reach, conversion, learnings. Then we tune the next phase against it." },
+      ],
+    },
+    pricing: {
+      eyebrow: "Investment",
+      title: ["Pick a track,", "leave a mark."],
+      sub: "Two ways to work with Marker — an ongoing marketing engine, or a one-off custom build. Every quote is tailored; switch currency to see it your way.",
+      currencyLabel: "Currency",
+      fromLabel: "Starts from",
+      insideLabel: "What's inside",
+      quoteNote: "Every brand is different — your final quote is tailored to scope. No surprises, no lock-in.",
+      arrow: "→",
+      categories: [
+        {
+          key: "marketing",
+          label: "Marketing & Branding",
+          base: 1200,
+          period: "/ month",
+          note: "Monthly retainer · cancel anytime",
+          features: [
+            "Reels-first content strategy",
+            "Monthly calendar & production",
+            "Paid amplification, managed",
+            "Bilingual copy — Arabic & English",
+            "Community management",
+            "Monthly performance report",
+            "Priority support",
+          ],
+          cta: "Get a quote",
+        },
+        {
+          key: "custom",
+          label: "Custom Projects",
+          base: 800,
+          period: "/ project",
+          note: "One-time · scoped per project",
+          features: [
+            "Brand identity & visual system",
+            "Logo, type & colour guidelines",
+            "Bilingual brand assets",
+            "Campaign creative & launch kit",
+            "Packaging & print on request",
+            "Editable source files & handoff",
+            "One refinement round included",
+          ],
+          cta: "Start a project",
+        },
       ],
     },
     faq: {
@@ -397,6 +462,52 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
         { num: "٠٢", title: "توسيم", desc: "نلتزم باتجاه. هوية، قمع، حملة — حادّة بما يكفي للمراهنة." },
         { num: "٠٣", title: "إنتاج", desc: "أسابيع إنتاج. أصول تُسلَّم أسبوعياً، إعلانات مضبوطة، محتوى مُختبَر." },
         { num: "٠٤", title: "قياس", desc: "تقرير شهري — وصول، تحويل، دروس. ثمّ نضبط المرحلة القادمة عليه." },
+      ],
+    },
+    pricing: {
+      eyebrow: "الاستثمار",
+      title: ["اختر مساراً،", "واترك أثراً."],
+      sub: "طريقتان للعمل مع ماركر — محرّك تسويق مستمر، أو مشروع مخصّص لمرة واحدة. كل عرض سعر مُفصّل؛ بدّل العملة لتراه بطريقتك.",
+      currencyLabel: "العملة",
+      fromLabel: "يبدأ من",
+      insideLabel: "ما الذي تحصل عليه",
+      quoteNote: "كل علامة مختلفة — السعر النهائي يُفصَّل حسب نطاق العمل. بلا مفاجآت، وبلا التزام مقيِّد.",
+      arrow: "←",
+      categories: [
+        {
+          key: "marketing",
+          label: "تسويق وعلامة",
+          base: 1200,
+          period: "/ شهرياً",
+          note: "اشتراك شهري · إلغاء وقت ما تشاء",
+          features: [
+            "استراتيجية محتوى تعتمد الريلز",
+            "تقويم وإنتاج شهري",
+            "إدارة إعلانات مدفوعة",
+            "كتابة ثنائية اللغة — عربي وإنجليزي",
+            "إدارة المجتمع والتفاعل",
+            "تقرير أداء شهري",
+            "دعم بأولوية",
+          ],
+          cta: "اطلب عرض سعر",
+        },
+        {
+          key: "custom",
+          label: "مشاريع خاصة",
+          base: 800,
+          period: "/ المشروع",
+          note: "دفعة واحدة · حسب نطاق المشروع",
+          features: [
+            "هوية بصرية ونظام متكامل",
+            "شعار ودليل خطوط وألوان",
+            "أصول علامة ثنائية اللغة",
+            "محتوى حملة وحزمة إطلاق",
+            "تغليف وطباعة عند الطلب",
+            "ملفات مصدرية قابلة للتعديل",
+            "جولة تعديل واحدة مشمولة",
+          ],
+          cta: "ابدأ مشروعاً",
+        },
       ],
     },
     faq: {
