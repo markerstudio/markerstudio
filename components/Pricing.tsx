@@ -1,65 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { type SiteContent } from "@/lib/content";
-
-/* Currency table — amounts are authored in USD in content.ts, then converted
-   and rounded to a tidy step per currency. Rates are intentionally simple to
-   edit; the studio quotes the real figure anyway. */
-const CURRENCIES = [
-  { code: "USD", symbol: "$", rate: 1, round: 10 },
-  { code: "ILS", symbol: "₪", rate: 3.6, round: 50 },
-  { code: "EUR", symbol: "€", rate: 0.92, round: 10 },
-] as const;
-
-function convert(usd: number, code: string): { symbol: string; amount: number } {
-  const c = CURRENCIES.find((x) => x.code === code) ?? CURRENCIES[0];
-  const amount = Math.round((usd * c.rate) / c.round) * c.round;
-  return { symbol: c.symbol, amount };
-}
-
-/* Count-up number — a lightweight stand-in for @number-flow, so the price
-   animates when you switch category or currency without pulling in a dep. */
-function useCountUp(value: number, duration = 550): number {
-  const [display, setDisplay] = useState(value);
-  const fromRef = useRef(value);
-  const displayRef = useRef(value);
-
-  useEffect(() => {
-    const from = fromRef.current;
-    const diff = value - from;
-    if (diff === 0) return;
-
-    if (typeof window === "undefined" || typeof requestAnimationFrame === "undefined") {
-      fromRef.current = value;
-      displayRef.current = value;
-      setDisplay(value);
-      return;
-    }
-
-    const start = performance.now();
-    let raf = 0;
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - start) / duration);
-      const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
-      const next = Math.round(from + diff * eased);
-      displayRef.current = next;
-      setDisplay(next);
-      if (t < 1) raf = requestAnimationFrame(tick);
-      else {
-        fromRef.current = value;
-        displayRef.current = value;
-      }
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      cancelAnimationFrame(raf);
-      fromRef.current = displayRef.current; // resume from where we stopped
-    };
-  }, [value, duration]);
-
-  return display;
-}
 
 /* Sliding pill toggle — the template's PricingSwitch, rebuilt with logical
    properties so the indicator tracks correctly in both LTR and RTL. */
@@ -75,10 +17,7 @@ function PillToggle({
   const pad = 5;
   const n = options.length;
   return (
-    <div
-      className="ms-toggle"
-      style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}
-    >
+    <div className="ms-toggle" style={{ gridTemplateColumns: `repeat(${n}, 1fr)` }}>
       <span
         className="ms-toggle__ind"
         aria-hidden
@@ -122,11 +61,7 @@ function SparkIcon() {
 export default function Pricing({ t }: { t: SiteContent }) {
   const p = t.pricing;
   const [cat, setCat] = useState(0);
-  const [cur, setCur] = useState(0);
-
   const category = p.categories[cat];
-  const { symbol, amount } = convert(category.base, CURRENCIES[cur].code);
-  const animated = useCountUp(amount);
 
   return (
     <section className="ms-section ms-pricing" id="pricing">
@@ -151,50 +86,48 @@ export default function Pricing({ t }: { t: SiteContent }) {
           />
         </div>
 
-        <div className="ms-pricing__panel">
-          <div className="ms-pricing__inside">
-            <h3 className="ms-pricing__inside-title">{p.insideLabel}</h3>
-            <ul className="ms-pricing__features">
-              {category.features.map((f) => (
-                <li key={f} className="ms-pricing__feature">
-                  <span className="ms-pricing__feature-ico" aria-hidden>
-                    <CheckIcon />
-                  </span>
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <div className="ms-pricing__aside">
-            <div className="ms-pricing__cur">
-              <span className="ms-pricing__cur-label">{p.currencyLabel}</span>
-              <PillToggle
-                options={CURRENCIES.map((c) => c.code)}
-                selected={cur}
-                onSelect={setCur}
-              />
-            </div>
-
-            <div className="ms-pricing__price">
-              <span className="ms-pricing__from">{p.fromLabel}</span>
-              <div className="ms-pricing__amount-row">
-                <span className="ms-pricing__amount">
-                  {symbol}
-                  {animated.toLocaleString("en-US")}
+        <div className="ms-pricing__grid" key={category.key}>
+          {category.plans.map((plan) => (
+            <div
+              key={plan.name}
+              className={`ms-plan ${plan.featured ? "ms-plan--featured" : ""}`}
+            >
+              {plan.featured && (
+                <span className="ms-plan__badge">
+                  <SparkIcon />
+                  {p.popularLabel}
                 </span>
-                <span className="ms-pricing__period">{category.period}</span>
+              )}
+              <div className="ms-plan__head">
+                <span className="ms-plan__meta">{plan.meta}</span>
+                <h3 className="ms-plan__name">{plan.name}</h3>
+                <p className="ms-plan__tagline">{plan.tagline}</p>
               </div>
-              <p className="ms-pricing__note">{category.note}</p>
+
+              <ul className="ms-plan__features">
+                {plan.features.map((f) => (
+                  <li key={f} className="ms-plan__feature">
+                    <span className="ms-plan__feature-ico" aria-hidden>
+                      <CheckIcon />
+                    </span>
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <a
+                href="#contact"
+                className={`ms-btn ms-plan__cta ${
+                  plan.featured ? "ms-btn-primary" : "ms-btn-outline"
+                }`}
+              >
+                {p.cta} <span>{p.arrow}</span>
+              </a>
             </div>
-
-            <a href="#contact" className="ms-btn ms-btn-primary ms-pricing__cta">
-              {category.cta} <span>{p.arrow}</span>
-            </a>
-
-            <p className="ms-pricing__quote-note">{p.quoteNote}</p>
-          </div>
+          ))}
         </div>
+
+        <p className="ms-pricing__quote-note">{p.quoteNote}</p>
       </div>
     </section>
   );
