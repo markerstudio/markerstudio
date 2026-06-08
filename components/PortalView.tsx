@@ -103,70 +103,44 @@ export default function PortalView({
         <>
           <section className="ms-portal-hero">
             <div className="ms-container">
-              <span className="ms-portal-hero__eyebrow">{ui("Private client portal", "بوابة العميل الخاصة")}</span>
+              <span className="ms-portal-hero__eyebrow">{ui("Marker Studio · Client report", "ماركر استديو · تقرير العميل")}</span>
               <h1 className="ms-portal-hero__title">{client.name}</h1>
               <p className="ms-portal-hero__sub">{f(tr(d.hero), (v) => up((c) => (c.hero[lang] = v)), true, ui("Intro line…", "سطر تعريفي…"))}</p>
-              {d.plan && (
-                <div className="ms-portal-hero__meta">
-                  <span className={`ms-portal-status ${d.plan.active ? "ms-portal-status--on" : "ms-portal-status--off"}`}>
-                    {d.plan.active ? ui("Plan active", "الخطة نشطة") : ui("Plan paused", "الخطة متوقفة")}
-                  </span>
-                  <span className="ms-portal-dates">{d.plan.end ? `${d.plan.start} → ${d.plan.end}` : d.plan.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</span>
+
+              <div className="ms-ed-figures">
+                <div className="ms-ed-fig">
+                  <b>{d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}</b>
+                  <span>{d.plan?.end ? `${d.plan?.start} → ${d.plan?.end}` : d.plan?.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</span>
                 </div>
-              )}
+                {(edit || d.plan?.balance) && (
+                  <div className="ms-ed-fig"><b>{d.plan?.balance || "—"}</b><span>{ui("Left this month", "المتبقّي")}</span></div>
+                )}
+                {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
+                  <div className="ms-ed-fig"><b>{d.finance?.progress ?? 0}%</b><span>{ui("This month covered", "تغطية الشهر")}</span></div>
+                )}
+                {topMetric && (
+                  <div className="ms-ed-fig"><b>{topMetric.after}</b><span>{topMetric.label}</span></div>
+                )}
+                {nextPost && (
+                  <div className="ms-ed-fig"><b>{nextPost.date}</b><span>{[ui("Next post", "المنشور القادم"), nextPost.platform].filter(Boolean).join(" · ")}</span></div>
+                )}
+              </div>
+
+              <div className="ms-ed-index">
+                {TABS.filter((t) => t.id !== "dashboard").map((t, i) => (
+                  <button key={t.id} onClick={() => setTab(t.id)}><i>{String(i + 1).padStart(2, "0")}</i> {ui(t.en, t.ar)}</button>
+                ))}
+              </div>
             </div>
           </section>
 
-          <section className="ms-section">
-            <div className="ms-container">
-              <div className="ms-section__header">
-                <div>
-                  <span className="ms-section__eyebrow">{ui("Overview", "نظرة عامة")}</span>
-                  <h2 className="ms-section__title">{f(tr(d.dashboard?.headline), (v) => up((c) => (c.dashboard.headline[lang] = v)), false, ui("Headline…", "عنوان…"))}</h2>
-                </div>
-              </div>
-              <div className="ms-portal-grid">
-                <div className="ms-pcard pc-3">
-                  <span className="ms-portal-mini">{ui("Plan", "الخطة")}</span>
-                  <div style={{ marginTop: 8 }}>
-                    <span className={`ms-portal-pill ${d.plan?.active ? "ms-portal-pill--green" : "ms-portal-pill--red"}`}>{d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}</span>
-                  </div>
-                  <p className="ms-pmuted" style={{ marginTop: 8, fontSize: 13 }}>{d.plan?.end ? `${d.plan?.start} → ${d.plan?.end}` : d.plan?.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</p>
-                </div>
-                {(edit || d.plan?.balance) && (
-                  <div className="ms-pcard pc-3">
-                    <span className="ms-portal-mini">{ui("Left this month", "المتبقّي")}</span>
-                    <div className="ms-portal-big" style={{ marginTop: 8 }}>{d.plan?.balance || "—"}</div>
-                  </div>
-                )}
-                {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
-                  <div className="ms-pcard pc-3">
-                    <span className="ms-portal-mini">{ui("This month", "هذا الشهر")}</span>
-                    <div className="ms-portal-big" style={{ marginTop: 8, color: "var(--marker-ink)" }}>{d.finance?.progress ?? 0}%</div>
-                    <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 8 }}><div style={{ height: "100%", width: `${d.finance?.progress ?? 0}%`, background: "var(--marker-orange)" }} /></div>
-                  </div>
-                )}
-                {(edit || nextPost) && (
-                  <div className="ms-pcard pc-3">
-                    <span className="ms-portal-mini">{ui("Next post", "المنشور القادم")}</span>
-                    {nextPost ? (
-                      <><div style={{ marginTop: 8, fontWeight: 800 }}>{nextPost.date}</div><p className="ms-pmuted" style={{ fontSize: 13 }}>{[nextPost.platform, nextPost.title].filter(Boolean).join(" · ")}</p></>
-                    ) : (
-                      <div className="ms-pmuted" style={{ marginTop: 8 }}>{ui("Nothing scheduled", "لا شيء مجدول")}</div>
-                    )}
-                  </div>
-                )}
-
-                {topMetric && (
-                  <div className="ms-pcard pc-6">
-                    <span className="ms-portal-mini">{ui("Top result", "أبرز نتيجة")}</span>
-                    <div className="ms-portal-big" style={{ marginTop: 8 }}>{topMetric.after}</div>
-                    <p className="ms-pmuted">{topMetric.label}{topMetric.before ? ` · ${ui("from", "من")} ${topMetric.before}` : ""}</p>
-                  </div>
-                )}
-
+          {(edit || tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0) && (
+            <section className="ms-section">
+              <div className="ms-container">
+                <span className="ms-section__eyebrow">{ui("Overview", "نظرة عامة")}</span>
+                <h2 className="ms-ed-statement" style={{ marginTop: 10 }}>{f(tr(d.dashboard?.headline), (v) => up((c) => (c.dashboard.headline[lang] = v)), false, ui("One-line summary…", "ملخّص بسطر…"))}</h2>
                 {(edit || (d.dashboard?.vitals ?? []).length > 0) && (
-                  <div className={`ms-pcard ${topMetric ? "pc-6" : "pc-12"}`}>
+                  <div className="ms-pcard" style={{ marginTop: 28, maxWidth: 680 }}>
                     <span className="ms-section__eyebrow">{ui("Account health", "صحة الحساب")}</span>
                     <div className="ms-portal-bars">
                       {(d.dashboard?.vitals ?? []).map((v, i) => (
@@ -194,8 +168,8 @@ export default function PortalView({
                   </div>
                 )}
               </div>
-            </div>
-          </section>
+            </section>
+          )}
         </>
       )}
 
