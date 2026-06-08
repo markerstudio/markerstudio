@@ -110,6 +110,7 @@ export default function PortalView({
             {(canEdit || !!client.data.agreement?.published) && (
               <a className="ms-portal-tab" href={`/portal/${client.slug}/agreement`}>{ui("Agreement", "الاتفاقية")}</a>
             )}
+            <a className="ms-portal-tab" href={`/portal/${client.slug}/invoices`}>{ui("Invoices", "الفواتير")}</a>
           </nav>
           <div className="ms-actions">
             <div className="ms-lang" role="group" aria-label="Language">

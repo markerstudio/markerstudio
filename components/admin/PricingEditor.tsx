@@ -70,7 +70,7 @@ export default function PricingEditor({ slug, initial, note }: { slug: string; i
 
       {total > 0 && (
         <div className="mt-3 grid grid-cols-[1fr_130px_24px] gap-2 border-t border-neutral-100 pt-3 text-sm">
-          <span className="font-semibold text-neutral-700">Total (approx.)</span>
+          <span className="font-semibold text-neutral-700">Total (approx., excl. VAT)</span>
           <span className="text-right font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US")}</span>
           <span />
         </div>

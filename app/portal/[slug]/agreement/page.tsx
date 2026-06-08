@@ -23,6 +23,7 @@ const T = {
     payment: "Payment method",
     pricingTitle: "Pricing",
     totalLabel: "Total",
+    exclVat: "All prices are exclusive of VAT.",
     acceptance: "Acceptance",
     acceptanceBody: "By signing below, both parties confirm that they understand and accept the scope, package value, phase-based payment terms, responsibilities, and conditions of this Agreement.",
     agreeLabel: "I have read and accept the terms and conditions of this Agreement.",
@@ -50,6 +51,7 @@ const T = {
     payment: "طريقة الدفع",
     pricingTitle: "التسعير",
     totalLabel: "الإجمالي",
+    exclVat: "جميع الأسعار بدون ضريبة القيمة المضافة.",
     acceptance: "القبول",
     acceptanceBody: "بالتوقيع أدناه، يؤكّد الطرفان فهمهما وقبولهما للنطاق وقيمة الباقة وشروط الدفع على مراحل والمسؤوليات وشروط هذه الاتفاقية.",
     agreeLabel: "لقد قرأت وأوافق على شروط وأحكام هذه الاتفاقية.",
@@ -193,7 +195,7 @@ export default async function AgreementPage({
                     </div>
                   )}
                 </dl>
-                {pricing.note && <p className="mt-2 text-xs text-neutral-500">{pricing.note}</p>}
+                <p className="mt-2 text-xs text-neutral-500">{pricing.note ? `${pricing.note} · ${t.exclVat}` : t.exclVat}</p>
               </div>
             ) : null}
 

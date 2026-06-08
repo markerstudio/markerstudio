@@ -4,6 +4,9 @@ import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
 import PricingEditor from "@/components/admin/PricingEditor";
+import InvoiceEditor from "@/components/admin/InvoiceEditor";
+import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
+import { createInvoiceFromNotion, setInvoiceStatusAction, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient, sendProposal, sendAgreement } from "../../../actions";
@@ -27,6 +30,11 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "agreement-sent": { text: "Agreement sent — the client can now review and e-sign it.", ok: true },
   "agreement-unsent": { text: "Agreement hidden from the client.", ok: true },
   "pricing-saved": { text: "Pricing saved — it shows on the proposal and agreement.", ok: true },
+  "invoice-created": { text: "Invoice created — it's in the client's portal under Invoices.", ok: true },
+  "invoice-updated": { text: "Invoice status updated.", ok: true },
+  "invoice-deleted": { text: "Invoice deleted.", ok: true },
+  "invoice-empty": { text: "Add at least one line item to create an invoice." },
+  "no-fee": { text: "No monthly fee found — sync the client from Notion first." },
   json: { text: "Portal content was not valid JSON — fix it and save again." },
   invalid: { text: "Enter a valid email and an 8+ character password." },
   exists: { text: "A user with that email already exists." },
@@ -118,6 +126,14 @@ export default async function EditClientPage({
         ...((brief?.services || []).map((sv) => ({ label: sv, amount: "" }))),
         ...(brief?.servicesOther ? [{ label: brief.servicesOther, amount: "" }] : []),
       ];
+
+  let clientInvoices: Invoice[] = [];
+  try {
+    clientInvoices = await listClientInvoices(client.id);
+  } catch {
+    clientInvoices = [];
+  }
+  const monthlyFee = client.data.finance?.monthlyFee || "";
 
   let logins: ClientUser[] = [];
   let invites: InviteRow[] = [];
@@ -249,6 +265,58 @@ export default async function EditClientPage({
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {client && (
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+          <h2 className="font-bold mb-1">Invoices</h2>
+          <p className="text-sm text-neutral-500 mb-4">Auto-numbered (INV-{new Date().getFullYear()}-NNN). They appear in the client&apos;s portal under Invoices.</p>
+
+          {monthlyFee && (
+            <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-orange/40 bg-orange-50/50 px-4 py-3 mb-4">
+              <div className="text-sm">
+                <div className="font-semibold text-neutral-900">This client&apos;s month is due</div>
+                <div className="text-neutral-600">Monthly fee from Notion: <b>{monthlyFee}</b>{client.data.plan?.end ? ` · cycle ends ${client.data.plan.end}` : ""}</div>
+              </div>
+              <form action={createInvoiceFromNotion}>
+                <input type="hidden" name="slug" value={client.slug} />
+                <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Draft monthly invoice</button>
+              </form>
+            </div>
+          )}
+
+          {clientInvoices.length > 0 && (
+            <div className="divide-y divide-neutral-100 mb-5">
+              {clientInvoices.map((inv) => {
+                const total = invoiceGrandTotal(inv.items, Number(inv.vat_rate) || 0);
+                return (
+                  <div key={inv.id} className="flex items-center gap-3 py-2.5 flex-wrap">
+                    <div className="flex-1 min-w-[140px]">
+                      <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="font-mono text-sm font-semibold text-neutral-800 hover:text-orange">{inv.number}</a>
+                      <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{Number(inv.vat_rate) > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
+                    </div>
+                    <span className="tabular-nums text-sm font-semibold text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                    <span className="text-xs font-semibold uppercase text-neutral-400 w-12">{inv.status}</span>
+                    <form action={setInvoiceStatusAction}>
+                      <input type="hidden" name="slug" value={client.slug} />
+                      <input type="hidden" name="id" value={inv.id} />
+                      <input type="hidden" name="status" value={inv.status === "draft" ? "sent" : inv.status === "sent" ? "paid" : "draft"} />
+                      <button className="text-xs font-medium text-neutral-600 hover:text-orange">{inv.status === "draft" ? "Mark sent" : inv.status === "sent" ? "Mark paid" : "Reopen"}</button>
+                    </form>
+                    <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
+                    <form action={deleteInvoiceAction}>
+                      <input type="hidden" name="slug" value={client.slug} />
+                      <input type="hidden" name="id" value={inv.id} />
+                      <button className="text-xs font-medium text-neutral-300 hover:text-red-600">Delete</button>
+                    </form>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <InvoiceEditor slug={client.slug} seed={(client.data.pricing?.items || []).length ? client.data.pricing!.items : seededPricing} />
         </div>
       )}
 

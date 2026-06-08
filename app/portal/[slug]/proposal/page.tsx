@@ -26,6 +26,7 @@ const T = {
     investmentNote: "A tailored quote based on this scope — we'll confirm the exact figure with you before any work begins.",
     servicesLabel: "Services",
     totalLabel: "Total",
+    exclVat: "All prices are exclusive of VAT.",
     recap: "What we captured",
     fields: { description: "Brand", products: "Products", goals: "Goals", audience: "Audience", presence: "Online presence", tagline: "Tagline" },
     acceptCta: "Accept proposal",
@@ -52,6 +53,7 @@ const T = {
     investmentNote: "عرض سعر مفصّل حسب هذا النطاق — سنؤكّد الرقم النهائي معك قبل بدء أي عمل.",
     servicesLabel: "الخدمات",
     totalLabel: "الإجمالي",
+    exclVat: "جميع الأسعار بدون ضريبة القيمة المضافة.",
     recap: "ما سجّلناه",
     fields: { description: "العلامة", products: "المنتجات", goals: "الأهداف", audience: "الجمهور", presence: "الوجود الرقمي", tagline: "الشعار" },
     acceptCta: "اقبل العرض",
@@ -211,7 +213,7 @@ export default async function ProposalPage({ params }: { params: { slug: string 
                       </div>
                     )}
                   </dl>
-                  {pricing.note && <p className="mt-3 text-xs text-neutral-500">{pricing.note}</p>}
+                  <p className="mt-3 text-xs text-neutral-500">{pricing.note ? `${pricing.note} · ${t.exclVat}` : t.exclVat}</p>
                 </>
               ) : (
                 <p className="mt-1 text-sm text-neutral-700">{t.investmentNote}</p>
