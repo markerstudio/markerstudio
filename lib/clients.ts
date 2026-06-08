@@ -42,7 +42,13 @@ export type ClientData = {
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
   };
   invoices: Invoice[]; // payment history
-  finance: { monthlyFee: string; progress: number }; // monthly fee + % of this month covered (money left lives on plan.balance)
+  finance: {
+    monthlyFee: string; // monthly marketing fee
+    progress: number; // % of this month covered (money left lives on plan.balance)
+    brandingFee?: string; // fixed branding fee (one-time)
+    brandingProgress?: number; // % of branding fee covered by branding payments
+    brandingLeft?: string; // remaining branding balance
+  };
   documents: DocItem[];
   notionDbId?: string;
   notionPageId?: string;
@@ -101,7 +107,7 @@ export function blankClientData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
-    finance: { monthlyFee: "", progress: 0 },
+    finance: { monthlyFee: "", progress: 0, brandingFee: "", brandingProgress: 0, brandingLeft: "" },
     documents: [],
     notionDbId: "",
   };
@@ -252,11 +258,12 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       },
     },
     invoices: [
+      { cycle: "Branding · Visual identity", desc: "Fixed branding fee — paid", amount: "2,500 ILS", status: "paid" },
       { cycle: "Cycle 01 · Feb 26 → Mar 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 02 · Mar 26 → Apr 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 03 · Apr 26 → May 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
     ],
-    finance: { monthlyFee: "1,800 ILS", progress: 67 },
+    finance: { monthlyFee: "1,800 ILS", progress: 67, brandingFee: "2,500 ILS", brandingProgress: 100, brandingLeft: "0 ILS" },
     documents: [
       { title: "Proposal", type: "PDF", url: "" },
       { title: "Service agreement", type: "PDF", url: "" },

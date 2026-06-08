@@ -63,8 +63,8 @@ export async function listNotionClients(): Promise<{ id: string; name: string }[
   }
 }
 
-async function fetchSourceFinance(clientPageId: string): Promise<{ balance: string; monthlyFee: string; progress: number }> {
-  const out = { balance: "", monthlyFee: "", progress: 0 };
+async function fetchSourceFinance(clientPageId: string): Promise<{ balance: string; monthlyFee: string; progress: number; brandingFee: string }> {
+  const out = { balance: "", monthlyFee: "", progress: 0, brandingFee: "" };
   try {
     const q = await notionPost(`/v1/databases/${SOURCES_DB}/query`, {
       filter: { property: "Clients Database", relation: { contains: clientPageId } },
@@ -72,6 +72,13 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
     });
     const props = q.results?.[0]?.properties;
     if (!props) return out;
+
+    // Branding (fixed) fee — a number/formula property whose name mentions "branding".
+    for (const [name, prop] of Object.entries<any>(props)) {
+      if (!/brand/i.test(name)) continue;
+      const n = prop?.type === "formula" ? prop.formula?.number : prop?.number;
+      if (typeof n === "number" && n > 0) { out.brandingFee = `${n.toLocaleString()} ILS`; break; }
+    }
 
     // Money Left = how much of the current period is still owed (can exceed one
     // month when payments are overdue).
@@ -102,6 +109,7 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
 export async function fetchNotionClient(pageId: string): Promise<{
   name: string; start: string; end: string; active: boolean; planName: string; note: string;
   balance: string; monthlyFee: string; progress: number; invoices: Invoice[];
+  brandingFee: string; brandingProgress: number; brandingLeft: string;
 }> {
   const page = await notionGet(`/v1/pages/${pageId}`);
   const p = page.properties || {};
@@ -122,6 +130,7 @@ export async function fetchNotionClient(pageId: string): Promise<{
   // Payment history from the linked Income rows.
   const rel = (p["Payments"]?.relation || []) as { id: string }[];
   const rows: (Invoice & { _d: string })[] = [];
+  let brandingPaid = 0; // sum of paid payments marked "branding"
   for (const r of rel.slice(0, 80)) {
     try {
       const inc = await notionGet(`/v1/pages/${r.id}`);
@@ -132,6 +141,18 @@ export async function fetchNotionClient(pageId: string): Promise<{
       const payDate = ip["Pay Date"]?.date?.start ? String(ip["Pay Date"].date.start).slice(0, 10) : "";
       const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
       const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
+
+      // A payment is "branding" if its name, or any select/status/multi-select
+      // property value, mentions branding.
+      const isBranding = /brand/i.test(nm) || Object.values<any>(ip).some((pr) => {
+        const v = pr?.type === "select" ? pr.select?.name
+          : pr?.type === "status" ? pr.status?.name
+          : pr?.type === "multi_select" ? (pr.multi_select || []).map((x: any) => x.name).join(" ")
+          : "";
+        return /brand/i.test(v || "");
+      });
+      if (isBranding && payDate && typeof ils === "number") brandingPaid += ils;
+
       rows.push({
         cycle: nm || payDate || dueDate || "Payment",
         desc: payDate ? `Paid ${payDate}` : dueDate ? `Due ${dueDate}` : "",
@@ -146,7 +167,20 @@ export async function fetchNotionClient(pageId: string): Promise<{
   rows.sort((a, b) => (a._d < b._d ? 1 : a._d > b._d ? -1 : 0)); // newest first
   const invoices: Invoice[] = rows.map(({ _d, ...inv }) => inv);
 
-  return { name, start, end, active, planName, note, balance: fin.balance, monthlyFee: fin.monthlyFee, progress: fin.progress, invoices };
+  // Branding coverage: branding payments against the fixed branding fee.
+  const bFee = parseFloat((fin.brandingFee || "").replace(/[^0-9.]/g, "")) || 0;
+  let brandingProgress = 0;
+  let brandingLeft = "";
+  if (bFee > 0) {
+    brandingProgress = Math.max(0, Math.min(100, Math.round((brandingPaid / bFee) * 100)));
+    brandingLeft = `${Math.max(0, bFee - brandingPaid).toLocaleString()} ILS`;
+  }
+
+  return {
+    name, start, end, active, planName, note,
+    balance: fin.balance, monthlyFee: fin.monthlyFee, progress: fin.progress, invoices,
+    brandingFee: fin.brandingFee, brandingProgress, brandingLeft,
+  };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

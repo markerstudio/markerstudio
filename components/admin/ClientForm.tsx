@@ -32,6 +32,33 @@ Below is a CSV with columns: field,en,ar,value. Fill ONLY these analysis rows:
 ${csv}`;
 }
 
+// AI prompt scoped to the SOCIAL MEDIA PLAN only — builds the content calendar
+// as CSV rows we merge back into social.posts.
+function socialPrompt(data: ClientData): string {
+  const full = toCSV(data).replace(/^﻿/, "");
+  const lines = full.split("\r\n");
+  const csv = [lines[0], ...lines.filter((l) => l.startsWith("social."))].join("\n");
+  return `You are planning a one-month SOCIAL MEDIA CONTENT CALENDAR for a Marker Studio client, returning it as CSV.
+
+Below is a CSV with columns: field,en,ar,value. Fill ONLY the social rows:
+- social.headline = a short bilingual title for the plan (fill BOTH "en" and "ar", natural Arabic).
+- social.posts[n] = one row-group per planned post, with:
+  - .date  = ISO date YYYY-MM-DD
+  - .platform = Instagram / TikTok / Facebook / LinkedIn …
+  - .title = the post idea / hook (English is fine)
+  - .notes = goal or format (e.g. Reel, Story, Carousel, Engagement, Trust)
+  - .status = planned | scheduled | posted
+- Add as many posts as the plan needs by copying a post group and increasing the [n] index (start at 0). Keep the "field" column EXACTLY.
+- Aim for a realistic, varied month (mix of platforms, formats, and goals). Use real-looking dates spread across the month.
+- Output ONLY the CSV (header + rows). No commentary, no code fences.
+
+=== BRIEF (audience, goals, services, tone) ===
+[describe the client and what this month should achieve here]
+
+=== SOCIAL CSV TO FILL ===
+${csv}`;
+}
+
 function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
@@ -95,6 +122,9 @@ export default function ClientForm({ client }: { client?: Client }) {
   const [csvMsg, setCsvMsg] = useState("");
   const [aiCopied, setAiCopied] = useState(false);
   const [pasteText, setPasteText] = useState("");
+  const [socialCopied, setSocialCopied] = useState(false);
+  const [socialPaste, setSocialPaste] = useState("");
+  const [socialMsg, setSocialMsg] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
 
   function copyPrompt() {
@@ -110,6 +140,21 @@ export default function ClientForm({ client }: { client?: Client }) {
       setPasteText("");
     } catch {
       setCsvMsg("Couldn't read that — paste the CSV the AI returned (the field,en,ar,value table).");
+    }
+  }
+  function copySocialPrompt() {
+    navigator.clipboard?.writeText(socialPrompt(data));
+    setSocialCopied(true);
+    setTimeout(() => setSocialCopied(false), 1800);
+  }
+  function applySocialPaste() {
+    try {
+      const parsed = fromCSV(socialPaste);
+      setData((d) => ({ ...d, social: parsed.social })); // merge social plan only
+      setSocialMsg("Calendar filled ✓ — review on the calendar above, then Save changes.");
+      setSocialPaste("");
+    } catch {
+      setSocialMsg("Couldn't read that — paste the CSV the AI returned (the field,en,ar,value table).");
     }
   }
 
@@ -190,9 +235,25 @@ export default function ClientForm({ client }: { client?: Client }) {
           )} />
       </Group>
 
-      <Group title="Social Media Plan" hint="Click a day on the calendar to add or edit posts.">
+      <Group title="Social Media Plan" hint="Click a day on the calendar to add or edit posts — or fill the whole month with AI below.">
         <Bi label="Headline" value={data.social.headline} onChange={(headline) => patch({ social: { ...data.social, headline } })} />
         <SocialCalendar posts={data.social.posts} editable lang="en" onChange={(posts) => patch({ social: { ...data.social, posts } })} />
+
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 mt-5">
+          <h3 className="font-bold mb-1">✨ Fill the calendar with AI</h3>
+          <p className="text-sm text-neutral-600 mb-3">
+            <b>1.</b> Copy the prompt. <b>2.</b> Paste it into ChatGPT / Claude with a short brief.
+            <b> 3.</b> Paste the AI&apos;s reply below and Apply — it fills the <b>calendar above</b>. Then Save.
+          </p>
+          <button type="button" onClick={copySocialPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
+            {socialCopied ? "Copied ✓" : "Copy social plan prompt"}
+          </button>
+          <textarea value={socialPaste} onChange={(e) => setSocialPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={applySocialPaste} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply calendar</button>
+            {socialMsg && <span className="text-sm text-neutral-700">{socialMsg}</span>}
+          </div>
+        </div>
       </Group>
 
       <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
@@ -248,13 +309,23 @@ export default function ClientForm({ client }: { client?: Client }) {
           )} />
       </Group>
 
-      <Group title="Finance" hint="Money left + paid-to-date come from Notion (Budget Tracker) on sync, but you can override here.">
+      <Group title="Finance" hint="Marketing (monthly) and Branding (fixed) come from Notion — money left from the Budget Tracker, branding from branding-marked payments — but you can override here.">
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Marketing — monthly fee</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
-          <Text label="Monthly fee" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
+          <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
           <Text label="Left this month" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
           <div>
             <label className={lbl}>This month covered: {data.finance?.progress ?? 0}%</label>
-            <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
+            <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
+          </div>
+        </div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Branding — fixed fee</p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
+          <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
+          <Text label="Branding left" value={data.finance?.brandingLeft ?? ""} onChange={(brandingLeft) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingLeft } })} placeholder="e.g. 0 ILS" />
+          <div>
+            <label className={lbl}>Branding covered: {data.finance?.brandingProgress ?? 0}%</label>
+            <input type="range" min={0} max={100} value={data.finance?.brandingProgress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingProgress: Number(e.target.value) } })} className="w-full accent-orange" />
           </div>
         </div>
         <label className={lbl}>Payment history</label>
