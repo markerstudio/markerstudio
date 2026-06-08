@@ -40,8 +40,10 @@ function OnboardingBriefPanel({ brief }: { brief: OnboardingBrief }) {
     const v = Array.isArray(value) ? value.join(", ") : typeof value === "boolean" ? (value ? "Yes" : "No") : value;
     if (v) rows.push({ label, value: v });
   };
-  add("Package", brief.plan);
-  add("Selected features", brief.planFeatures);
+  add("Branding package", brief.plan);
+  add("Branding features", brief.planFeatures);
+  add("Marketing package", brief.marketingPlan);
+  add("Marketing features", brief.marketingFeatures);
   add("Contact", `${brief.firstName} ${brief.lastName}`.trim());
   add("Email", brief.email);
   add("Phone", brief.phone);

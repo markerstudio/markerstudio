@@ -21,8 +21,10 @@ export type DocItem = { title: string; type: string; url: string };
 // Captured by the public /onboarding flow (mirrors marker.ps/create). Stored on
 // the client's data so the studio can read the full brief in the admin.
 export type OnboardingBrief = {
-  plan?: string; // package the prospect picked (e.g. "Growth Branding")
-  planFeatures?: string[]; // the features of that package, captured at submit
+  plan?: string; // branding package picked (e.g. "Growth Branding"), if any
+  planFeatures?: string[]; // features of the branding package
+  marketingPlan?: string; // marketing package picked (e.g. "Intensive"), if any
+  marketingFeatures?: string[]; // features of the marketing package
   firstName: string;
   lastName: string;
   email: string;
