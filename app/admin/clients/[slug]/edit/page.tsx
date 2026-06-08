@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
-import { getClient } from "@/lib/clients";
+import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
+import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient } from "../../../actions";
+import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   removed: { text: "Login removed.", ok: true },
   invite: { text: "Invite link created — copy it below and send it to your client.", ok: true },
   "invite-removed": { text: "Invite revoked.", ok: true },
+  connected: { text: "Onboarding connected to this portal — the draft was merged in and removed.", ok: true },
+  merge: { text: "Pick a different portal to connect this onboarding to." },
   json: { text: "Portal content was not valid JSON — fix it and save again." },
   invalid: { text: "Enter a valid email and an 8+ character password." },
   exists: { text: "A user with that email already exists." },
@@ -29,6 +32,59 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
 type ClientUser = { id: number; email: string; name: string };
 type InviteRow = { id: number; token: string };
 
+// Read-only display of the brief captured by /onboarding.
+function OnboardingBriefPanel({ brief }: { brief: OnboardingBrief }) {
+  const rows: { label: string; value: string }[] = [];
+  const add = (label: string, value?: string | string[] | boolean) => {
+    if (value === undefined || value === null || value === "") return;
+    const v = Array.isArray(value) ? value.join(", ") : typeof value === "boolean" ? (value ? "Yes" : "No") : value;
+    if (v) rows.push({ label, value: v });
+  };
+  add("Package", brief.plan);
+  add("Selected features", brief.planFeatures);
+  add("Contact", `${brief.firstName} ${brief.lastName}`.trim());
+  add("Email", brief.email);
+  add("Phone", brief.phone);
+  add("Location", brief.location);
+  add("Brand / company", brief.brandName);
+  add("Description", brief.brandDescription);
+  add("Logo language", brief.logoLanguage);
+  add("Products", brief.products);
+  add("Competitors", brief.competitors);
+  add("Business goals", brief.businessGoals);
+  add("Audience gender", brief.audienceGender);
+  add("Audience age", brief.audienceAge);
+  add("Online presence", brief.onlinePresence);
+  add("Symbol / shape", brief.symbolShape);
+  add("Colour in mind", brief.colorInMind);
+  add("Which colour", brief.colorDetail);
+  add("Exact logo text", brief.exactLogoText);
+  add("Tagline / slogan", brief.tagline);
+  add("Existing designs", brief.existingDesign);
+  add("Additional notes", brief.additionalNotes);
+  add("Newsletter", brief.newsletter);
+
+  const submitted = brief.submittedAt ? new Date(brief.submittedAt).toLocaleString("en-GB") : "";
+
+  return (
+    <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <h2 className="font-bold">Onboarding brief</h2>
+        {submitted && <span className="text-xs text-neutral-400">{submitted}</span>}
+      </div>
+      <p className="text-sm text-neutral-500 mb-4">Submitted through the public onboarding form.</p>
+      <dl className="divide-y divide-neutral-100">
+        {rows.map((r) => (
+          <div key={r.label} className="grid grid-cols-3 gap-3 py-2.5">
+            <dt className="text-xs font-semibold uppercase tracking-wider text-neutral-500">{r.label}</dt>
+            <dd className="col-span-2 text-sm text-neutral-800 whitespace-pre-wrap">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export default async function EditClientPage({
   params,
   searchParams,
@@ -38,6 +94,10 @@ export default async function EditClientPage({
 }) {
   const client = await getClient(params.slug);
   if (!client) notFound();
+
+  const brief = client.data.onboarding;
+  const pending = client.data.status === "pending";
+  const others = brief ? (await getClients()).filter((c) => c.slug !== client.slug) : [];
 
   let logins: ClientUser[] = [];
   let invites: InviteRow[] = [];
@@ -62,7 +122,12 @@ export default async function EditClientPage({
   return (
     <div>
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight">Edit · {client.name}</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          Edit · {client.name}
+          {pending && (
+            <span className="ml-2 align-middle text-xs font-semibold bg-orange text-white rounded-full px-2 py-0.5">New · onboarding</span>
+          )}
+        </h1>
         <div className="flex items-center gap-3">
           <Link href={`/portal/${client.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View portal ↗</Link>
           <Link href="/admin/clients" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
@@ -73,6 +138,50 @@ export default async function EditClientPage({
         <p className={`text-sm rounded-md px-4 py-2.5 mb-6 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
           {msg.text}
         </p>
+      )}
+
+      {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
+        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 max-w-2xl space-y-1">
+          {client.data.proposal?.acceptedAt && (
+            <div>✓ Proposal accepted on {new Date(client.data.proposal.acceptedAt).toLocaleString("en-GB")}.</div>
+          )}
+          {client.data.agreement?.acceptedAt && (
+            <div>
+              ✓ Agreement e-signed by <b>{client.data.agreement.signedName}</b> on {new Date(client.data.agreement.acceptedAt).toLocaleString("en-GB")}.
+            </div>
+          )}
+        </div>
+      )}
+
+      {brief && <OnboardingBriefPanel brief={brief} />}
+
+      {brief && <OnboardingBriefActions brief={brief} />}
+
+      {brief && others.length > 0 && (
+        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-8 max-w-2xl">
+          <h2 className="font-bold mb-1">Connect to an existing portal</h2>
+          <p className="text-sm text-neutral-500 mb-4">
+            Already manage this brand? Move this onboarding&apos;s login and brief onto an existing portal — this draft is then removed.
+          </p>
+          <form action={mergeOnboardingIntoClient} className="flex items-end gap-3 flex-wrap">
+            <input type="hidden" name="fromSlug" value={client.slug} />
+            <div className="flex-1 min-w-[220px]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Existing portal</label>
+              <select name="toSlug" required className={inputCls}>
+                <option value="">Choose a portal…</option>
+                {others.map((c) => (
+                  <option key={c.slug} value={c.slug}>{c.name} (/{c.slug})</option>
+                ))}
+              </select>
+            </div>
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">
+              Connect →
+            </button>
+          </form>
+          <p className="text-xs text-neutral-500 mt-3">
+            To connect with a <b>Notion</b> client instead, use the Notion sync panel below — it stays available for this portal anytime.
+          </p>
+        </div>
       )}
 
       <ClientForm client={client} />

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { getLiveNotionClient } from "@/lib/notion";
@@ -57,5 +58,39 @@ export default async function PortalPage({
     }
   }
 
-  return <PortalView client={client} canEdit={canEdit} initialEdit={editing} />;
+  const ar = client.data.onboarding?.lang === "ar";
+  const onboarded = !!client.data.onboarding;
+  const proposalAccepted = !!client.data.proposal?.acceptedAt;
+  const agreementSigned = !!client.data.agreement?.acceptedAt;
+
+  let banner: { text: string; cta: string; href: string } | null = null;
+  if (onboarded && !proposalAccepted) {
+    banner = {
+      text: ar ? "عرضك جاهز للمراجعة." : "Your proposal is ready to review.",
+      cta: ar ? "عرض العرض ←" : "View proposal →",
+      href: `/portal/${client.slug}/proposal`,
+    };
+  } else if (onboarded && proposalAccepted && !agreementSigned) {
+    banner = {
+      text: ar ? "اتفاقية الخدمة جاهزة للتوقيع." : "Your service agreement is ready to sign.",
+      cta: ar ? "مراجعة وتوقيع ←" : "Review & sign →",
+      href: `/portal/${client.slug}/agreement`,
+    };
+  }
+
+  return (
+    <>
+      {banner && (
+        <div className="bg-orange text-white" dir={ar ? "rtl" : "ltr"}>
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-5 py-2.5 text-sm">
+            <span className="font-medium">{banner.text}</span>
+            <Link href={banner.href} className="shrink-0 font-semibold underline underline-offset-2 hover:opacity-90">
+              {banner.cta}
+            </Link>
+          </div>
+        </div>
+      )}
+      <PortalView client={client} canEdit={canEdit} initialEdit={editing} />
+    </>
+  );
 }

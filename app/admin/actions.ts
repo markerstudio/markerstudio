@@ -197,6 +197,38 @@ export async function deleteProject(formData: FormData) {
   redirect("/admin");
 }
 
+// --- Onboarding: connect a draft portal to an existing one -----------------
+
+// Moves the onboarding draft's login(s) and brief onto an existing client, then
+// deletes the draft — so a prospect who signed up through /onboarding ends up
+// pointing at the portal you already manage.
+export async function mergeOnboardingIntoClient(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const fromSlug = String(formData.get("fromSlug") || "").trim();
+  const toSlug = String(formData.get("toSlug") || "").trim();
+  if (!fromSlug || !toSlug || fromSlug === toSlug) redirect(`/admin/clients/${fromSlug}/edit?error=merge`);
+
+  const sql = getSql();
+  const fromRows = (await sql`SELECT id, data FROM clients WHERE slug = ${fromSlug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  const toRows = (await sql`SELECT id, data FROM clients WHERE slug = ${toSlug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!fromRows[0] || !toRows[0]) redirect("/admin/clients");
+  const from = fromRows[0];
+  const to = toRows[0];
+
+  await sql`UPDATE users SET client_id = ${to.id} WHERE client_id = ${from.id}`;
+
+  const toData = (to.data || {}) as ClientData;
+  if (from.data?.onboarding) toData.onboarding = from.data.onboarding;
+  await sql`UPDATE clients SET data = ${JSON.stringify(toData)}::jsonb, updated_at = now() WHERE id = ${to.id}`;
+
+  await sql`DELETE FROM invites WHERE client_id = ${from.id}`;
+  await sql`DELETE FROM clients WHERE id = ${from.id}`;
+
+  revalidatePath("/admin/clients");
+  revalidatePath(`/portal/${toSlug}`);
+  redirect(`/admin/clients/${toSlug}/edit?ok=connected`);
+}
+
 // --- Inquiries (contact-form submissions) ----------------------------------
 
 export async function markInquiryRead(formData: FormData) {
