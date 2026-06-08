@@ -309,13 +309,13 @@ export default function ClientForm({ client }: { client?: Client }) {
           )} />
       </Group>
 
-      <Group title="Finance" hint="Marketing (monthly) and Branding (fixed) come from Notion — money left from the Budget Tracker, branding from branding-marked payments — but you can override here.">
+      <Group title="Finance" hint="From Notion on sync: Money left + Paid % are the Budget Tracker's combined figures; Branding fee is the source's Branding Cost; Branding covered counts Income payments whose name contains 'branding'. You can override anything here.">
         <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Marketing — monthly fee</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
-          <Text label="Left this month" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
+          <Text label="Money left (combined)" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
           <div>
-            <label className={lbl}>This month covered: {data.finance?.progress ?? 0}%</label>
+            <label className={lbl}>Paid (combined): {data.finance?.progress ?? 0}%</label>
             <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
           </div>
         </div>
