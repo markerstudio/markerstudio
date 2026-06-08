@@ -6,6 +6,7 @@
 //   - a "Platform" property    → platform (select / multi-select / text)
 //   - a "Status"/"Stage" prop  → status (posted / scheduled / planned)
 //   - a "Notes"/"Caption" prop → notes (rich text)
+import { unstable_cache } from "next/cache";
 import type { SocialPost, Invoice } from "@/lib/clients";
 
 // Accept a raw Notion id or a URL; return the 32-char id.
@@ -182,6 +183,23 @@ export async function fetchNotionClient(pageId: string): Promise<{
     brandingFee: fin.brandingFee, brandingProgress, brandingLeft,
   };
 }
+
+// Live, lightly-cached read of a client's Notion record for auto-refresh on
+// portal view. Cached ~5 min per page id so loads stay fast and we don't hammer
+// the Notion API on every request. Returns null on any failure (fall back to
+// the saved snapshot).
+export const getLiveNotionClient = unstable_cache(
+  async (pageId: string) => {
+    if (!process.env.NOTION_TOKEN) return null;
+    try {
+      return await fetchNotionClient(pageId);
+    } catch {
+      return null;
+    }
+  },
+  ["notion-live-client"],
+  { revalidate: 300 },
+);
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
