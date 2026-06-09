@@ -1,251 +1,246 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import React from "react";
 import Link from "next/link";
 import { useLang } from "@/lib/useLang";
-import { MARKER_CONTENT } from "@/lib/content";
+import { MARKER_CONTENT, type Lang } from "@/lib/content";
 import { type Project } from "@/lib/projects";
+import FlowArt, { FlowSection } from "@/components/ui/story-scroll";
 
-const LOGO = "/assets/logo-primary-transparent.png";
+/* Brand anchors used to round out a project's palette into a panel sequence. */
+const INK = "#1A1A1A";
+const CHARCOAL = "#303030";
+const ORANGE = "#FF9100";
+const CREAM = "#F1ECE2";
+
+function hexToRgb(hex: string) {
+  const h = hex.replace("#", "");
+  const n = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
+  const int = parseInt(n, 16);
+  return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 };
+}
+
+// Relative luminance (WCAG) — used to choose readable text per panel.
+function luminance(hex: string) {
+  const { r, g, b } = hexToRgb(hex);
+  const lin = [r, g, b].map((v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * lin[0] + 0.7152 * lin[1] + 0.0722 * lin[2];
+}
+
+const isLight = (hex: string) => luminance(hex) > 0.52;
+const textOn = (hex: string) => (isLight(hex) ? "#1A1614" : "#FFFFFF");
+const ruleOn = (hex: string) => (isLight(hex) ? "rgba(0,0,0,0.32)" : "rgba(255,255,255,0.40)");
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/* Split a phrase into stacked lines (one word per line) for the giant display. */
+function Stacked({ text }: { text: string }) {
+  return (
+    <>
+      {text.split(/\s+/).map((word, i) => (
+        <React.Fragment key={i}>
+          {i > 0 && <br />}
+          {word}
+        </React.Fragment>
+      ))}
+    </>
+  );
+}
 
 export default function ProjectView({ project, next }: { project: Project; next: Project }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
-  const backArrow = t.cta.arrow === "←" ? "→" : "←";
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  // Scroll-reveal: fade/slide elements in as they enter the viewport.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const els = Array.from(root.querySelectorAll<HTMLElement>("[data-reveal]"));
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      els.forEach((el) => el.classList.add("is-in"));
-      return;
-    }
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            (e.target as HTMLElement).classList.add("is-in");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { rootMargin: "0px 0px -10% 0px", threshold: 0.12 },
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+  const isAr = lang === "ar";
+  const disp = isAr ? "font-arabic-display" : "font-display";
+  const arrow = t.cta.arrow;
+  const backArrow = isAr ? "→" : "←";
 
   const labels = {
-    en: { back: "All work", overview: "The story", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project", impact: "The impact", wild: "In the wild", wildSub: "The identity, applied.", colors: "Colour system" },
-    ar: { back: "كل الأعمال", overview: "القصّة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي", impact: "الأثر", wild: "على أرض الواقع", wildSub: "الهوية، مُطبَّقة.", colors: "نظام الألوان" },
+    en: { back: "All work", story: "The story", challenge: "The challenge", approach: "Our approach", results: "The result", services: "Services", deliverables: "Deliverables", year: "Year", next: "Next project", impact: "The impact", wild: "In the wild", wildSub: "The identity, applied.", caseStudy: "Case study" },
+    ar: { back: "كل الأعمال", story: "القصّة", challenge: "التحدّي", approach: "مقاربتنا", results: "النتيجة", services: "الخدمات", deliverables: "المُسلّمات", year: "السنة", next: "المشروع التالي", impact: "الأثر", wild: "على أرض الواقع", wildSub: "الهوية، مُطبَّقة.", caseStudy: "دراسة حالة" },
   }[lang];
 
+  const hasMetrics = !!(project.metrics && project.metrics.length);
+  const hasGallery = !!(project.gallery && project.gallery.length);
+
+  // ---- Build the panel-background sequence from the project's own palette ----
+  // Pull distinct candidate colours (palette → accent → brand anchors), never
+  // repeating the cover colour, then assign them per panel and finally smooth
+  // out any adjacent duplicates so neighbouring panels always read distinct.
+  const cover = project.color;
+  const pool: string[] = [];
+  for (const c of [...(project.palette?.map((p) => p.hex) ?? []), project.accent, CHARCOAL, INK, ORANGE, CREAM]) {
+    if (!c || same(c, cover) || pool.some((p) => same(p, c))) continue;
+    pool.push(c);
+  }
+  while (pool.length < 3) pool.push([CHARCOAL, ORANGE, CREAM][pool.length % 3]);
+
+  // Prefer a dark anchor for the impact panel and a light one for the gallery.
+  const impactBg = pool.find((c) => !isLight(c)) ?? INK;
+  const wildBg = pool.find((c) => isLight(c)) ?? CREAM;
+
+  const seq: string[] = [cover, pool[0], pool[1], pool[2]];
+  if (hasMetrics) seq.push(impactBg);
+  seq.push(wildBg);
+  seq.push(next.color);
+
+  // Smooth adjacent duplicates.
+  const fallbacks = [ORANGE, CHARCOAL, CREAM, INK];
+  for (let i = 1; i < seq.length; i++) {
+    if (same(seq[i], seq[i - 1])) {
+      seq[i] = fallbacks.find((f) => !same(f, seq[i - 1]) && (i + 1 >= seq.length || !same(f, seq[i + 1]))) ?? seq[i];
+    }
+  }
+
+  let k = 0;
+  const sCover = seq[k++];
+  const sChapters = [seq[k++], seq[k++], seq[k++]];
+  const sImpact = hasMetrics ? seq[k++] : null;
+  const sWild = seq[k++];
+  const sNext = seq[k++];
+
   const chapters = [
-    { key: "01", label: labels.challenge, text: project.challenge[lang] },
-    { key: "02", label: labels.approach, text: project.approach[lang] },
-    { key: "03", label: labels.results, text: project.results[lang] },
+    { bg: sChapters[0], num: "01", label: labels.challenge, text: project.challenge[lang] },
+    { bg: sChapters[1], num: "02", label: labels.approach, text: project.approach[lang] },
+    { bg: sChapters[2], num: "03", label: labels.results, text: project.results[lang] },
   ];
 
-  const hasGallery = !!(project.gallery && project.gallery.length);
-  const logoColor = !!project.keepLogoColor;
+  const eyebrowCls = `text-xs font-bold uppercase tracking-[0.2em] ${disp}`;
+  const giantCls = `${disp} text-[clamp(3rem,11vw,12rem)] font-bold leading-[0.82] tracking-tight ${isAr ? "" : "uppercase"}`;
+  const bodyCls = "max-w-[55ch] text-[clamp(1rem,2.2vw,1.7rem)] font-normal leading-relaxed";
+
+  const Rule = ({ color }: { color: string }) => (
+    <hr className="my-[2vw] border-none border-t" style={{ borderColor: color }} aria-hidden />
+  );
 
   return (
-    <div ref={rootRef} data-screen-label={`Project · ${project.name[lang]}`} style={{ ["--pj" as string]: project.accent || project.color }}>
-      {/* slim header */}
-      <header className="ms-header">
-        <div className="ms-container ms-header__inner">
-          <Link className="ms-logo" href="/">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={LOGO} alt="Marker Studio" />
-          </Link>
-          <div className="ms-actions">
-            <div className="ms-lang" role="group" aria-label="Language">
-              <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
-              <button className={lang === "ar" ? "on" : ""} onClick={() => setLang("ar")}>ع</button>
-            </div>
-            <Link href="/#contact" className="ms-btn ms-btn-primary ms-cta-desktop">
-              {t.cta.primary} <span>{t.cta.arrow}</span>
-            </Link>
-          </div>
+    <div dir={isAr ? "rtl" : "ltr"} data-screen-label={`Project · ${project.name[lang]}`} className="bg-ink">
+      {/* Minimal nav — blends against any panel colour. */}
+      <header className="fixed inset-x-0 top-0 z-[100] flex items-center justify-between px-[6vw] py-5 text-white mix-blend-difference">
+        <Link href="/#work" className="inline-flex items-center gap-2 text-sm font-semibold font-display">
+          <span aria-hidden>{backArrow}</span> {labels.back}
+        </Link>
+        <Link href="/" className="text-base font-bold tracking-tight font-display">Marker</Link>
+        <div className="flex items-center gap-1 text-sm font-semibold font-display" role="group" aria-label="Language">
+          <button className={lang === "en" ? "opacity-100" : "opacity-50"} onClick={() => setLang("en" as Lang)}>EN</button>
+          <span className="opacity-40">/</span>
+          <button className={lang === "ar" ? "opacity-100" : "opacity-50"} onClick={() => setLang("ar" as Lang)}>ع</button>
         </div>
       </header>
 
-      <main>
-        {/* ===== HERO — editorial cover on the brand colour ===== */}
-        <section className="ms-pj-hero" style={{ background: project.color }}>
-          <span className="ms-pj-hero__ghost" aria-hidden>{project.year}</span>
-          <div className="ms-container ms-pj-hero__inner">
-            <Link href="/#work" className="ms-pj-back">
-              <span>{backArrow}</span> {labels.back}
-            </Link>
-
-            <div className="ms-pj-hero__grid">
-              <div className="ms-pj-hero__lead">
-                <span className="ms-pj-kicker">{project.tag[lang]}</span>
-                <h1 className="ms-pj-title">{project.name[lang]}</h1>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className="ms-pj-rule" src="/assets/brushstroke-orange.png" alt="" aria-hidden />
-                <p className="ms-pj-summary">{project.summary[lang]}</p>
+      <FlowArt aria-label={`${project.name[lang]} — ${labels.caseStudy}`}>
+        {/* ===== COVER ===== */}
+        <FlowSection aria-label={project.name[lang]} style={{ backgroundColor: sCover, color: textOn(sCover) }}>
+          <div className="flex items-center justify-between gap-4">
+            <p className={eyebrowCls}>{project.tag[lang]}</p>
+            <p className={eyebrowCls}>{labels.caseStudy} · {project.year}</p>
+          </div>
+          <Rule color={ruleOn(sCover)} />
+          <div>
+            <h1 className={giantCls}><Stacked text={project.name[lang]} /></h1>
+          </div>
+          <Rule color={ruleOn(sCover)} />
+          <div className="flex flex-wrap items-end justify-between gap-x-[4vw] gap-y-8">
+            <p className={bodyCls}>{project.summary[lang]}</p>
+            <div className="flex flex-wrap gap-x-[3vw] gap-y-6">
+              <div className="min-w-[180px] max-w-[34ch]">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] opacity-60 font-display">{labels.services}</p>
+                <p className="mt-1.5 text-[clamp(0.9rem,1.4vw,1.05rem)] leading-snug">{project.services[lang].join(" · ")}</p>
               </div>
-              <div className={`ms-pj-hero__logo${logoColor ? " ms-pj-hero__logo--light" : ""}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={project.logo} alt={project.name[lang]} className={logoColor ? "ms-pj-logo--color" : ""} />
-              </div>
-            </div>
-
-            <div className="ms-pj-facts">
-              <div className="ms-pj-fact">
-                <span className="ms-pj-fact__label">{labels.year}</span>
-                <span className="ms-pj-fact__value">{project.year}</span>
-              </div>
-              <div className="ms-pj-fact">
-                <span className="ms-pj-fact__label">{labels.services}</span>
-                <span className="ms-pj-fact__value">{project.services[lang].join(" · ")}</span>
-              </div>
-              <div className="ms-pj-fact">
-                <span className="ms-pj-fact__label">{labels.deliverables}</span>
-                <span className="ms-pj-fact__value">{project.deliverables[lang].join(" · ")}</span>
+              <div className="min-w-[180px] max-w-[34ch]">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] opacity-60 font-display">{labels.deliverables}</p>
+                <p className="mt-1.5 text-[clamp(0.9rem,1.4vw,1.05rem)] leading-snug">{project.deliverables[lang].join(" · ")}</p>
               </div>
             </div>
           </div>
-        </section>
+        </FlowSection>
 
-        {/* ===== STORY — numbered editorial chapters ===== */}
-        <section className="ms-section ms-pj-story">
-          <div className="ms-container">
-            <span className="ms-section__eyebrow">{labels.overview}</span>
-            <div className="ms-pj-chapters">
-              {chapters.map((c) => (
-                <article key={c.key} className="ms-pj-chapter" data-reveal>
-                  <span className="ms-pj-chapter__num" aria-hidden>{c.key}</span>
-                  <div className="ms-pj-chapter__body">
-                    <h3 className="ms-pj-chapter__label">{c.label}</h3>
-                    <p className="ms-pj-chapter__text">{c.text}</p>
-                  </div>
-                </article>
+        {/* ===== STORY CHAPTERS ===== */}
+        {chapters.map((c) => (
+          <FlowSection key={c.num} aria-label={c.label} style={{ backgroundColor: c.bg, color: textOn(c.bg) }}>
+            <p className={eyebrowCls}>{c.num} — {labels.story}</p>
+            <Rule color={ruleOn(c.bg)} />
+            <div>
+              <h2 className={giantCls}><Stacked text={c.label} /></h2>
+            </div>
+            <Rule color={ruleOn(c.bg)} />
+            <p className={`${bodyCls} mt-auto`}>{c.text}</p>
+          </FlowSection>
+        ))}
+
+        {/* ===== IMPACT ===== */}
+        {hasMetrics && sImpact && (
+          <FlowSection aria-label={labels.impact} style={{ backgroundColor: sImpact, color: textOn(sImpact) }}>
+            <p className={eyebrowCls}>{labels.impact}</p>
+            <Rule color={ruleOn(sImpact)} />
+            <div className="flex flex-wrap gap-x-[4vw] gap-y-[5vw]">
+              {project.metrics!.map((m, i) => (
+                <div key={i} className="min-w-[220px] flex-1">
+                  <p className={`${disp} text-[clamp(3rem,8vw,7rem)] font-bold leading-[0.85] tracking-tight`}>{m.value}</p>
+                  <p className="mt-3 text-[clamp(0.95rem,1.6vw,1.25rem)] leading-relaxed opacity-75 max-w-[28ch]">{m.label[lang]}</p>
+                </div>
               ))}
             </div>
+            <div />
+          </FlowSection>
+        )}
+
+        {/* ===== IN THE WILD ===== */}
+        <FlowSection aria-label={labels.wild} style={{ backgroundColor: sWild, color: textOn(sWild) }}>
+          <p className={eyebrowCls}>{labels.wild}</p>
+          <Rule color={ruleOn(sWild)} />
+          <div>
+            <h2 className={giantCls}><Stacked text={labels.wildSub} /></h2>
           </div>
-        </section>
-
-        {/* ===== COLOUR SYSTEM ===== */}
-        {project.palette && project.palette.length > 0 && (
-          <section className="ms-section ms-section--cream ms-pj-palette">
-            <div className="ms-container">
-              <span className="ms-section__eyebrow">{labels.colors}</span>
-              <div className="ms-pj-swatches">
-                {project.palette.map((s, i) => (
-                  <div key={i} className="ms-pj-swatch" data-reveal style={{ ["--d" as string]: `${i * 80}ms` }}>
-                    <div className="ms-pj-swatch__chip" style={{ background: s.hex, border: s.hex.toLowerCase() === "#ffffff" ? "1px solid var(--border)" : "none" }} />
-                    <div className="ms-pj-swatch__meta">
-                      <span className="ms-pj-swatch__name">{s.name[lang]}</span>
-                      <span className="ms-pj-swatch__hex">{s.hex.toUpperCase()}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <Rule color={ruleOn(sWild)} />
+          {hasGallery ? (
+            <div className="grid grid-cols-2 gap-[1.5vw] md:grid-cols-3">
+              {project.gallery!.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt={`${project.name[lang]} ${i + 1}`}
+                  loading="lazy"
+                  className={`w-full rounded-xl object-cover ${i === 0 ? "col-span-2 h-[46vh] md:h-[56vh]" : "h-[34vh] md:h-[40vh]"}`}
+                />
+              ))}
             </div>
-          </section>
-        )}
-
-        {/* ===== METRICS — the impact, exploded ===== */}
-        {project.metrics && project.metrics.length > 0 && (
-          <section className="ms-section ms-pj-impact">
-            <div className="ms-container">
-              <span className="ms-section__eyebrow" style={{ color: "var(--marker-orange)" }}>{labels.impact}</span>
-              <div className="ms-pj-metrics">
-                {project.metrics.map((m, i) => (
-                  <div key={i} className="ms-pj-metric" data-reveal style={{ ["--d" as string]: `${i * 80}ms` }}>
-                    <div className="ms-pj-metric__value">{m.value}</div>
-                    <div className="ms-pj-metric__label">{m.label[lang]}</div>
-                  </div>
-                ))}
-              </div>
+          ) : (
+            <div
+              className="flex min-h-[44vh] items-center justify-center rounded-2xl p-[6vw]"
+              style={{ backgroundColor: project.color }}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={project.logo}
+                alt={project.name[lang]}
+                className="max-h-[28vh] w-auto max-w-[60%] object-contain"
+                style={project.keepLogoColor ? undefined : { filter: "brightness(0) invert(1)" }}
+              />
             </div>
-          </section>
-        )}
-
-        {/* ===== IN THE WILD — real spreads if present, else generated device mockups ===== */}
-        {hasGallery ? (
-          <section className="ms-section ms-section--cream ms-pj-show">
-            <div className="ms-container">
-              <span className="ms-section__eyebrow">{labels.wild}</span>
-              <h2 className="ms-section__title">{labels.wildSub}</h2>
-              <div className="ms-container ms-pj-gallery" style={{ padding: 0, marginTop: 40 }}>
-                {project.gallery!.map((src, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={i} src={src} alt={`${project.name[lang]} ${i + 1}`} loading="lazy" data-reveal className={i === 0 ? "ms-pj-gallery__feature" : ""} />
-                ))}
-              </div>
-            </div>
-          </section>
-        ) : (
-          <section className="ms-section ms-section--cream ms-pj-show">
-            <div className="ms-container">
-              <span className="ms-section__eyebrow">{labels.wild}</span>
-              <h2 className="ms-section__title">{labels.wildSub}</h2>
-
-              <div className="ms-pj-show__grid">
-                {/* Browser / website mock */}
-                <div className="ms-mock ms-mock--browser" data-reveal>
-                  <div className="ms-mock__bar">
-                    <span className="ms-mock__dot" /><span className="ms-mock__dot" /><span className="ms-mock__dot" />
-                    <span className="ms-mock__url">{project.slug}.com</span>
-                  </div>
-                  <div className="ms-mock__screen" style={{ background: project.color }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={project.logo} alt="" aria-hidden className={logoColor ? "ms-pj-logo--color" : ""} />
-                    <span className="ms-mock__cap">{project.tag[lang]}</span>
-                  </div>
-                </div>
-
-                {/* Phone / social mock */}
-                <div className="ms-mock ms-mock--phone" data-reveal>
-                  <div className="ms-mock__notch" />
-                  <div className="ms-mock__screen" style={{ background: project.color }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={project.logo} alt="" aria-hidden className={logoColor ? "ms-pj-logo--color" : ""} />
-                    <span className="ms-mock__handle">@{project.slug.replace(/-/g, "")}</span>
-                  </div>
-                </div>
-
-                {/* Business card mock */}
-                <div className="ms-mock ms-mock--card" data-reveal style={{ background: project.color }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className={`ms-mock__cardlogo${logoColor ? " ms-pj-logo--color" : ""}`} src={project.logo} alt="" aria-hidden />
-                  <div className="ms-mock__cardfoot">
-                    <span>{project.name[lang]}</span>
-                    <span>{project.year}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        )}
+          )}
+        </FlowSection>
 
         {/* ===== NEXT PROJECT ===== */}
-        <Link href={`/work/${next.slug}`} className="ms-pj-next" style={{ background: next.color }}>
-          <span className="ms-pj-next__ghost" aria-hidden>{next.name[lang]}</span>
-          <div className="ms-container ms-pj-next__inner">
-            <span className="ms-pj-next__label">{labels.next}</span>
-            <span className="ms-pj-next__name">
-              {next.name[lang]} <span className="ms-pj-next__arrow">{t.cta.arrow}</span>
-            </span>
-          </div>
-        </Link>
-      </main>
-
-      <footer className="ms-footer">
-        <div className="ms-container">
-          <div className="ms-footer__bottom" style={{ borderTop: "none", paddingTop: 0 }}>
+        <FlowSection aria-label={labels.next} style={{ backgroundColor: sNext, color: textOn(sNext) }}>
+          <p className={eyebrowCls}>{labels.next}</p>
+          <Rule color={ruleOn(sNext)} />
+          <Link href={`/work/${next.slug}`} className="group block no-underline" style={{ color: "inherit" }}>
+            <h2 className={giantCls}>
+              <Stacked text={next.name[lang]} />{" "}
+              <span className="inline-block transition-transform duration-300 group-hover:translate-x-2">{arrow}</span>
+            </h2>
+          </Link>
+          <Rule color={ruleOn(sNext)} />
+          <div className="mt-auto flex flex-wrap items-center justify-between gap-4 text-[clamp(0.85rem,1.3vw,1rem)] opacity-80">
             <span>{t.footer.copy}</span>
             <span>{t.footer.contact.web}</span>
           </div>
-        </div>
-      </footer>
+        </FlowSection>
+      </FlowArt>
     </div>
   );
 }
