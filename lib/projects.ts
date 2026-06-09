@@ -248,6 +248,231 @@ export const SEED_PROJECTS: Project[] = [
       ar: "علامة تبدو لذيذة على العلبة وعلى الحساب — متّسقة، مثيرة للرغبة، ومميّزة لا تُخطئ.",
     },
   },
+  {
+    slug: "bint-al-balad",
+    color: "#8C1D2C",
+    accent: "#C7A17A",
+    logo: "/assets/clients/bint-al-balad.png",
+    year: "2025",
+    name: { en: "Bint Al Balad", ar: "بنت البلد" },
+    tag: { en: "Brand identity · Heritage fashion", ar: "هوية بصرية · أزياء تراثية" },
+    services: {
+      en: ["Brand strategy", "Logomark & wordmark", "Arabic lettering", "Brand guidelines"],
+      ar: ["استراتيجية العلامة", "شعار ورمز", "حروفية عربية", "دليل الهوية"],
+    },
+    deliverables: {
+      en: ["Visual identity", "Logo lockups", "Colour & type system", "Brand-in-action"],
+      ar: ["هوية بصرية", "تركيبات الشعار", "نظام الألوان والخطوط", "تطبيقات العلامة"],
+    },
+    summary: {
+      en: "A personal fashion practice rooted in Beit Sahour, where Tatreez is treated not as decoration but as language — Bethlehem embroidery reinterpreted through modern silhouettes, restraint, and a quiet, confident identity.",
+      ar: "ممارسة أزياء شخصية متجذّرة في بيت ساحور، حيث التطريز ليس زينة بل لغة — تطريز بيت لحم يُعاد تأويله عبر قَصّات حديثة وانضباط وهوية هادئة وواثقة.",
+    },
+    challenge: {
+      en: "How do you carry Bethlehem Tatreez into a contemporary wardrobe without freezing it as costume? The brand needed an identity that honours stitch logic and symbolism, yet reads as modern fashion — heritage as design discipline, not nostalgia.",
+      ar: "كيف تنقل تطريز بيت لحم إلى خزانة معاصرة دون أن يتجمّد كزيٍّ تراثي؟ احتاجت العلامة إلى هوية تحترم منطق الغرزة ورمزيتها، وتُقرأ في الوقت ذاته كأزياء حديثة — التراث بوصفه انضباطاً تصميمياً لا حنيناً.",
+    },
+    approach: {
+      en: "We distilled the Bethlehem flower and star into a single, balanced mark — refined for clarity and structural harmony while keeping its Tatreez logic. A restrained palette of deep reds, warm neutrals, and grounded darks pairs with clean, modern Arabic lettering, so the craft leads and the type never competes.",
+      ar: "اختزلنا زهرة بيت لحم ونجمتها في رمزٍ واحد متوازن — مُنقّى للوضوح والانسجام البنيوي مع الحفاظ على منطق التطريز. تتكامل لوحة منضبطة من الأحمر العميق والمحايدات الدافئة والدرجات الداكنة مع حروفية عربية حديثة ونظيفة، فتتقدّم الحرفة ولا يزاحمها الخط.",
+    },
+    results: {
+      en: "A flexible signature that lives across woven labels, embroidery, packaging, storefronts, and digital — a timeless mark rooted in Bethlehem, refined for today. Fashion that carries memory without becoming costume.",
+      ar: "توقيعٌ مرنٌ يعيش على البطاقات المنسوجة والتطريز والتغليف والواجهات والرقمي — علامةٌ خالدة متجذّرة في بيت لحم ومُنقّاة لليوم. أزياءٌ تحمل الذاكرة دون أن تتحوّل إلى زيٍّ تراثي.",
+    },
+    palette: [
+      { hex: "#8C1D2C", name: { en: "Heritage Red", ar: "الأحمر التراثي" } },
+      { hex: "#C7A17A", name: { en: "Warm Tan", ar: "البيج الدافئ" } },
+      { hex: "#2B2622", name: { en: "Grounded Dark", ar: "الداكن الراسخ" } },
+      { hex: "#EDE8E0", name: { en: "Natural Cream", ar: "الكريمي الطبيعي" } },
+    ],
+    gallery: [
+      "/assets/work/bint-al-balad/g1.jpg",
+      "/assets/work/bint-al-balad/g2.jpg",
+      "/assets/work/bint-al-balad/g3.jpg",
+      "/assets/work/bint-al-balad/g4.jpg",
+    ],
+  },
+  {
+    slug: "365-detox",
+    color: "#1F6E3C",
+    accent: "#C2D92E",
+    logo: "/assets/clients/365-detox.png",
+    year: "2025",
+    name: { en: "365 Detox", ar: "365 ديتوكس" },
+    tag: { en: "Rebrand · Health & wellness", ar: "إعادة علامة · صحة وعافية" },
+    services: {
+      en: ["Brand strategy", "Logo redesign", "Packaging", "Visual system"],
+      ar: ["استراتيجية العلامة", "إعادة تصميم الشعار", "التغليف", "النظام البصري"],
+    },
+    deliverables: {
+      en: ["Logo system", "Colour palette", "Packaging & labels", "Brand-in-action"],
+      ar: ["نظام الشعار", "لوحة الألوان", "تغليف وملصقات", "تطبيقات العلامة"],
+    },
+    summary: {
+      en: "Where wellness meets flavour. A reintroduction for a health-driven food and juice brand — nutrient-packed blends and clean, bold design that makes better living feel premium, in every bite and sip.",
+      ar: "حيث تلتقي العافية بالنكهة. إعادة تقديم لعلامة أطعمة وعصائر صحية — خلطات غنية بالعناصر وتصميم نظيف وجريء يجعل الحياة الأفضل تبدو فاخرة، في كل قضمة ورشفة.",
+    },
+    challenge: {
+      en: "The original “365” felt generic and dated — a literal take on the name that no longer matched the quality inside the bottle. The brand needed to keep its recognition while moving to a premium, health-conscious identity that prints cleanly and scales everywhere.",
+      ar: "بدا «365» الأصلي عامّاً وقديماً — تعبيرٌ حرفيٌّ عن الاسم لم يعد يضاهي جودة ما في الزجاجة. احتاجت العلامة إلى الحفاظ على تميّزها مع الانتقال إلى هوية فاخرة وواعية للصحة تُطبع بنظافة وتتوسّع في كل مكان.",
+    },
+    approach: {
+      en: "We preserved the “365” core but distilled it into a unified, geometric mark — clean vitality: refined forms, crisp contrast, and a fresh palette of leafy greens, zesty citrus, and earthy neutrals. The simplified icon works as a bold standalone, while the full lockup keeps clarity across packaging, labels, and social.",
+      ar: "حافظنا على جوهر «365» لكن اختزلناه في رمزٍ هندسيٍّ موحّد — حيويةٌ نظيفة: أشكالٌ مُنقّاة وتباينٌ حادّ ولوحةٌ منعشة من الأخضر الورقي والحمضيات والمحايدات الترابية. تعمل الأيقونة المبسّطة كعلامة مستقلة جريئة، بينما يحفظ التركيب الكامل الوضوح عبر التغليف والملصقات والسوشال.",
+    },
+    results: {
+      en: "A scalable system built for real touchpoints — from juice bottles and kraft meal boxes to labels and merch — that feels fresh, premium, and unmistakably 365. Recognition kept, perception elevated.",
+      ar: "نظامٌ قابلٌ للتوسّع مبنيٌّ لنقاط تماسٍ حقيقية — من زجاجات العصير وعلب الطعام الكرافت إلى الملصقات والمنتجات — يبدو منعشاً وفاخراً و«365» بلا التباس. تميّزٌ محفوظ وإدراكٌ مُرتقى.",
+    },
+    palette: [
+      { hex: "#1F6E3C", name: { en: "Leaf Green", ar: "الأخضر الورقي" } },
+      { hex: "#C2D92E", name: { en: "Citrus", ar: "الحمضي" } },
+      { hex: "#6F5A3A", name: { en: "Earthy Neutral", ar: "المحايد الترابي" } },
+      { hex: "#141414", name: { en: "Charcoal", ar: "الفحمي" } },
+    ],
+    gallery: [
+      "/assets/work/365-detox/g1.jpg",
+      "/assets/work/365-detox/g2.jpg",
+      "/assets/work/365-detox/g3.jpg",
+      "/assets/work/365-detox/g4.jpg",
+    ],
+  },
+  {
+    slug: "aya-deeb",
+    color: "#D63B7C",
+    accent: "#1A1A1A",
+    logo: "/assets/clients/aya-deeb.png",
+    year: "2025",
+    name: { en: "Aya Deeb", ar: "آية ديب" },
+    tag: { en: "Personal brand · Fitness", ar: "علامة شخصية · لياقة" },
+    services: {
+      en: ["Brand strategy", "Logo & monogram", "Visual system", "Social templates"],
+      ar: ["استراتيجية العلامة", "شعار ورمز", "النظام البصري", "قوالب سوشال"],
+    },
+    deliverables: {
+      en: ["Logo system", "Colour & type", "Brand-in-action", "Social kit"],
+      ar: ["نظام الشعار", "الألوان والخطوط", "تطبيقات العلامة", "حزمة سوشال"],
+    },
+    summary: {
+      en: "Where strength meets balance. A personal-trainer identity for a coach who guides women and children — calm, intentional, and confident, built to feel as grounded as the journey itself.",
+      ar: "حيث تلتقي القوة بالتوازن. هوية مدرّبة شخصية لمن ترافق النساء والأطفال — هادئة ومقصودة وواثقة، مصمّمة لتبدو راسخة كرحلة التدريب نفسها.",
+    },
+    challenge: {
+      en: "Aya coaches women and children through a journey that is gentle yet powerful. The brand had to hold both at once — a space that feels safe and supportive, but strong and transformational — without tipping into either softness or aggression.",
+      ar: "ترافق آية النساء والأطفال في رحلةٍ لطيفةٍ وقويةٍ في آن. كان على العلامة أن تجمع الطرفين معاً — مساحةٌ آمنةٌ وداعمة، لكنها قويةٌ ومحوِّلة — دون أن تنزلق إلى الليونة المفرطة أو الحدّة.",
+    },
+    approach: {
+      en: "We abstracted stacked stones — balance, growth, and grounded strength — into a clean, fluid mark that is soft and bold at once. Paired with a confident pink and calm neutrals, the system stays harmonious from gym walls to social posts, standalone icon or full logo.",
+      ar: "جرّدنا الحجارة المتراصّة — التوازن والنموّ والقوة الراسخة — في رمزٍ نظيفٍ وانسيابيٍّ ناعمٍ وجريءٍ معاً. ومع زهريٍّ واثقٍ ومحايداتٍ هادئة، يبقى النظام متناغماً من جدران الصالة إلى منشورات السوشال، أيقونةً مستقلة أو شعاراً كاملاً.",
+    },
+    results: {
+      en: "An identity that mirrors the brand’s personality — calm strength with clear readability across every touchpoint. A space where progress is paired with care, and every step forward feels grounded.",
+      ar: "هوية تعكس شخصية العلامة — قوةٌ هادئةٌ ووضوحٌ في القراءة عبر كل نقطة تماس. مساحةٌ يقترن فيها التقدّم بالعناية، ويبدو فيها كل خطوةٍ إلى الأمام راسخة.",
+    },
+    palette: [
+      { hex: "#D63B7C", name: { en: "Signature Pink", ar: "الزهري المميّز" } },
+      { hex: "#F4C3D6", name: { en: "Soft Blush", ar: "الوردي الناعم" } },
+      { hex: "#1A1A1A", name: { en: "Strong Black", ar: "الأسود القوي" } },
+      { hex: "#F2EFEA", name: { en: "Calm Neutral", ar: "المحايد الهادئ" } },
+    ],
+    gallery: [
+      "/assets/work/aya-deeb/g1.jpg",
+      "/assets/work/aya-deeb/g2.jpg",
+      "/assets/work/aya-deeb/g3.jpg",
+      "/assets/work/aya-deeb/g4.jpg",
+    ],
+  },
+  {
+    slug: "chef-chocolate",
+    color: "#2D1F1A",
+    accent: "#D2A679",
+    logo: "/assets/clients/chef-chocolate.png",
+    year: "2026",
+    name: { en: "Chef Chocolate", ar: "شيف شوكولت" },
+    tag: { en: "Brand book · Chocolate & gifts", ar: "دليل علامة · شوكولا وهدايا" },
+    services: {
+      en: ["Brand identity", "Logo system", "Packaging direction", "Brand book"],
+      ar: ["هوية بصرية", "نظام الشعار", "توجيه التغليف", "دليل العلامة"],
+    },
+    deliverables: {
+      en: ["Logo & wordmark", "Colour & type system", "Illustration & icons", "Brand guidelines"],
+      ar: ["شعار وكلمة", "نظام الألوان والخطوط", "رسوم وأيقونات", "دليل الهوية"],
+    },
+    summary: {
+      en: "More than chocolate — an indulgence that connects tradition with modern elegance. A complete brand book for a luxury chocolate, sweets, and gifts house, where every bar tells a story.",
+      ar: "أكثر من شوكولا — متعةٌ تصل التقليد بالأناقة الحديثة. دليل علامة متكامل لدار شوكولا وحلويات وهدايا فاخرة، حيث يحكي كل لوحٍ حكاية.",
+    },
+    challenge: {
+      en: "Chef Chocolate needed a single source of truth — a brand book that preserves the essence of who they are and keeps the identity looking, sounding, and feeling consistent across packaging, social, store experiences, and events.",
+      ar: "احتاجت شيف شوكولت إلى مرجعٍ واحد — دليل علامة يحفظ جوهر هويتها ويُبقي مظهرها وصوتها وإحساسها متّسقاً عبر التغليف والسوشال وتجربة المتجر والفعاليات.",
+    },
+    approach: {
+      en: "At the heart is a logo mark of smooth, flowing chocolate forming a heart — craft with love, precision, and elegance. We built it out into wordmark and lockups, a warm palette of espresso, cocoa, caramel, and cream, plus type, illustration, and icon systems documented for every touchpoint.",
+      ar: "في القلب رمزٌ من شوكولا انسيابية تتشكّل على هيئة قلب — حرفةٌ بحبٍّ ودقةٍ وأناقة. طوّرناه إلى كلمةٍ وتركيبات، ولوحةٍ دافئة من الإسبريسو والكاكاو والكراميل والكريمي، مع أنظمة خطوطٍ ورسومٍ وأيقوناتٍ موثّقة لكل نقطة تماس.",
+    },
+    results: {
+      en: "A cohesive, premium identity system — luxury rooted in craft — that adapts across formats while staying unmistakably Chef Chocolate, from a chocolate bar to a gift box to a storefront.",
+      ar: "نظام هوية متماسك وفاخر — فخامةٌ متجذّرة في الحرفة — يتكيّف عبر الصيغ مع بقائه شيف شوكولت بلا التباس، من لوح الشوكولا إلى علبة الهدية إلى الواجهة.",
+    },
+    palette: [
+      { hex: "#2D1F1A", name: { en: "Espresso", ar: "الإسبريسو" } },
+      { hex: "#6F4E37", name: { en: "Cocoa", ar: "الكاكاو" } },
+      { hex: "#D2A679", name: { en: "Caramel", ar: "الكراميل" } },
+      { hex: "#F7EFE5", name: { en: "Cream", ar: "الكريمي" } },
+    ],
+    gallery: [
+      "/assets/work/chef-chocolate/g1.jpg",
+      "/assets/work/chef-chocolate/g2.jpg",
+      "/assets/work/chef-chocolate/g3.jpg",
+      "/assets/work/chef-chocolate/g4.jpg",
+    ],
+  },
+  {
+    slug: "blok",
+    color: "#17181C",
+    accent: "#E5362C",
+    keepLogoColor: true,
+    logo: "/assets/clients/blok.png",
+    year: "2026",
+    name: { en: "BLOK", ar: "بلوك" },
+    tag: { en: "Brand identity · Healthy food", ar: "هوية بصرية · طعام صحي" },
+    services: {
+      en: ["Logo concept", "Identity system", "Packaging direction", "Scalability rules"],
+      ar: ["مفهوم الشعار", "نظام الهوية", "توجيه التغليف", "قواعد التوسّع"],
+    },
+    deliverables: {
+      en: ["Logo system", "One identity, many contexts", "Application mockups", "Concept validation"],
+      ar: ["نظام الشعار", "هوية واحدة، سياقات عدّة", "نماذج تطبيق", "التحقق من المفهوم"],
+    },
+    summary: {
+      en: "A new way to eat a meal out. BLOK is the answer to the lack of time that stops people choosing healthy food during the working day — a bold, system-built identity made to win on shelf in seconds.",
+      ar: "طريقةٌ جديدة لتناول وجبةٍ خارج البيت. بلوك هو الحلّ لضيق الوقت الذي يمنع الناس من اختيار طعامٍ صحيٍّ خلال يوم العمل — هوية جريئة مبنية كنظام لتكسب على الرفّ في ثوانٍ.",
+    },
+    challenge: {
+      en: "The identity had four jobs: stand out instantly on shelf, communicate without thinking, scale across many products as one system, and feel intentional — never decorative. Every cut, colour, and shape had to earn its place.",
+      ar: "كان على الهوية أن تؤدّي أربع مهام: أن تبرز فوراً على الرفّ، وتتواصل دون تفكير، وتتوسّع عبر منتجاتٍ كثيرة كنظامٍ واحد، وتبدو مقصودة — لا زخرفية. كان على كل قَطعٍ ولونٍ وشكلٍ أن يستحقّ مكانه.",
+    },
+    approach: {
+      en: "We started from a simple block — structure, focus, intent — then disrupted it with a single controlled cut that introduces movement and direction. The result is a forward-moving mark about action: breaking routine, taking a moment, fuelling the day. One system, many flavours, always recognisable.",
+      ar: "انطلقنا من «بلوك» بسيط — بنيةٌ وتركيزٌ ونيّة — ثم كسرناه بقَطعٍ واحدٍ محكوم يُدخل الحركة والاتجاه. النتيجة علامةٌ متقدّمة تتمحور حول الفعل: كسر الروتين، اقتطاع لحظة، وقود اليوم. نظامٌ واحد، نكهاتٌ عدّة، وتميّزٌ دائم.",
+    },
+    results: {
+      en: "A clear, scalable identity validated to stand out, communicate fast, and perform on shelf — a unified system that keeps every product consistent and easy to pick, ready for full packaging rollout.",
+      ar: "هوية واضحة قابلة للتوسّع، جرى التحقق منها لتبرز وتتواصل بسرعة وتنجح على الرفّ — نظامٌ موحّد يُبقي كل منتجٍ متّسقاً وسهل الاختيار، جاهزٌ لإطلاق التغليف الكامل.",
+    },
+    palette: [
+      { hex: "#E5362C", name: { en: "Signal Red", ar: "الأحمر الإشاري" } },
+      { hex: "#FDBB03", name: { en: "Amber", ar: "الكهرماني" } },
+      { hex: "#17181C", name: { en: "Ink", ar: "الحبري" } },
+      { hex: "#F4F1EA", name: { en: "Off-White", ar: "الأبيض المكسور" } },
+    ],
+    gallery: [
+      "/assets/work/blok/g1.jpg",
+      "/assets/work/blok/g2.jpg",
+      "/assets/work/blok/g3.jpg",
+    ],
+  },
 ];
 
 // Map a DB row to a Project. Bilingual fields live in a JSONB `data` column.
