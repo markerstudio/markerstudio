@@ -295,7 +295,7 @@ export const SEED_PROJECTS: Project[] = [
   },
   {
     slug: "365-detox",
-    color: "#1F6E3C",
+    color: "#1E8F46",
     accent: "#C2D92E",
     logo: "/assets/clients/365-detox.png",
     year: "2025",
@@ -326,7 +326,7 @@ export const SEED_PROJECTS: Project[] = [
       ar: "نظامٌ قابلٌ للتوسّع مبنيٌّ لنقاط تماسٍ حقيقية — من زجاجات العصير وعلب الطعام الكرافت إلى الملصقات والمنتجات — يبدو منعشاً وفاخراً و«365» بلا التباس. تميّزٌ محفوظ وإدراكٌ مُرتقى.",
     },
     palette: [
-      { hex: "#1F6E3C", name: { en: "Leaf Green", ar: "الأخضر الورقي" } },
+      { hex: "#1E8F46", name: { en: "Leaf Green", ar: "الأخضر الورقي" } },
       { hex: "#C2D92E", name: { en: "Citrus", ar: "الحمضي" } },
       { hex: "#6F5A3A", name: { en: "Earthy Neutral", ar: "المحايد الترابي" } },
       { hex: "#141414", name: { en: "Charcoal", ar: "الفحمي" } },
@@ -340,7 +340,7 @@ export const SEED_PROJECTS: Project[] = [
   },
   {
     slug: "aya-deeb",
-    color: "#D63B7C",
+    color: "#C9477C",
     accent: "#1A1A1A",
     logo: "/assets/clients/aya-deeb.png",
     year: "2025",
@@ -371,7 +371,7 @@ export const SEED_PROJECTS: Project[] = [
       ar: "هوية تعكس شخصية العلامة — قوةٌ هادئةٌ ووضوحٌ في القراءة عبر كل نقطة تماس. مساحةٌ يقترن فيها التقدّم بالعناية، ويبدو فيها كل خطوةٍ إلى الأمام راسخة.",
     },
     palette: [
-      { hex: "#D63B7C", name: { en: "Signature Pink", ar: "الزهري المميّز" } },
+      { hex: "#C9477C", name: { en: "Signature Pink", ar: "الزهري المميّز" } },
       { hex: "#F4C3D6", name: { en: "Soft Blush", ar: "الوردي الناعم" } },
       { hex: "#1A1A1A", name: { en: "Strong Black", ar: "الأسود القوي" } },
       { hex: "#F2EFEA", name: { en: "Calm Neutral", ar: "المحايد الهادئ" } },
