@@ -108,7 +108,7 @@ export default function ProjectView({ project, next }: { project: Project; next:
   ];
 
   const eyebrowCls = `text-xs font-bold uppercase tracking-[0.2em] ${disp}`;
-  const giantCls = `${disp} text-[clamp(3rem,11vw,12rem)] font-bold leading-[0.82] tracking-tight ${isAr ? "" : "uppercase"}`;
+  const giantCls = `${disp} text-[clamp(2.5rem,9vw,8.5rem)] font-bold leading-[0.85] tracking-tight [overflow-wrap:break-word] ${isAr ? "" : "uppercase"}`;
   const bodyCls = "max-w-[55ch] text-[clamp(1rem,2.2vw,1.7rem)] font-normal leading-relaxed";
 
   const Rule = ({ color }: { color: string }) => (
