@@ -40,6 +40,20 @@ const INJECTED_STYLES = `
   .ch-text-ink { color: var(--marker-ink); }
   .ch-text-card-silver { color: #fff; }
 
+  /* Hero brushstroke — bolder, fuller mark so the signature stroke reads
+     clearly under the large display type (the global .brushed is sized for
+     body-scale headings and looks thin at this size). */
+  .hero-text-wrapper .brushed,
+  .cta-wrapper .brushed { overflow: visible; }
+  .hero-text-wrapper .brushed::after,
+  .cta-wrapper .brushed::after {
+      left: -6%;
+      right: -6%;
+      bottom: -0.14em;
+      height: 0.42em;
+      background-size: 100% 100%;
+  }
+
   /* Frosted-glass charcoal card — frosts the paper + grid behind it */
   .ch-depth-card {
       background: linear-gradient(150deg, rgba(48,48,48,0.86) 0%, rgba(26,26,26,0.90) 100%);
