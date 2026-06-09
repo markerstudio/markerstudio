@@ -234,7 +234,7 @@ function LogoCard({ logo }: { logo: ClientItem }) {
         alt={logo.name}
         loading="lazy"
         className={cn(
-          "relative z-[1] w-auto max-w-[64%] max-h-[42px] object-contain transition-all duration-300",
+          "relative z-[1] w-auto max-w-[78%] max-h-[56px] object-contain transition-all duration-300",
           "grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-[1.06]"
         )}
       />
