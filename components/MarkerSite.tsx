@@ -179,7 +179,10 @@ function ClientsMarquee({ t }: { t: SiteContent }) {
 }
 
 function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects: Project[] }) {
-  const layout = ["lg", "sm", "sm", "md", "md"];
+  // Repeating bento rhythm whose groups each fill the 6-column grid exactly
+  // ([lg+sm]=6, [md+md]=6, [sm+sm+sm]=6), so any number of projects tiles
+  // cleanly with no internal gaps.
+  const pattern = ["lg", "sm", "md", "md", "sm", "sm", "sm"];
   return (
     <section className="ms-section ms-section--cream" id="work">
       <div className="ms-container">
@@ -195,7 +198,7 @@ function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects:
             <Reveal
               key={p.slug}
               delay={i * 60}
-              className={`ms-work-card ms-work-card--${layout[i] || "md"}`}
+              className={`ms-work-card ms-work-card--${pattern[i % pattern.length]}`}
             >
               <Link href={`/work/${p.slug}`} className="ms-work-card__link" aria-label={p.name[lang]} />
               <div
