@@ -3,7 +3,7 @@
 import { getSql } from "@/lib/db";
 
 export type InvoiceItem = { label: string; amount: string };
-export type InvoiceStatus = "draft" | "sent" | "paid";
+export type InvoiceStatus = "draft" | "due" | "paid";
 
 export type Invoice = {
   id: number;
@@ -39,6 +39,8 @@ export async function ensureInvoicesTable(): Promise<void> {
     )
   `;
   await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS vat_rate NUMERIC NOT NULL DEFAULT 0`;
+  // Status set was "draft | sent | paid"; "sent" is now "due".
+  await sql`UPDATE invoices SET status = 'due' WHERE status = 'sent'`;
 }
 
 // INV-YYYY-NNN, sequential within the calendar year.
