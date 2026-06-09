@@ -77,9 +77,14 @@ const FlowArt: React.FC<FlowArtProps> = ({
 
       const triggers: ScrollTrigger[] = [];
 
-      // The bottom-left pivot means a big angle sweeps the panel far off-canvas
-      // on narrow screens, so ease it back on smaller viewports.
+      // The bottom-corner pivot means a big angle sweeps the panel far
+      // off-canvas on narrow screens, so ease it back on smaller viewports.
       const angle = window.innerWidth < 768 ? 14 : window.innerWidth < 1100 ? 22 : 30;
+      // Pivot from the reading-start corner so the rotation feels natural in
+      // both LTR and RTL (Arabic) layouts.
+      const rtl = getComputedStyle(containerRef.current).direction === 'rtl';
+      const origin = rtl ? 'bottom right' : 'bottom left';
+      const startRotation = rtl ? -angle : angle;
 
       sections.forEach((section, i) => {
         gsap.set(section, { zIndex: i + 1 });
@@ -88,7 +93,7 @@ const FlowArt: React.FC<FlowArtProps> = ({
         if (!inner) return;
 
         if (i > 0) {
-          gsap.set(inner, { rotation: angle, transformOrigin: 'bottom left' });
+          gsap.set(inner, { rotation: startRotation, transformOrigin: origin });
           const tween = gsap.to(inner, {
             rotation: 0,
             ease: 'none',

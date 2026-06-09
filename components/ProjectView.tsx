@@ -197,16 +197,21 @@ export default function ProjectView({ project, next }: { project: Project; next:
           <Rule color={ruleOn(sWild)} />
           {hasGallery ? (
             <div className="grid grid-cols-2 gap-[1.5vw] md:grid-cols-3">
-              {project.gallery!.map((src, i) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={i}
-                  src={src}
-                  alt={`${project.name[lang]} ${i + 1}`}
-                  loading="lazy"
-                  className={`w-full rounded-xl object-cover ${i === 0 ? "col-span-2 h-[46vh] md:h-[56vh]" : "h-[34vh] md:h-[40vh]"}`}
-                />
-              ))}
+              {project.gallery!.map((src, i) => {
+                // Lead with a wide feature only when there are enough images to
+                // fill the row beneath it; otherwise keep an even grid.
+                const feature = i === 0 && project.gallery!.length >= 4;
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={src}
+                    alt={`${project.name[lang]} ${i + 1}`}
+                    loading="lazy"
+                    className={`w-full rounded-xl object-cover ${feature ? "col-span-2 h-[46vh] md:h-[56vh]" : "h-[34vh] md:h-[40vh]"}`}
+                  />
+                );
+              })}
             </div>
           ) : (
             <div
