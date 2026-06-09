@@ -95,6 +95,39 @@ const INJECTED_STYLES = `
       stroke-dashoffset: 402;
       stroke-linecap: round;
   }
+
+  /* Scroll cue — a hint that the page is scroll-driven. The mouse "wheel"
+     glides down inside the outline; the whole cue gives a gentle nudge. */
+  .ch-scroll-cue {
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--marker-charcoal-60, rgba(48,48,48,0.6));
+      animation: ch-cue-nudge 2.2s ease-in-out infinite;
+  }
+  .ch-scroll-cue__label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+  }
+  .ch-scroll-cue__mouse {
+      width: 26px; height: 40px; border-radius: 13px;
+      border: 2px solid currentColor; position: relative;
+  }
+  .ch-scroll-cue__wheel {
+      position: absolute; top: 7px; left: 50%; width: 3px; height: 7px; border-radius: 2px;
+      background: var(--marker-orange, #FF9100); transform: translateX(-50%);
+      animation: ch-cue-wheel 1.6s ease-in-out infinite;
+  }
+  @keyframes ch-cue-wheel {
+      0% { opacity: 0; transform: translate(-50%, 0); }
+      30% { opacity: 1; }
+      60% { opacity: 1; transform: translate(-50%, 12px); }
+      100% { opacity: 0; transform: translate(-50%, 12px); }
+  }
+  @keyframes ch-cue-nudge {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(6px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+      .ch-scroll-cue, .ch-scroll-cue__wheel { animation: none; }
+  }
 `;
 
 type Badge = { icon: string; title: string; sub: string };
@@ -122,6 +155,7 @@ export interface CinematicHeroProps extends React.HTMLAttributes<HTMLDivElement>
   phonePlainTitle?: string;
   phoneStats?: [Stat, Stat];
   badges?: [Badge, Badge];
+  scrollHint?: string;
   dir?: "ltr" | "rtl";
 }
 
@@ -153,6 +187,7 @@ export function CinematicHero({
     { icon: "📈", title: "87,606", sub: "Accounts reached" },
     { icon: "✦", title: "6.9% CTR", sub: "Click-through" },
   ],
+  scrollHint = "Scroll",
   dir = "ltr",
   className,
   ...props
@@ -214,6 +249,7 @@ export function CinematicHero({
           ".phone-stat",
           ".phone-bar",
           ".counter-num",
+          ".ch-scroll-cue-wrapper",
         ],
         { clearProps: "all", autoAlpha: 1, visibility: "visible" }
       );
@@ -235,11 +271,13 @@ export function CinematicHero({
       gsap.set([".phone-branded", ".brand-stamp", ".phone-stat", ".counter-num"], { autoAlpha: 0 });
       gsap.set(".phone-bar", { scaleY: 0, transformOrigin: "bottom" });
       gsap.set(".cta-wrapper", { autoAlpha: 0, scale: 0.8, filter: "blur(30px)" });
+      gsap.set(".ch-scroll-cue-wrapper", { autoAlpha: 0, y: 10 });
 
       const introTl = gsap.timeline({ delay: 0.3 });
       introTl
         .to(".text-track", { duration: 1.8, autoAlpha: 1, y: 0, scale: 1, filter: "blur(0px)", rotationX: 0, ease: "expo.out" })
-        .to(".text-days", { duration: 1.4, clipPath: "inset(0 0% 0 0)", ease: "power4.inOut" }, "-=1.0");
+        .to(".text-days", { duration: 1.4, clipPath: "inset(0 0% 0 0)", ease: "power4.inOut" }, "-=1.0")
+        .to(".ch-scroll-cue-wrapper", { duration: 1, autoAlpha: 1, y: 0, ease: "power2.out" }, "-=0.4");
 
       const scrollTl = gsap.timeline({
         scrollTrigger: {
@@ -253,6 +291,7 @@ export function CinematicHero({
       });
 
       scrollTl
+        .to(".ch-scroll-cue-wrapper", { autoAlpha: 0, y: -10, ease: "power2.in", duration: 0.5 }, 0)
         .to([".hero-text-wrapper", ".ch-bg-grid"], { scale: 1.15, filter: "blur(20px)", opacity: 0.2, ease: "power2.inOut", duration: 2 }, 0)
         .to(".main-card", { y: 0, ease: "power3.inOut", duration: 2 }, 0)
         .to(".main-card", { width: "100%", height: "100%", borderRadius: "0px", ease: "power3.inOut", duration: 1.5 })
@@ -535,6 +574,14 @@ export function CinematicHero({
               </p>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Scroll cue — fades out as soon as the scroll timeline starts */}
+      <div className="ch-scroll-cue-wrapper absolute bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none gsap-reveal" aria-hidden="true">
+        <div className="ch-scroll-cue">
+          <span className="ch-scroll-cue__mouse"><span className="ch-scroll-cue__wheel" /></span>
+          <span className="ch-scroll-cue__label">{scrollHint}</span>
         </div>
       </div>
     </div>

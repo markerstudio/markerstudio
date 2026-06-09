@@ -163,6 +163,7 @@ function Hero({ t }: { t: SiteContent }) {
       phonePlainTitle={h.phonePlainTitle}
       phoneStats={h.phoneStats}
       badges={h.badges}
+      scrollHint={t.dir === "rtl" ? "اسحب للأسفل" : "Scroll"}
     />
   );
 }

@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal } from "@/lib/invoices";
+import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal, invoiceRemaining } from "@/lib/invoices";
 import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -29,7 +29,9 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
   const rate = Number(inv.vat_rate) || 0;
   const vat = invoiceVat(inv.items, rate);
   const grand = invoiceGrandTotal(inv.items, rate);
-  const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
+  const paid = Number(inv.paid_amount) || 0;
+  const remaining = invoiceRemaining(inv.items, rate, paid);
+  const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "partial" ? "bg-amber-100 text-amber-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
 
   return (
     <main className="min-h-screen bg-[#F5F2EC] px-4 py-8">
@@ -97,6 +99,18 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
                 <span>Total {rate > 0 ? "(incl. VAT)" : "(excl. VAT)"}</span>
                 <span className="tabular-nums">{fmt(grand)}</span>
               </div>
+              {paid > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-neutral-500">Paid{inv.status === "paid" ? "" : " (deposit)"}</span>
+                    <span className="tabular-nums text-green-700">−{fmt(paid)}</span>
+                  </div>
+                  <div className="flex justify-between border-t border-neutral-200 pt-1.5 text-base font-bold text-orange-deep">
+                    <span>Money left</span>
+                    <span className="tabular-nums">{fmt(remaining)}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

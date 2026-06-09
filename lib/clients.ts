@@ -8,7 +8,9 @@ import { getSql, isDbEnabled } from "@/lib/db";
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
 export type SocialItem = { title: string; desc: string; tag?: string };
-export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted" };
+export type SocialContentType = "post" | "story" | "reel";
+export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted"; type?: SocialContentType };
+export type TimelinePhase = { phase: string; duration?: string; detail?: string };
 export type MetricRow = { label: string; before: string; after: string; note: string };
 export type Campaign = {
   name: string; period: string; type: string; spend: string;
@@ -89,7 +91,7 @@ export type ClientData = {
   onboarding?: OnboardingBrief; // the brief captured at signup
   // Proposal & agreement are prepared by the studio and only shown to the
   // client once `published` is set (sent). They are not auto-generated to the client.
-  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string };
+  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string; timeline?: TimelinePhase[] };
   agreement?: { published?: boolean; sentAt?: string; acceptedAt?: string; signedName?: string; value?: string };
   // Itemised quote — one line per package / service, shown on the proposal & agreement.
   pricing?: { items: { label: string; amount: string }[]; note?: string };

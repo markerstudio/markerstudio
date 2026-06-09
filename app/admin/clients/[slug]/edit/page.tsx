@@ -4,11 +4,13 @@ import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
 import PricingEditor from "@/components/admin/PricingEditor";
+import ProposalTimelineEditor from "@/components/admin/ProposalTimelineEditor";
 import InvoiceEditor from "@/components/admin/InvoiceEditor";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
 import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
+import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient, sendProposal, sendAgreement } from "../../../actions";
 
@@ -28,6 +30,7 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   merge: { text: "Pick a different portal to connect this onboarding to." },
   "proposal-sent": { text: "Proposal sent — it now appears on the client's portal to review and accept.", ok: true },
   "proposal-unsent": { text: "Proposal hidden from the client.", ok: true },
+  "timeline-saved": { text: "Timeline saved.", ok: true },
   "agreement-sent": { text: "Agreement sent — the client can now review and e-sign it.", ok: true },
   "agreement-unsent": { text: "Agreement hidden from the client.", ok: true },
   "pricing-saved": { text: "Pricing saved — it shows on the proposal and agreement.", ok: true },
@@ -117,6 +120,7 @@ export default async function EditClientPage({
   const brief = client.data.onboarding;
   const pending = client.data.status === "pending";
   const others = brief ? (await getClients()).filter((c) => c.slug !== client.slug) : [];
+  const projectLogos = (await getProjects().catch(() => [])).map((p) => ({ slug: p.slug, name: p.name.en, logo: p.logo }));
 
   // Seed the pricing editor from what the client selected (once saved, use that).
   const seededPricing = client.data.pricing?.items?.length
@@ -204,6 +208,9 @@ export default async function EditClientPage({
           {/* Pricing — itemised quote shown on both documents */}
           <PricingEditor slug={client.slug} initial={seededPricing} note={client.data.pricing?.note || ""} />
 
+          {/* Timeline — ordered phases shown on the proposal */}
+          <ProposalTimelineEditor slug={client.slug} initial={client.data.proposal?.timeline || []} />
+
           {/* Proposal */}
           <div className="border border-neutral-200 rounded-lg p-4 mb-4">
             <div className="flex items-center justify-between gap-3 mb-2">
@@ -290,14 +297,20 @@ export default async function EditClientPage({
           {clientInvoices.length > 0 && (
             <div className="divide-y divide-neutral-100 mb-5">
               {clientInvoices.map((inv) => {
-                const total = invoiceGrandTotal(inv.items, Number(inv.vat_rate) || 0);
+                const rate = Number(inv.vat_rate) || 0;
+                const total = invoiceGrandTotal(inv.items, rate);
+                const paid = Number(inv.paid_amount) || 0;
+                const left = Math.max(0, total - paid);
                 return (
                   <div key={inv.id} className="flex items-center gap-3 py-2.5 flex-wrap">
                     <div className="flex-1 min-w-[140px]">
                       <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="font-mono text-sm font-semibold text-neutral-800 hover:text-orange">{inv.number}</a>
-                      <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{Number(inv.vat_rate) > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
+                      <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{rate > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
                     </div>
-                    <span className="tabular-nums text-sm font-semibold text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                    <span className="tabular-nums text-sm font-semibold text-neutral-900 text-right">
+                      {total.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                      {paid > 0 && <span className="block text-xs font-medium text-orange-deep">{left.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</span>}
+                    </span>
                     <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
                     <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
                     <form action={deleteInvoiceAction}>
@@ -342,7 +355,7 @@ export default async function EditClientPage({
         </div>
       )}
 
-      <ClientForm client={client} />
+      <ClientForm client={client} projectLogos={projectLogos} />
 
       <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-8 max-w-2xl">
         <h2 className="font-bold mb-1">Client logins</h2>

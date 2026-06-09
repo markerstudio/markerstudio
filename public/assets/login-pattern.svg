@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600" fill="none" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#221d18"/>
+      <stop offset="0.5" stop-color="#161210"/>
+      <stop offset="1" stop-color="#0c0a08"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.28" r="0.75">
+      <stop offset="0" stop-color="#ff9100" stop-opacity="0.26"/>
+      <stop offset="0.45" stop-color="#ff7a00" stop-opacity="0.07"/>
+      <stop offset="1" stop-color="#ff7a00" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6c87a"/>
+      <stop offset="1" stop-color="#c8852f"/>
+    </linearGradient>
+    <pattern id="ticks" width="150" height="150" patternUnits="userSpaceOnUse" patternTransform="rotate(-20)">
+      <path d="M40 78 l16 18 l38 -46" stroke="#ff9100" stroke-opacity="0.14" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+      <circle cx="118" cy="34" r="2.4" fill="#e7b873" fill-opacity="0.3"/>
+      <circle cx="20" cy="128" r="1.8" fill="#ff9100" fill-opacity="0.22"/>
+    </pattern>
+  </defs>
+
+  <rect width="1200" height="1600" fill="url(#bg)"/>
+  <rect width="1200" height="1600" fill="url(#ticks)"/>
+  <rect width="1200" height="1600" fill="url(#glow)"/>
+
+  <!-- premium hairline frame -->
+  <rect x="46" y="46" width="1108" height="1508" rx="26" fill="none" stroke="url(#gold)" stroke-opacity="0.5" stroke-width="1.5"/>
+  <rect x="60" y="60" width="1080" height="1480" rx="20" fill="none" stroke="#ffffff" stroke-opacity="0.05" stroke-width="1"/>
+
+  <!-- oversized marker stroke watermark -->
+  <path d="M300 980 q140 -360 360 -250 q-150 90 -120 300 q120 -240 360 -150"
+        fill="none" stroke="#ff9100" stroke-opacity="0.10" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- centred mark + wordmark -->
+  <g transform="translate(600 700)" text-anchor="middle">
+    <path d="M-66 18 l40 44 l92 -118" fill="none" stroke="url(#gold)" stroke-opacity="0.92" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+    <text y="150" font-family="Georgia, 'Times New Roman', serif" font-size="76" font-weight="700" letter-spacing="2" fill="#f4ede2">Marker</text>
+    <text y="200" font-family="Georgia, serif" font-size="22" letter-spacing="14" fill="#e7b873" fill-opacity="0.85">STUDIO</text>
+    <text y="270" font-family="Georgia, serif" font-size="17" letter-spacing="4" fill="#ffffff" fill-opacity="0.4">We mark the brands that matter.</text>
+  </g>
+</svg>

@@ -40,7 +40,7 @@ export default async function InvoicesListPage({ params }: { params: { slug: str
           {invoices.map((inv) => {
             const rate = Number(inv.vat_rate) || 0;
             const total = invoiceGrandTotal(inv.items, rate);
-            const tone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
+            const tone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "partial" ? "bg-amber-100 text-amber-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
             return (
               <Link key={inv.id} href={`/portal/${client.slug}/invoice/${inv.id}`} className="flex items-center gap-4 px-5 py-4 hover:bg-neutral-50">
                 <div className="flex-1 min-w-0">

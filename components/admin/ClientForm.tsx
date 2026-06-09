@@ -5,6 +5,7 @@ import Link from "next/link";
 import { saveClient } from "@/app/admin/actions";
 import { toCSV, fromCSV } from "@/lib/portalCsv";
 import SocialCalendar from "@/components/SocialCalendar";
+import FileUpload from "@/components/FileUpload";
 import { blankClientData, type Client, type ClientData, type LocalizedText, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
@@ -44,9 +45,10 @@ Below is a CSV with columns: field,en,ar,value. Fill ONLY the social rows:
 - social.headline = a short bilingual title for the plan (fill BOTH "en" and "ar", natural Arabic).
 - social.posts[n] = one row-group per planned post, with:
   - .date  = ISO date YYYY-MM-DD
+  - .type = post | story | reel (lowercase). If the plan includes "daily stories", add a story on most days.
   - .platform = Instagram / TikTok / Facebook / LinkedIn …
   - .title = the post idea / hook (English is fine)
-  - .notes = goal or format (e.g. Reel, Story, Carousel, Engagement, Trust)
+  - .notes = goal or format (e.g. Carousel, Engagement, Trust)
   - .status = planned | scheduled | posted
 - Add as many posts as the plan needs by copying a post group and increasing the [n] index (start at 0). Keep the "field" column EXACTLY.
 - Aim for a realistic, varied month (mix of platforms, formats, and goals). Use real-looking dates spread across the month.
@@ -115,10 +117,11 @@ function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T[]; onC
   );
 }
 
-export default function ClientForm({ client }: { client?: Client }) {
+export default function ClientForm({ client, projectLogos = [] }: { client?: Client; projectLogos?: { slug: string; name: string; logo: string }[] }) {
   const [data, setData] = useState<ClientData>(client?.data ?? blankClientData());
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
   const [color, setColor] = useState(client?.color ?? "#303030");
+  const [logo, setLogo] = useState(client?.logo ?? "");
   const [csvMsg, setCsvMsg] = useState("");
   const [aiCopied, setAiCopied] = useState(false);
   const [pasteText, setPasteText] = useState("");
@@ -189,7 +192,37 @@ export default function ClientForm({ client }: { client?: Client }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
           <div><label className={lbl}>Slug</label><input name="slug" defaultValue={client?.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" /></div>
           <div><label className={lbl}>Client name</label><input name="name" defaultValue={client?.name} required className={input} placeholder="Dr. Jack Sabat" /></div>
-          <div><label className={lbl}>Logo URL</label><input name="logo" defaultValue={client?.logo} className={input} /></div>
+          <div className="md:col-span-2">
+            <label className={lbl}>Logo</label>
+            <input type="hidden" name="logo" value={logo} />
+            <div className="flex items-start gap-3 flex-wrap">
+              <div className="h-14 w-14 shrink-0 rounded-lg border border-neutral-200 bg-neutral-900 flex items-center justify-center overflow-hidden">
+                {logo
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={logo} alt="" className="max-h-[80%] max-w-[80%] object-contain" />
+                  : <span className="text-[10px] text-neutral-500">No logo</span>}
+              </div>
+              <div className="flex-1 min-w-[220px] space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <FileUpload accept="image/*" label="Upload image" onUploaded={({ url }) => setLogo(url)} />
+                  {projectLogos.length > 0 && (
+                    <select
+                      className={`${input} max-w-[230px]`}
+                      value=""
+                      onChange={(e) => { if (e.target.value) setLogo(e.target.value); }}
+                    >
+                      <option value="">Pick from posted projects…</option>
+                      {projectLogos.filter((p) => p.logo).map((p) => (
+                        <option key={p.slug} value={p.logo}>{p.name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {logo && <button type="button" onClick={() => setLogo("")} className="text-xs font-medium text-neutral-400 hover:text-red-600">Clear</button>}
+                </div>
+                <input value={logo} onChange={(e) => setLogo(e.target.value)} className={input} placeholder="…or paste a logo URL" />
+              </div>
+            </div>
+          </div>
           <div>
             <label className={lbl}>Brand colour</label>
             <div className="flex items-center gap-2">
@@ -345,13 +378,20 @@ export default function ClientForm({ client }: { client?: Client }) {
           )} />
       </Group>
 
-      <Group title="Documents" hint="Proposal, agreement, etc. Clients can open / download these.">
+      <Group title="Documents" hint="Proposal, agreement, etc. Upload a PDF (or image) or paste a link — clients can open / download these.">
         <Rows<DocItem> items={data.documents} onChange={(documents) => patch({ documents })} blank={{ title: "", type: "PDF", url: "" }} addLabel="Add document"
           render={(doc, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
-              <Text label="Title" value={doc.title} onChange={(title) => set({ title })} placeholder="Proposal" />
-              <Text label="Type" value={doc.type} onChange={(type) => set({ type })} placeholder="PDF" />
-              <Text label="URL" value={doc.url} onChange={(url) => set({ url })} placeholder="https://…" />
+            <div className="pr-16">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <Text label="Title" value={doc.title} onChange={(title) => set({ title })} placeholder="Proposal" />
+                <Text label="Type" value={doc.type} onChange={(type) => set({ type })} placeholder="PDF" />
+                <Text label="URL" value={doc.url} onChange={(url) => set({ url })} placeholder="https://…" />
+              </div>
+              <div className="mt-2 flex items-center gap-3 flex-wrap">
+                <FileUpload accept="application/pdf,image/*" label="Upload PDF" compact
+                  onUploaded={({ url, name, contentType }) => set({ url, title: doc.title || name.replace(/\.[^.]+$/, ""), type: contentType.includes("pdf") ? "PDF" : doc.type || "File" })} />
+                {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-neutral-600 hover:text-orange">Open ↗</a>}
+              </div>
             </div>
           )} />
       </Group>

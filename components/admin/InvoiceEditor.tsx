@@ -16,6 +16,7 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
   const [items, setItems] = useState<Item[]>(seed.length ? seed : [{ label: "", amount: "" }]);
   const [addVat, setAddVat] = useState(false);
   const [vatRate, setVatRate] = useState(String(defaultVatRate));
+  const [paid, setPaid] = useState("");
   const update = (i: number, key: keyof Item, value: string) =>
     setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
   const addRow = () => setItems((prev) => [...prev, { label: "", amount: "" }]);
@@ -25,6 +26,8 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
   const rate = addVat ? parseFloat(vatRate) || 0 : 0;
   const vat = (subtotal * rate) / 100;
   const total = subtotal + vat;
+  const paidNum = numeric(paid);
+  const remaining = Math.max(0, total - paidNum);
   const cleaned = items.filter((i) => i.label.trim() || i.amount.trim());
 
   return (
@@ -52,7 +55,8 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
       {/* VAT toggle */}
       <input type="hidden" name="addVat" value={addVat ? "on" : ""} />
       <input type="hidden" name="vatRate" value={vatRate} />
-      <div className="mt-3 flex items-center gap-3 border-t border-neutral-100 pt-3">
+      <input type="hidden" name="paidAmount" value={paidNum} />
+      <div className="mt-3 flex items-center gap-3 border-t border-neutral-100 pt-3 flex-wrap">
         <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
           <input type="checkbox" checked={addVat} onChange={(e) => setAddVat(e.target.checked)} className="h-4 w-4 rounded border-neutral-300 text-orange focus:ring-orange/30" />
           Add VAT
@@ -63,6 +67,10 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
             %
           </label>
         )}
+        <label className="flex items-center gap-1.5 text-sm text-neutral-600 ml-auto">
+          <span className="whitespace-nowrap">Paid / deposit</span>
+          <input value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="0" className={`${field} w-28 text-right tabular-nums`} />
+        </label>
       </div>
 
       {subtotal > 0 && (
@@ -84,6 +92,20 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
             <span className="text-right font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             <span />
           </div>
+          {paidNum > 0 && (
+            <>
+              <div className="grid grid-cols-[1fr_130px_24px] gap-2">
+                <span className="text-neutral-500">Paid / deposit</span>
+                <span className="text-right tabular-nums text-green-700">−{paidNum.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                <span />
+              </div>
+              <div className="grid grid-cols-[1fr_130px_24px] gap-2">
+                <span className="font-semibold text-orange-deep">Money left</span>
+                <span className="text-right font-bold tabular-nums text-orange-deep">{remaining.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+                <span />
+              </div>
+            </>
+          )}
         </div>
       )}
 

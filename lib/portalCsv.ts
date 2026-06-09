@@ -62,6 +62,7 @@ export function toCSV(d: ClientData): string {
   const posts = d.social?.posts?.length ? d.social.posts : [{ date: "", platform: "", title: "", notes: "", status: "planned" as const }];
   posts.forEach((p, i) => {
     val(`social.posts[${i}].date`, p.date);
+    val(`social.posts[${i}].type`, p.type || "post");
     val(`social.posts[${i}].platform`, p.platform);
     val(`social.posts[${i}].title`, p.title);
     val(`social.posts[${i}].notes`, p.notes);
