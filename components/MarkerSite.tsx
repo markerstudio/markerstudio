@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
+import { PixelLogoGrid } from "@/components/ui/pixel-logo-grid";
 import Pricing from "@/components/Pricing";
 import ContactForm from "@/components/ContactForm";
 import { useLang } from "@/lib/useLang";
@@ -166,28 +167,14 @@ function Hero({ t }: { t: SiteContent }) {
   );
 }
 
-/* Infinite logo/client marquee — the brands we've marked, on loop. */
+/* Client showcase — the brands we've marked, in a pixel-shimmer logo grid. */
 function ClientsMarquee({ t }: { t: SiteContent }) {
-  const row = [...t.clients.items, ...t.clients.items];
   return (
-    <section className="ms-clients" aria-label={t.clients.title}>
-      <div className="ms-container">
-        <div className="ms-clients__head">
-          <span className="ms-section__eyebrow">{t.clients.eyebrow}</span>
-          <h2 className="ms-clients__title">{t.clients.title}</h2>
-        </div>
-      </div>
-      <div className="ms-marquee">
-        <div className="ms-marquee__track">
-          {row.map((c, i) => (
-            <div className="ms-chip" key={`${c.name}-${i}`} title={c.name}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className="ms-chip__logo" src={c.logo} alt={c.name} loading="lazy" />
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <PixelLogoGrid
+      badge={t.clients.eyebrow}
+      heading={t.clients.title}
+      items={t.clients.items}
+    />
   );
 }
 
