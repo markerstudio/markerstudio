@@ -31,6 +31,12 @@ export const CLIENT_BRANDS: ClientItem[] = [
   { name: "AOCC", logo: `${W}12283c_972076d8314745f8b4e74c4a14b382c3~mv2.png` },
   { name: "Eveleen", logo: `${W}12283c_b6a60ce942bf40239b20b5f6b726edba~mv2.png` },
   { name: "Taha", logo: `${W}12283c_d0da7775037c4d5bb1df1b8b2df0fe4f~mv2.png` },
+  // Locally-hosted marks extracted from recent brand projects.
+  { name: "Bint Al Balad", logo: "/assets/clients/bint-al-balad.png" },
+  { name: "365 Detox", logo: "/assets/clients/365-detox.png" },
+  { name: "Aya Deeb", logo: "/assets/clients/aya-deeb.png" },
+  { name: "Chef Chocolate", logo: "/assets/clients/chef-chocolate.png" },
+  { name: "BLOK", logo: "/assets/clients/blok.png" },
 ];
 export type QuoteItem = { quote: string; name: string; role: string };
 export type FaqItem = { q: string; a: string };
