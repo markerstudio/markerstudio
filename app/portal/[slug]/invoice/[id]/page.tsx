@@ -29,7 +29,7 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
   const rate = Number(inv.vat_rate) || 0;
   const vat = invoiceVat(inv.items, rate);
   const grand = invoiceGrandTotal(inv.items, rate);
-  const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "sent" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
+  const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
 
   return (
     <main className="min-h-screen bg-[#F5F2EC] px-4 py-8">

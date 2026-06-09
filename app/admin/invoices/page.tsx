@@ -18,7 +18,7 @@ export default async function InvoicesAdmin() {
   }
 
   const tone = (s: string) =>
-    s === "paid" ? "bg-green-100 text-green-800" : s === "sent" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
+    s === "paid" ? "bg-green-100 text-green-800" : s === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
 
   return (
     <div>

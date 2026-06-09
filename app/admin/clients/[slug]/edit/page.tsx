@@ -5,8 +5,9 @@ import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
 import PricingEditor from "@/components/admin/PricingEditor";
 import InvoiceEditor from "@/components/admin/InvoiceEditor";
+import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
-import { createInvoiceFromNotion, setInvoiceStatusAction, deleteInvoiceAction } from "../../../invoice-actions";
+import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient, sendProposal, sendAgreement } from "../../../actions";
@@ -297,13 +298,7 @@ export default async function EditClientPage({
                       <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{Number(inv.vat_rate) > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
                     </div>
                     <span className="tabular-nums text-sm font-semibold text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
-                    <span className="text-xs font-semibold uppercase text-neutral-400 w-12">{inv.status}</span>
-                    <form action={setInvoiceStatusAction}>
-                      <input type="hidden" name="slug" value={client.slug} />
-                      <input type="hidden" name="id" value={inv.id} />
-                      <input type="hidden" name="status" value={inv.status === "draft" ? "sent" : inv.status === "sent" ? "paid" : "draft"} />
-                      <button className="text-xs font-medium text-neutral-600 hover:text-orange">{inv.status === "draft" ? "Mark sent" : inv.status === "sent" ? "Mark paid" : "Reopen"}</button>
-                    </form>
+                    <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
                     <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
                     <form action={deleteInvoiceAction}>
                       <input type="hidden" name="slug" value={client.slug} />
