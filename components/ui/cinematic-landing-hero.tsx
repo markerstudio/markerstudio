@@ -96,15 +96,17 @@ const INJECTED_STYLES = `
       stroke-linecap: round;
   }
 
-  /* Scroll cue — a hint that the page is scroll-driven. The mouse "wheel"
-     glides down inside the outline; the whole cue gives a gentle nudge. */
+  /* Scroll cue — a hint that the page is scroll-driven. It stays for the whole
+     pinned animation (the orange reads on both the light hero and the dark card)
+     and only fades at the finale. Desktop shows a mouse-wheel, mobile a swipe. */
   .ch-scroll-cue {
       display: flex; flex-direction: column; align-items: center; gap: 8px;
-      color: var(--marker-charcoal-60, rgba(48,48,48,0.6));
+      color: var(--marker-orange, #FF9100);
       animation: ch-cue-nudge 2.2s ease-in-out infinite;
   }
   .ch-scroll-cue__label {
       font-size: 11px; font-weight: 700; letter-spacing: 0.22em; text-transform: uppercase;
+      text-shadow: 0 1px 6px rgba(0,0,0,0.18);
   }
   .ch-scroll-cue__mouse {
       width: 26px; height: 40px; border-radius: 13px;
@@ -112,8 +114,18 @@ const INJECTED_STYLES = `
   }
   .ch-scroll-cue__wheel {
       position: absolute; top: 7px; left: 50%; width: 3px; height: 7px; border-radius: 2px;
-      background: var(--marker-orange, #FF9100); transform: translateX(-50%);
+      background: currentColor; transform: translateX(-50%);
       animation: ch-cue-wheel 1.6s ease-in-out infinite;
+  }
+  /* Mobile swipe-down: a fingertip gliding down a track */
+  .ch-scroll-cue__swipe { width: 30px; height: 42px; }
+  .ch-swipe-track { stroke: currentColor; stroke-opacity: 0.35; stroke-width: 2; stroke-linecap: round; }
+  .ch-swipe-chevron { stroke: currentColor; stroke-width: 2.4; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .ch-swipe-dot { fill: currentColor; animation: ch-cue-swipe 1.6s ease-in-out infinite; }
+  .ch-cue-mobile { display: none; }
+  @media (max-width: 767px) {
+      .ch-cue-desktop { display: none; }
+      .ch-cue-mobile { display: inline-flex; }
   }
   @keyframes ch-cue-wheel {
       0% { opacity: 0; transform: translate(-50%, 0); }
@@ -121,12 +133,18 @@ const INJECTED_STYLES = `
       60% { opacity: 1; transform: translate(-50%, 12px); }
       100% { opacity: 0; transform: translate(-50%, 12px); }
   }
+  @keyframes ch-cue-swipe {
+      0% { opacity: 0; transform: translateY(0); }
+      25% { opacity: 1; }
+      70% { opacity: 1; transform: translateY(16px); }
+      100% { opacity: 0; transform: translateY(16px); }
+  }
   @keyframes ch-cue-nudge {
       0%, 100% { transform: translateY(0); }
       50% { transform: translateY(6px); }
   }
   @media (prefers-reduced-motion: reduce) {
-      .ch-scroll-cue, .ch-scroll-cue__wheel { animation: none; }
+      .ch-scroll-cue, .ch-scroll-cue__wheel, .ch-swipe-dot { animation: none; }
   }
 `;
 
@@ -156,6 +174,7 @@ export interface CinematicHeroProps extends React.HTMLAttributes<HTMLDivElement>
   phoneStats?: [Stat, Stat];
   badges?: [Badge, Badge];
   scrollHint?: string;
+  swipeHint?: string;
   dir?: "ltr" | "rtl";
 }
 
@@ -188,6 +207,7 @@ export function CinematicHero({
     { icon: "✦", title: "6.9% CTR", sub: "Click-through" },
   ],
   scrollHint = "Scroll",
+  swipeHint = "Swipe down",
   dir = "ltr",
   className,
   ...props
@@ -291,7 +311,6 @@ export function CinematicHero({
       });
 
       scrollTl
-        .to(".ch-scroll-cue-wrapper", { autoAlpha: 0, y: -10, ease: "power2.in", duration: 0.5 }, 0)
         .to([".hero-text-wrapper", ".ch-bg-grid"], { scale: 1.15, filter: "blur(20px)", opacity: 0.2, ease: "power2.inOut", duration: 2 }, 0)
         .to(".main-card", { y: 0, ease: "power3.inOut", duration: 2 }, 0)
         .to(".main-card", { width: "100%", height: "100%", borderRadius: "0px", ease: "power3.inOut", duration: 1.5 })
@@ -334,6 +353,7 @@ export function CinematicHero({
         .to([".mockup-scroll-wrapper", ".floating-badge", ".card-left-text", ".card-right-text"], {
           scale: 0.9, y: -40, z: -200, autoAlpha: 0, ease: "power3.in", duration: 1.2, stagger: 0.05,
         })
+        .to(".ch-scroll-cue-wrapper", { autoAlpha: 0, y: -10, ease: "power2.in", duration: 0.8 }, "pullback")
         .to(".main-card", {
           width: isMobile ? "92vw" : "85vw",
           height: isMobile ? "92vh" : "85vh",
@@ -577,11 +597,17 @@ export function CinematicHero({
         </div>
       </div>
 
-      {/* Scroll cue — fades out as soon as the scroll timeline starts */}
+      {/* Scroll cue — stays through the whole animation, fades at the finale */}
       <div className="ch-scroll-cue-wrapper absolute bottom-6 left-1/2 -translate-x-1/2 z-40 pointer-events-none gsap-reveal" aria-hidden="true">
         <div className="ch-scroll-cue">
-          <span className="ch-scroll-cue__mouse"><span className="ch-scroll-cue__wheel" /></span>
-          <span className="ch-scroll-cue__label">{scrollHint}</span>
+          <span className="ch-scroll-cue__mouse ch-cue-desktop"><span className="ch-scroll-cue__wheel" /></span>
+          <svg className="ch-scroll-cue__swipe ch-cue-mobile" viewBox="0 0 30 42" aria-hidden="true">
+            <line className="ch-swipe-track" x1="15" y1="6" x2="15" y2="26" />
+            <g className="ch-swipe-dot"><circle cx="15" cy="8" r="4.5" /></g>
+            <path className="ch-swipe-chevron" d="M8 30 l7 6 l7 -6" />
+          </svg>
+          <span className="ch-scroll-cue__label ch-cue-desktop">{scrollHint}</span>
+          <span className="ch-scroll-cue__label ch-cue-mobile">{swipeHint}</span>
         </div>
       </div>
     </div>

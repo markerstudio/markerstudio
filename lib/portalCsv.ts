@@ -66,6 +66,7 @@ export function toCSV(d: ClientData): string {
     val(`social.posts[${i}].platform`, p.platform);
     val(`social.posts[${i}].title`, p.title);
     val(`social.posts[${i}].notes`, p.notes);
+    val(`social.posts[${i}].brief`, p.brief || "");
     val(`social.posts[${i}].status`, p.status);
   });
 

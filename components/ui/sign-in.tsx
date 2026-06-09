@@ -21,6 +21,8 @@ interface SignInPageProps {
   title?: React.ReactNode;
   description?: React.ReactNode;
   heroImageSrc?: string;
+  heroLogos?: { name: string; logo: string }[]; // client logos tiled in a grid
+  heroTagline?: string;
   testimonials?: Testimonial[];
   error?: string;
   notice?: string;
@@ -49,12 +51,19 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   title = <span className="font-semibold text-ink tracking-tight">Welcome back</span>,
   description = "Sign in to your Marker Studio portal.",
   heroImageSrc,
+  heroLogos = [],
+  heroTagline = "We mark the brands that matter.",
   testimonials = [],
   error,
   notice,
   action,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  // Tile the client logos so the grid always fills the tall panel.
+  const tiledLogos =
+    heroLogos.length > 0
+      ? Array.from({ length: 40 }, (_, i) => heroLogos[i % heroLogos.length])
+      : [];
 
   return (
     <div className="min-h-[100dvh] flex flex-col md:flex-row font-display w-full bg-paper text-ink">
@@ -109,11 +118,30 @@ export const SignInPage: React.FC<SignInPageProps> = ({
         </div>
       </section>
 
-      {/* Right: hero image + optional testimonials */}
-      {heroImageSrc && (
+      {/* Right: a grid of the brands we've marked (or an image fallback) */}
+      {(tiledLogos.length > 0 || heroImageSrc) && (
         <section className="hidden md:block flex-1 relative p-4">
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }} />
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl" style={{ background: "radial-gradient(120% 80% at 50% 0%, rgba(255,145,0,.10), transparent 60%), linear-gradient(180deg, transparent 60%, rgba(12,10,8,.45))" }} />
+          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl overflow-hidden bg-ink">
+            {tiledLogos.length > 0 ? (
+              <div className="absolute inset-0 grid grid-cols-4">
+                {tiledLogos.map((c, i) => (
+                  <div key={i} className="flex aspect-[4/3] items-center justify-center border-b border-r border-white/[0.06] p-4">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={c.logo} alt="" loading="lazy" className="max-h-9 max-w-[72%] object-contain opacity-45 brightness-0 invert" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }} />
+            )}
+            {/* glow + vignette so the wordmark/tagline reads over the grid */}
+            <div className="absolute inset-0" style={{ background: "radial-gradient(120% 75% at 50% 0%, rgba(255,145,0,.18), transparent 55%), linear-gradient(180deg, rgba(12,10,8,.25) 0%, transparent 30%, rgba(12,10,8,.78) 100%)" }} />
+            <div className="absolute inset-x-0 bottom-0 p-9 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={LOGO} alt="Marker Studio" className="mx-auto h-8 w-auto brightness-0 invert" />
+              <p className="mt-3 text-sm font-medium tracking-wide text-white/75">{heroTagline}</p>
+            </div>
+          </div>
           {testimonials.length > 0 && (
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
               <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />

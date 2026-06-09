@@ -49,6 +49,7 @@ Below is a CSV with columns: field,en,ar,value. Fill ONLY the social rows:
   - .platform = Instagram / TikTok / Facebook / LinkedIn …
   - .title = the post idea / hook (English is fine)
   - .notes = goal or format (e.g. Carousel, Engagement, Trust)
+  - .brief = the type-specific brief: for a post the caption + key message + visual direction; for a reel a short hook + scene-by-scene script + audio; for a story the frame-by-frame direction (polls, stickers, CTA).
   - .status = planned | scheduled | posted
 - Add as many posts as the plan needs by copying a post group and increasing the [n] index (start at 0). Keep the "field" column EXACTLY.
 - Aim for a realistic, varied month (mix of platforms, formats, and goals). Use real-looking dates spread across the month.

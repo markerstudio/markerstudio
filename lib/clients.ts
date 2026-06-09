@@ -9,7 +9,8 @@ export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
 export type SocialItem = { title: string; desc: string; tag?: string };
 export type SocialContentType = "post" | "story" | "reel";
-export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted"; type?: SocialContentType };
+// `brief` is the type-aware long copy: post details / reel script / stories direction.
+export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted"; type?: SocialContentType; brief?: string };
 export type TimelinePhase = { phase: string; duration?: string; detail?: string };
 export type MetricRow = { label: string; before: string; after: string; note: string };
 export type Campaign = {
