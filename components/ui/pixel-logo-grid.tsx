@@ -218,7 +218,19 @@ function PixelCanvas({ colors, gap = 5, speed = 30 }: PixelCanvasProps) {
 // Marker's signature orange, sampled across the brand palette for the shimmer.
 const PIXEL_COLORS = ["#FF9100", "#FFB347", "#FFCB80"];
 
+// Default box every logo is fitted into (object-contain). Generous enough to
+// fill the card without crowding the grid lines.
+const DEFAULT_LOGO_SIZE = "max-w-[80%] max-h-[60px]";
+
+// A few client logos ship with heavy transparent padding baked into the PNG,
+// so object-contain shrinks the visible mark. Give those a larger box (keyed by
+// the client `name` in content.ts) so they read at a comparable size.
+const LOGO_SIZE_OVERRIDES: Record<string, string> = {
+  "ENG PRO": "max-w-[92%] max-h-[78px]",
+};
+
 function LogoCard({ logo }: { logo: ClientItem }) {
+  const sizeClass = LOGO_SIZE_OVERRIDES[logo.name] ?? DEFAULT_LOGO_SIZE;
   return (
     <div
       className={cn(
@@ -234,7 +246,8 @@ function LogoCard({ logo }: { logo: ClientItem }) {
         alt={logo.name}
         loading="lazy"
         className={cn(
-          "relative z-[1] w-auto max-w-[78%] max-h-[56px] object-contain transition-all duration-300",
+          "relative z-[1] w-auto object-contain transition-all duration-300",
+          sizeClass,
           "grayscale opacity-60 group-hover:grayscale-0 group-hover:opacity-100 group-hover:scale-[1.06]"
         )}
       />
