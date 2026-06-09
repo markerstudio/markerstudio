@@ -34,12 +34,13 @@ export async function createInvoiceAction(formData: FormData) {
   const items = parseItems(formData.get("items"));
   const addVat = String(formData.get("addVat") || "") === "on";
   const vatRate = addVat ? parseFloat(String(formData.get("vatRate") || "16")) || 16 : 0;
+  const paidAmount = parseFloat(String(formData.get("paidAmount") || "0")) || 0;
 
   const c = await clientBySlug(slug);
   if (!c) redirect("/admin/clients");
   if (items.length === 0) redirect(`/admin/clients/${slug}/edit?error=invoice-empty`);
 
-  await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate });
+  await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate, paidAmount });
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }

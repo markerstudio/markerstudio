@@ -5,6 +5,7 @@ import { useLang } from "@/lib/useLang";
 import { useRouter } from "next/navigation";
 import { logout, updateClientData, resyncFromNotion } from "@/app/admin/actions";
 import SocialCalendar from "@/components/SocialCalendar";
+import FileUpload from "@/components/FileUpload";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
 
 const MARKER_LOGO = "/assets/logo-primary-transparent.png";
@@ -452,7 +453,18 @@ export default function PortalView({
                   <span className="ms-portal-pill ms-portal-pill--orange" style={{ alignSelf: "flex-start" }}>{f(doc.type || "DOC", (v) => up((c) => (c.documents[i].type = v)), false, "PDF")}</span>
                   <h3 className="ms-pcard__h" style={{ margin: 0 }}>{f(doc.title, (v) => up((c) => (c.documents[i].title = v)), false, "Title")}</h3>
                   {edit ? (
-                    <input className="ms-edit" value={doc.url} placeholder="https://…" onChange={(e) => up((c) => (c.documents[i].url = e.target.value))} />
+                    <>
+                      <input className="ms-edit" value={doc.url} placeholder="https://…" onChange={(e) => up((c) => (c.documents[i].url = e.target.value))} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <FileUpload accept="application/pdf,image/*" label={ui("Upload PDF", "رفع PDF")} compact
+                          onUploaded={({ url, name, contentType }) => up((c) => {
+                            c.documents[i].url = url;
+                            if (!c.documents[i].title) c.documents[i].title = name.replace(/\.[^.]+$/, "");
+                            c.documents[i].type = contentType.includes("pdf") ? "PDF" : c.documents[i].type || "File";
+                          })} />
+                        {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="ms-pmuted" style={{ fontSize: 12 }}>{ui("Open", "فتح")} ↗</a>}
+                      </div>
+                    </>
                   ) : doc.url ? (
                     <a href={doc.url} target="_blank" rel="noreferrer" className="ms-btn ms-btn-outline" style={{ alignSelf: "flex-start" }}>{ui("Open", "فتح")} <span>↗</span></a>
                   ) : (

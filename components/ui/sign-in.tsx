@@ -113,7 +113,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       {heroImageSrc && (
         <section className="hidden md:block flex-1 relative p-4">
           <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl bg-cover bg-center" style={{ backgroundImage: `url(${heroImageSrc})` }} />
-          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl" style={{ background: "linear-gradient(160deg, rgba(255,145,0,.18), rgba(48,48,48,.55))" }} />
+          <div className="animate-slide-right animate-delay-300 absolute inset-4 rounded-3xl" style={{ background: "radial-gradient(120% 80% at 50% 0%, rgba(255,145,0,.10), transparent 60%), linear-gradient(180deg, transparent 60%, rgba(12,10,8,.45))" }} />
           {testimonials.length > 0 && (
             <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-4 px-8 w-full justify-center">
               <TestimonialCard testimonial={testimonials[0]} delay="animate-delay-1000" />

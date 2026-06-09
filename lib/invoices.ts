@@ -3,7 +3,7 @@
 import { getSql } from "@/lib/db";
 
 export type InvoiceItem = { label: string; amount: string };
-export type InvoiceStatus = "draft" | "due" | "paid";
+export type InvoiceStatus = "draft" | "due" | "partial" | "paid";
 
 export type Invoice = {
   id: number;
@@ -17,6 +17,7 @@ export type Invoice = {
   status: InvoiceStatus;
   source: "custom" | "notion";
   vat_rate: number; // 0 = no VAT; otherwise percentage applied to the subtotal
+  paid_amount: number; // already paid / deposit against this invoice
   created_at: string;
 };
 
@@ -39,6 +40,7 @@ export async function ensureInvoicesTable(): Promise<void> {
     )
   `;
   await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS vat_rate NUMERIC NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS paid_amount NUMERIC NOT NULL DEFAULT 0`;
   // Status set was "draft | sent | paid"; "sent" is now "due".
   await sql`UPDATE invoices SET status = 'due' WHERE status = 'sent'`;
 }
@@ -67,15 +69,21 @@ export async function createInvoice(input: {
   dueDate?: string;
   source?: "custom" | "notion";
   vatRate?: number;
+  paidAmount?: number;
+  status?: InvoiceStatus;
 }): Promise<{ id: number; number: string }> {
   await ensureInvoicesTable();
   const sql = getSql();
   const number = await nextNumber();
   const items = JSON.stringify(input.items || []);
   const vat = Number.isFinite(input.vatRate) ? Number(input.vatRate) : 0;
+  const paid = Number.isFinite(input.paidAmount) ? Math.max(0, Number(input.paidAmount)) : 0;
+  // Derive the opening status from what's been paid unless one was passed.
+  const grand = invoiceGrandTotal(input.items || [], vat);
+  const status = input.status || (paid <= 0 ? "draft" : paid >= grand && grand > 0 ? "paid" : "partial");
   const rows = (await sql`
-    INSERT INTO invoices (number, client_id, client_slug, due_date, items, note, source, vat_rate)
-    VALUES (${number}, ${input.clientId}, ${input.clientSlug}, ${input.dueDate || null}, ${items}::jsonb, ${input.note || null}, ${input.source || "custom"}, ${vat})
+    INSERT INTO invoices (number, client_id, client_slug, due_date, items, note, source, vat_rate, paid_amount, status)
+    VALUES (${number}, ${input.clientId}, ${input.clientSlug}, ${input.dueDate || null}, ${items}::jsonb, ${input.note || null}, ${input.source || "custom"}, ${vat}, ${paid}, ${status})
     RETURNING id
   `) as unknown as { id: number }[];
   return { id: rows[0].id, number };
@@ -84,7 +92,7 @@ export async function createInvoice(input: {
 export async function listInvoices(): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
     FROM invoices ORDER BY created_at DESC LIMIT 500
   `) as unknown as Invoice[];
 }
@@ -92,7 +100,7 @@ export async function listInvoices(): Promise<Invoice[]> {
 export async function listClientInvoices(clientId: number): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
     FROM invoices WHERE client_id = ${clientId} ORDER BY created_at DESC
   `) as unknown as Invoice[];
 }
@@ -100,7 +108,7 @@ export async function listClientInvoices(clientId: number): Promise<Invoice[]> {
 export async function getInvoice(id: number): Promise<Invoice | undefined> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
     FROM invoices WHERE id = ${id} LIMIT 1
   `) as unknown as Invoice[];
   return rows[0];
@@ -127,4 +135,20 @@ export function invoiceVat(items: InvoiceItem[], rate: number): number {
 
 export function invoiceGrandTotal(items: InvoiceItem[], rate: number): number {
   return invoiceTotal(items) + invoiceVat(items, rate);
+}
+
+// "Money left" — what's still owed after any deposit / partial payment.
+export function invoiceRemaining(items: InvoiceItem[], rate: number, paid: number): number {
+  return Math.max(0, invoiceGrandTotal(items, rate) - (Number(paid) || 0));
+}
+
+// Add a paid amount and re-derive the status (draft → partial → paid).
+export async function setInvoicePaid(id: number, paid: number): Promise<void> {
+  const sql = getSql();
+  const rows = (await sql`SELECT items, vat_rate FROM invoices WHERE id = ${id} LIMIT 1`) as unknown as { items: InvoiceItem[]; vat_rate: number }[];
+  if (!rows[0]) return;
+  const grand = invoiceGrandTotal(rows[0].items, Number(rows[0].vat_rate) || 0);
+  const p = Math.max(0, Number(paid) || 0);
+  const status: InvoiceStatus = p <= 0 ? "due" : p >= grand && grand > 0 ? "paid" : "partial";
+  await sql`UPDATE invoices SET paid_amount = ${p}, status = ${status} WHERE id = ${id}`;
 }

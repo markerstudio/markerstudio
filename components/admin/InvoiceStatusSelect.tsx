@@ -3,7 +3,7 @@
 import { setInvoiceStatusAction } from "@/app/admin/invoice-actions";
 import type { InvoiceStatus } from "@/lib/invoices";
 
-const STATUSES: InvoiceStatus[] = ["draft", "due", "paid"];
+const STATUSES: InvoiceStatus[] = ["draft", "due", "partial", "paid"];
 
 // Dropdown that saves the invoice status the moment it changes.
 export default function InvoiceStatusSelect({

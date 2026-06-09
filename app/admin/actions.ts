@@ -301,6 +301,34 @@ export async function savePricing(formData: FormData) {
   redirect(`/admin/clients/${slug}/edit?ok=pricing-saved`);
 }
 
+// Save the proposal timeline — ordered phases shown on the client's proposal.
+export async function saveProposalTimeline(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  let parsed: unknown = [];
+  try {
+    parsed = JSON.parse(String(formData.get("timeline") || "[]"));
+  } catch {
+    parsed = [];
+  }
+  const timeline = (Array.isArray(parsed) ? parsed : [])
+    .map((p) => ({
+      phase: String((p as { phase?: unknown })?.phase || "").trim(),
+      duration: String((p as { duration?: unknown })?.duration || "").trim(),
+      detail: String((p as { detail?: unknown })?.detail || "").trim(),
+    }))
+    .filter((p) => p.phase || p.detail);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = (rows[0].data || {}) as ClientData;
+  data.proposal = { ...data.proposal, timeline };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=timeline-saved`);
+}
+
 // --- Inquiries (contact-form submissions) ----------------------------------
 
 export async function markInquiryRead(formData: FormData) {

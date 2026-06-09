@@ -22,6 +22,8 @@ const T = {
       { t: "Design", d: "We craft the identity and assets in your package, in Arabic & English." },
       { t: "Deliver", d: "You receive the files, with a round of refinement included." },
     ],
+    timeline: "Timeline",
+    timelineNote: "How the work unfolds, phase by phase.",
     investment: "Investment",
     investmentNote: "A tailored quote based on this scope — we'll confirm the exact figure with you before any work begins.",
     servicesLabel: "Services",
@@ -49,6 +51,8 @@ const T = {
       { t: "تصميم", d: "نصمّم الهوية والأصول ضمن باقتك، بالعربية والإنجليزية." },
       { t: "تسليم", d: "تستلم الملفات، مع جولة تعديل واحدة مشمولة." },
     ],
+    timeline: "الجدول الزمني",
+    timelineNote: "كيف يتدرّج العمل، مرحلةً بمرحلة.",
     investment: "الاستثمار",
     investmentNote: "عرض سعر مفصّل حسب هذا النطاق — سنؤكّد الرقم النهائي معك قبل بدء أي عمل.",
     servicesLabel: "الخدمات",
@@ -89,6 +93,7 @@ export default async function ProposalPage({ params }: { params: { slug: string 
     ...((brief?.services || []).filter((sv) => sv !== "Other")),
     ...(brief?.servicesOther ? [brief.servicesOther] : []),
   ];
+  const timeline = client.data.proposal?.timeline || [];
   const pricing = client.data.pricing;
   const pricingTotal = (pricing?.items || []).reduce((sum, it) => {
     const n = parseFloat((it.amount || "").replace(/[^0-9.]/g, ""));
@@ -180,19 +185,44 @@ export default async function ProposalPage({ params }: { params: { slug: string 
               </div>
             )}
 
-            {/* Scope */}
-            <div className="mt-8">
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500">{t.scope}</h2>
-              <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {t.steps.map((st, i) => (
-                  <div key={st.t} className="rounded-lg border border-neutral-200 p-4">
-                    <div className="text-xs font-bold text-orange">0{i + 1}</div>
-                    <div className="mt-1 font-semibold text-neutral-900">{st.t}</div>
-                    <p className="mt-1 text-sm text-neutral-500">{st.d}</p>
-                  </div>
-                ))}
+            {/* Scope / timeline */}
+            {timeline.length > 0 ? (
+              <div className="mt-8">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500">{t.timeline}</h2>
+                <p className="mt-1 text-sm text-neutral-400">{t.timelineNote}</p>
+                <ol className="relative mt-6 ms-timeline">
+                  {/* the spine */}
+                  <span aria-hidden className="absolute top-1 bottom-1 w-[2px] bg-gradient-to-b from-orange via-orange/60 to-orange/10 ltr:left-[15px] rtl:right-[15px]" />
+                  {timeline.map((ph, i) => (
+                    <li key={i} className="relative ltr:pl-12 rtl:pr-12 pb-7 last:pb-0">
+                      <span aria-hidden className="absolute ltr:left-0 rtl:right-0 top-0 flex h-8 w-8 items-center justify-center rounded-full bg-orange text-xs font-bold text-white ring-4 ring-orange-50 shadow-sm">
+                        {String(i + 1).padStart(2, "0")}
+                      </span>
+                      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                        <h3 className="text-lg font-bold text-neutral-900">{ph.phase}</h3>
+                        {ph.duration && (
+                          <span className="rounded-full bg-orange-50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wider text-orange-deep">{ph.duration}</span>
+                        )}
+                      </div>
+                      {ph.detail && <p className="mt-1.5 text-sm leading-6 text-neutral-600 whitespace-pre-wrap">{ph.detail}</p>}
+                    </li>
+                  ))}
+                </ol>
               </div>
-            </div>
+            ) : (
+              <div className="mt-8">
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-neutral-500">{t.scope}</h2>
+                <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  {t.steps.map((st, i) => (
+                    <div key={st.t} className="rounded-lg border border-neutral-200 p-4">
+                      <div className="text-xs font-bold text-orange">0{i + 1}</div>
+                      <div className="mt-1 font-semibold text-neutral-900">{st.t}</div>
+                      <p className="mt-1 text-sm text-neutral-500">{st.d}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Investment */}
             <div className="mt-8 rounded-lg border border-neutral-200 bg-neutral-50 p-5">
