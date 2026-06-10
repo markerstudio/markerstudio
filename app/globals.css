@@ -814,6 +814,20 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 }
 
 /* ===============================================================
+   ADMIN DASHBOARD — entrance + chart animations
+   =============================================================== */
+@keyframes adm-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.adm-rise { animation: adm-rise 480ms var(--ease-out) both; }
+@keyframes adm-bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+.adm-bar { animation: adm-bar-grow 640ms var(--ease-out) both; transform-origin: bottom; }
+/* Horizontal nav scroller without a visible scrollbar */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .adm-rise, .adm-bar { animation: none; }
+}
+
+/* ===============================================================
    CLIENT PORTAL — built on the same .ms-* design language as the site
    (crisp corners, sparse shadows, brand type). Lives under /portal.
    =============================================================== */

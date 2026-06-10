@@ -51,8 +51,6 @@ export default async function PortalPage({
         monthlyFee: live.monthlyFee || d.finance?.monthlyFee || "",
         progress: live.progress || d.finance?.progress || 0,
         brandingFee: live.brandingFee || d.finance?.brandingFee || "",
-        brandingProgress: live.brandingProgress || d.finance?.brandingProgress || 0,
-        brandingLeft: live.brandingLeft || d.finance?.brandingLeft || "",
       };
       if (live.invoices.length) d.invoices = live.invoices;
     }

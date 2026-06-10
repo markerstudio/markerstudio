@@ -82,10 +82,12 @@ export type ClientData = {
   invoices: Invoice[]; // payment history
   finance: {
     monthlyFee: string; // monthly marketing fee
-    progress: number; // % of this month covered (money left lives on plan.balance)
-    brandingFee?: string; // fixed branding fee (one-time)
-    brandingProgress?: number; // % of branding fee covered by branding payments
-    brandingLeft?: string; // remaining branding balance
+    progress: number; // % paid, combined (the combined money left lives on plan.balance)
+    brandingFee?: string; // fixed branding fee (one-time, reference only)
+    /** @deprecated Money left is a single combined figure — no branding split. */
+    brandingProgress?: number;
+    /** @deprecated Money left is a single combined figure — no branding split. */
+    brandingLeft?: string;
   };
   documents: DocItem[];
   status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
@@ -153,7 +155,7 @@ export function blankClientData(): ClientData {
       paid: { spend: "", note: { en: "", ar: "" }, campaigns: [] },
     },
     invoices: [],
-    finance: { monthlyFee: "", progress: 0, brandingFee: "", brandingProgress: 0, brandingLeft: "" },
+    finance: { monthlyFee: "", progress: 0, brandingFee: "" },
     documents: [],
     notionDbId: "",
   };
@@ -309,7 +311,7 @@ export const EXAMPLE_CLIENT: { slug: string; name: string; logo: string; color: 
       { cycle: "Cycle 02 · Mar 26 → Apr 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
       { cycle: "Cycle 03 · Apr 26 → May 26", desc: "Monthly social media management", amount: "1,800 ILS", status: "paid" },
     ],
-    finance: { monthlyFee: "1,800 ILS", progress: 67, brandingFee: "2,500 ILS", brandingProgress: 100, brandingLeft: "0 ILS" },
+    finance: { monthlyFee: "1,800 ILS", progress: 67, brandingFee: "2,500 ILS" },
     documents: [
       { title: "Proposal", type: "PDF", url: "" },
       { title: "Service agreement", type: "PDF", url: "" },

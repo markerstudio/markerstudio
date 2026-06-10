@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
+import AdminNav from "@/components/admin/AdminNav";
 import { logout } from "./actions";
 
 export const metadata = { title: "Marker Admin", robots: { index: false, follow: false } };
@@ -14,46 +15,29 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   return (
     <div dir="ltr" className="min-h-screen bg-neutral-100 text-neutral-900 font-sans">
       {user && (
-        <header className="bg-white border-b border-neutral-200">
-          <div className="max-w-5xl mx-auto px-5 py-2 min-h-14 flex items-center justify-between gap-x-4 gap-y-1 flex-wrap">
-          <div className="flex items-center gap-5">
-            <Link href="/admin" className="font-bold tracking-tight text-orange">
-              Marker<span className="text-neutral-900"> Admin</span>
-            </Link>
-            <nav className="flex items-center gap-4 text-sm">
-              <Link href="/admin" className="text-neutral-600 hover:text-neutral-900">Projects</Link>
-              <Link href="/admin/clients" className="text-neutral-600 hover:text-neutral-900">Clients</Link>
-              <Link href="/admin/proposals" className="text-neutral-600 hover:text-neutral-900">Proposals</Link>
-              <Link href="/admin/agreements" className="text-neutral-600 hover:text-neutral-900">Agreements</Link>
-              <Link href="/admin/invoices" className="text-neutral-600 hover:text-neutral-900">Invoices</Link>
-              <Link href="/admin/inquiries" className="text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1.5">
-                Inquiries
-                {unread > 0 && (
-                  <span className="text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none">{unread}</span>
-                )}
+        <header className="bg-white border-b border-neutral-200 sticky top-0 z-40">
+          <div className="max-w-6xl mx-auto px-5">
+            <div className="h-12 flex items-center justify-between gap-4">
+              <Link href="/admin" className="font-bold tracking-tight text-orange shrink-0">
+                Marker<span className="text-neutral-900"> Admin</span>
               </Link>
-              <Link href="/admin/applications" className="text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1.5">
-                Applications
-                {apps > 0 && (
-                  <span className="text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none">{apps}</span>
-                )}
-              </Link>
-              <Link href="/admin/users" className="text-neutral-600 hover:text-neutral-900">Users</Link>
-            </nav>
-          </div>
-          <div className="flex items-center gap-4 text-sm">
-              <Link href="/" className="text-neutral-500 hover:text-neutral-900" target="_blank">
-                View site ↗
-              </Link>
-              <span className="text-neutral-400">{user.email}</span>
-              <form action={logout}>
-                <button className="text-neutral-700 hover:text-orange font-medium">Sign out</button>
-              </form>
+              <div className="flex items-center gap-4 text-sm min-w-0">
+                <Link href="/" className="text-neutral-500 hover:text-neutral-900 whitespace-nowrap" target="_blank">
+                  View site ↗
+                </Link>
+                <span className="text-neutral-400 truncate hidden sm:inline">{user.email}</span>
+                <form action={logout}>
+                  <button className="text-neutral-700 hover:text-orange font-medium whitespace-nowrap">Sign out</button>
+                </form>
+              </div>
+            </div>
+            <div className="pb-2">
+              <AdminNav unreadInquiries={unread} unreadApplications={apps} />
             </div>
           </div>
         </header>
       )}
-      <main className="max-w-5xl mx-auto px-5 py-8">{children}</main>
+      <main className="max-w-6xl mx-auto px-5 py-8">{children}</main>
     </div>
   );
 }
