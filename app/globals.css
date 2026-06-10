@@ -493,15 +493,21 @@ body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 6
 .ms-reveal { opacity: 0; transform: translateY(24px); transition: opacity 620ms var(--ease-out), transform 620ms var(--ease-out); will-change: opacity, transform; }
 .ms-reveal.is-visible { opacity: 1; transform: none; }
 
-/* Variant: marker wipe — the tile sweeps in like a stroke of ink. Transform
-   stays out of the entrance so the 280ms hover lift transitions cleanly. */
-.ms-reveal--wipe {
-  transform: none;
-  clip-path: inset(0 100% 0 0);
-  transition: opacity 620ms var(--ease-out), clip-path 720ms var(--ease-out), transform 280ms var(--ease-out);
+/* Variant: marker wipe — a cover panel sweeps off the tile like a stroke of
+   ink. Implemented as an overlay (not clip-path) because fully clipping the
+   observed element zeroes its IntersectionObserver area and the reveal never
+   fires. Used on the work grid, so the cover matches the cream section bg.
+   transition-delay: inherit picks up the stagger set inline on the wrapper. */
+.ms-reveal--wipe { opacity: 1; transform: none; transition: transform 280ms var(--ease-out); }
+.ms-reveal--wipe::after {
+  content: ''; position: absolute; inset: 0; z-index: 7;
+  background: var(--marker-cream); pointer-events: none;
+  transform-origin: right;
+  transition: transform 640ms var(--ease-out);
+  transition-delay: inherit;
 }
-body.ar .ms-reveal--wipe { clip-path: inset(0 0 0 100%); }
-.ms-reveal--wipe.is-visible, body.ar .ms-reveal--wipe.is-visible { clip-path: inset(0 0 0 0); }
+body.ar .ms-reveal--wipe::after { transform-origin: left; }
+.ms-reveal--wipe.is-visible::after { transform: scaleX(0); }
 
 /* Variant: zoom — settles in from 96%. Once visible, the transform transition
    shortens so card hover lifts stay snappy. */
@@ -514,8 +520,9 @@ body.ar .brush-draw::after { clip-path: inset(0 0 0 100%); }
 .brush-draw.is-inked::after, body.ar .brush-draw.is-inked::after { clip-path: inset(0 0 0 0); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ms-reveal, .ms-reveal--wipe, .ms-reveal--zoom { opacity: 1; transform: none; transition: none; clip-path: none; }
-  .ms-marquee__track, .ms-ribbon__track { animation: none; }
+  .ms-reveal, .ms-reveal--wipe, .ms-reveal--zoom { opacity: 1; transform: none; transition: none; }
+  .ms-reveal--wipe::after { display: none; }
+  .ms-marquee__track { animation: none; }
   .ms-progress { display: none; }
   .brush-draw::after { clip-path: none; transition: none; }
   .ms-step__bar { transform: scaleX(1); transition: none; }
@@ -581,25 +588,11 @@ body.ar .ms-faq__q { font-family: var(--font-arabic-display); }
 .ms-faq__a p { margin: 0; padding-bottom: 24px; font: 400 16px/1.6 var(--font-body); color: var(--fg-muted); max-width: 62ch; text-wrap: pretty; }
 
 /* ---- CTA banner ---- */
-.ms-section.ms-cta-banner { padding-top: 0; overflow: hidden; }
 .ms-cta-banner__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
 .ms-cta-banner__title { font: 800 64px/0.98 var(--font-display); letter-spacing: -0.03em; color: #fff; margin: 0; text-wrap: balance; }
 body.ar .ms-cta-banner__title { font-family: var(--font-arabic-display); font-size: 56px; }
 .ms-cta-banner__side { display: flex; flex-direction: column; gap: 24px; align-items: start; }
 .ms-cta-banner__sub { font: 400 20px/1.55 var(--font-body); color: rgba(255,255,255,.92); margin: 0; max-width: 40ch; text-wrap: pretty; }
-
-/* Kinetic text ribbon across the top of the banner */
-.ms-ribbon { border-bottom: 1px solid rgba(255,255,255,.28); margin-bottom: 72px; direction: ltr; }
-.ms-ribbon__track { display: flex; width: max-content; animation: ms-scroll 26s linear infinite; }
-.ms-ribbon__half { display: flex; flex: none; }
-.ms-ribbon span {
-  display: inline-flex; align-items: center; gap: 20px; padding: 16px 20px 16px 0;
-  font: 800 15px/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase;
-  color: rgba(255,255,255,.92); white-space: nowrap;
-}
-body.ar .ms-ribbon span { font-family: var(--font-arabic-display); letter-spacing: 0.06em; }
-.ms-ribbon i { font-style: normal; color: var(--marker-ink); font-size: 17px; }
-body.ar .ms-ribbon__track { animation-direction: reverse; }
 .ms-btn-dark { background: var(--marker-ink); color: #fff; }
 .ms-btn-dark:hover { background: #000; transform: translateY(-1px); box-shadow: var(--shadow-3); }
 
@@ -662,8 +655,6 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
   .ms-cta-banner__title { font-size: 40px; }
   body.ar .ms-cta-banner__title { font-size: 38px; }
   .ms-cta-banner__sub { font-size: 18px; }
-  .ms-ribbon { margin-bottom: 48px; }
-  .ms-ribbon span { font-size: 13px; padding: 13px 16px 13px 0; }
 }
 @media (max-width: 480px) {
   .ms-footer__top { grid-template-columns: 1fr; }
