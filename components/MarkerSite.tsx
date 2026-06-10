@@ -20,15 +20,19 @@ function ArrowIcon() {
   );
 }
 
-/* Scroll-reveal wrapper — fades + lifts a section into view once. */
+/* Scroll-reveal wrapper — animates a section into view once. The default is
+   a fade + lift; variants give sections their own personality:
+   "wipe" sweeps in like a marker stroke, "zoom" settles in from 96%. */
 function Reveal({
   children,
   className = "",
   delay = 0,
+  variant,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
+  variant?: "wipe" | "zoom";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [shown, setShown] = useState(false);
@@ -58,12 +62,159 @@ function Reveal({
   return (
     <div
       ref={ref}
-      className={`ms-reveal ${shown ? "is-visible" : ""} ${className}`}
+      className={`ms-reveal ${variant ? `ms-reveal--${variant}` : ""} ${shown ? "is-visible" : ""} ${className}`}
       style={{ transitionDelay: `${delay}ms` }}
     >
       {children}
     </div>
   );
+}
+
+/* Counts a formatted stat (e.g. "+1,353%", "445K", "87,606") up from zero the
+   first time it scrolls into view. Prefix, suffix, decimals, and digit
+   grouping are preserved; renders the plain value when the string has no
+   number or the user prefers reduced motion. */
+function CountUp({ value, duration = 1400 }: { value: string; duration?: number }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const m = value.match(/[\d,]*\d(?:\.\d+)?/);
+    if (
+      !m ||
+      typeof IntersectionObserver === "undefined" ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    const num = m[0];
+    const target = parseFloat(num.replace(/,/g, ""));
+    const decimals = (num.split(".")[1] || "").length;
+    const grouped = num.includes(",");
+    const prefix = value.slice(0, m.index);
+    const suffix = value.slice((m.index ?? 0) + num.length);
+    const fmt = (n: number) =>
+      prefix +
+      (grouped ? Math.round(n).toLocaleString("en-US") : n.toFixed(decimals)) +
+      suffix;
+
+    let raf = 0;
+    const run = () => {
+      const t0 = performance.now();
+      const tick = (now: number) => {
+        const p = Math.min(1, (now - t0) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        el.textContent = fmt(target * eased);
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+
+    el.textContent = fmt(0);
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            run();
+            io.disconnect();
+          }
+        });
+      },
+      { threshold: 0.6 }
+    );
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      cancelAnimationFrame(raf);
+    };
+  }, [value, duration]);
+
+  return <span ref={ref}>{value}</span>;
+}
+
+/* Magnetic hover — the wrapped element leans toward the cursor and springs
+   back on leave. Fine pointers only; inert for touch and reduced motion. */
+function Magnetic({ children, className = "" }: { children: React.ReactNode; className?: string }) {
+  const ref = useRef<HTMLSpanElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (
+      !window.matchMedia?.("(pointer: fine)").matches ||
+      window.matchMedia?.("(prefers-reduced-motion: reduce)").matches
+    ) {
+      return;
+    }
+    let raf = 0;
+    let tx = 0, ty = 0, cx = 0, cy = 0;
+    const render = () => {
+      cx += (tx - cx) * 0.2;
+      cy += (ty - cy) * 0.2;
+      el.style.transform = `translate(${cx.toFixed(2)}px, ${cy.toFixed(2)}px)`;
+      if (Math.abs(tx - cx) > 0.1 || Math.abs(ty - cy) > 0.1) {
+        raf = requestAnimationFrame(render);
+      } else {
+        raf = 0;
+      }
+    };
+    const onMove = (e: MouseEvent) => {
+      const r = el.getBoundingClientRect();
+      tx = Math.max(-10, Math.min(10, (e.clientX - (r.left + r.width / 2)) * 0.22));
+      ty = Math.max(-8, Math.min(8, (e.clientY - (r.top + r.height / 2)) * 0.34));
+      if (!raf) raf = requestAnimationFrame(render);
+    };
+    const onLeave = () => {
+      tx = 0;
+      ty = 0;
+      if (!raf) raf = requestAnimationFrame(render);
+    };
+    el.addEventListener("mousemove", onMove);
+    el.addEventListener("mouseleave", onLeave);
+    return () => {
+      el.removeEventListener("mousemove", onMove);
+      el.removeEventListener("mouseleave", onLeave);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return (
+    <span ref={ref} className={`ms-magnetic ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+/* Page scroll progress — a thin orange marker line drawing across the very
+   top of the viewport as you read. Hidden by CSS under reduced motion. */
+function ScrollProgress() {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let raf = 0;
+    const update = () => {
+      raf = 0;
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      el.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
+    };
+    const onScroll = () => {
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    window.addEventListener("resize", onScroll);
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("resize", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
+  return <div ref={ref} className="ms-progress" aria-hidden />;
 }
 
 // Nav items map to section anchors, by index, matching content order.
@@ -79,9 +230,37 @@ function SiteHeader({
   t: SiteContent;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState("");
+
+  // Compact the header once the page starts scrolling.
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 12);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Scroll-spy — highlight the nav link of the section crossing mid-viewport.
+  useEffect(() => {
+    if (typeof IntersectionObserver === "undefined") return;
+    const sections = NAV_HREFS
+      .map((h) => document.getElementById(h.slice(1)))
+      .filter((el): el is HTMLElement => Boolean(el));
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) setActive(`#${e.target.id}`);
+        });
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    sections.forEach((s) => io.observe(s));
+    return () => io.disconnect();
+  }, []);
 
   return (
-    <header className="ms-header">
+    <header className={`ms-header ${scrolled ? "is-scrolled" : ""}`}>
       <div className="ms-container ms-header__inner">
         <a className="ms-logo" href="#top" onClick={() => setMenuOpen(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -92,6 +271,7 @@ function SiteHeader({
             <a
               key={item}
               href={NAV_HREFS[i] || "#top"}
+              className={active === NAV_HREFS[i] ? "active" : ""}
               onClick={() => setMenuOpen(false)}
             >
               {item}
@@ -120,9 +300,11 @@ function SiteHeader({
               ع
             </button>
           </div>
-          <a href="#contact" className="ms-btn ms-btn-primary ms-cta-desktop">
-            {t.cta.primary} <span>{t.cta.arrow}</span>
-          </a>
+          <Magnetic className="ms-cta-desktop">
+            <a href="#contact" className="ms-btn ms-btn-primary">
+              {t.cta.primary} <span>{t.cta.arrow}</span>
+            </a>
+          </Magnetic>
           <button
             className={`ms-burger ${menuOpen ? "is-open" : ""}`}
             aria-label="Menu"
@@ -192,17 +374,18 @@ function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects:
     <section className="ms-section ms-section--cream" id="work">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.work.eyebrow}</span>
             <h2 className="ms-section__title">{t.work.title}</h2>
             <p className="ms-section__sub">{t.work.sub}</p>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-work-grid">
           {projects.map((p, i) => (
             <Reveal
               key={p.slug}
               delay={i * 60}
+              variant="wipe"
               className={`ms-work-card ms-work-card--${pattern[i % pattern.length]}`}
             >
               <Link href={`/work/${p.slug}`} className="ms-work-card__link" aria-label={p.name[lang]} />
@@ -216,6 +399,10 @@ function WorkGrid({ t, lang, projects }: { t: SiteContent; lang: Lang; projects:
               <div className="ms-work-card__body">
                 <span className="ms-work-card__tag">{p.tag[lang]}</span>
                 <h3 className="ms-work-card__title">{p.name[lang]}</h3>
+                <span className="ms-work-card__cta" aria-hidden>
+                  {lang === "ar" ? "اعرض المشروع" : "View project"}
+                  <ArrowIcon />
+                </span>
               </div>
             </Reveal>
           ))}
@@ -230,10 +417,10 @@ function ServicesGrid({ t }: { t: SiteContent }) {
     <section className="ms-section" id="services">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.services.eyebrow}</span>
             <h2 className="ms-section__title">{t.services.title}</h2>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-services">
           {t.services.items.map((s, i) => (
@@ -263,7 +450,7 @@ function StudioBlock({ t }: { t: SiteContent }) {
             <span className="ms-section__eyebrow">{t.studio.eyebrow}</span>
             <h2 className="ms-studio__title">
               {t.studio.title[0]}{" "}
-              <span className="brushed brushed--bold">{t.studio.title[1]}</span>{" "}
+              <span className="brushed brushed--bold brush-draw">{t.studio.title[1]}</span>{" "}
               {t.studio.title[2]}
             </h2>
             {t.studio.body.map((p, i) => (
@@ -295,17 +482,19 @@ function MetricStrip({ t }: { t: SiteContent }) {
     <section className="ms-section ms-section--dark">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.metrics.eyebrow}</span>
             <h2 className="ms-section__title">{t.metrics.title}</h2>
             <p className="ms-section__sub">{t.metrics.sub}</p>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-metrics">
           {t.metrics.items.map((m, i) => (
             <Reveal key={m.label} delay={i * 80} className="ms-metric">
               <div className="ms-metric__label">{m.label}</div>
-              <div className="ms-metric__value">{m.value}</div>
+              <div className="ms-metric__value">
+                <CountUp value={m.value} duration={1200 + i * 200} />
+              </div>
               <div className="ms-metric__delta">{m.delta}</div>
             </Reveal>
           ))}
@@ -321,14 +510,14 @@ function Testimonials({ t }: { t: SiteContent }) {
     <section className="ms-section">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.testimonials.eyebrow}</span>
             <h2 className="ms-section__title">{t.testimonials.title}</h2>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-quotes">
           {t.testimonials.items.map((q, i) => (
-            <Reveal key={i} delay={i * 90} className="ms-quote">
+            <Reveal key={i} delay={i * 90} variant="zoom" className="ms-quote">
               <div className="ms-quote__mark">”</div>
               <p className="ms-quote__text">{q.quote}</p>
               <div className="ms-quote__by">
@@ -348,10 +537,10 @@ function ProcessSteps({ t }: { t: SiteContent }) {
     <section className="ms-section ms-section--cream">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.process.eyebrow}</span>
             <h2 className="ms-section__title">{t.process.title}</h2>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-process">
           {t.process.items.map((s, i) => (
@@ -375,31 +564,36 @@ function FaqAccordion({ t }: { t: SiteContent }) {
     <section className="ms-section" id="faq">
       <div className="ms-container">
         <div className="ms-section__header">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.faq.eyebrow}</span>
             <h2 className="ms-section__title">{t.faq.title}</h2>
             <p className="ms-section__sub">{t.faq.sub}</p>
-          </div>
+          </Reveal>
         </div>
         <div className="ms-faq">
           {t.faq.items.map((item, i) => {
             const isOpen = open === i;
             return (
-              <div key={i} className={`ms-faq__item ${isOpen ? "is-open" : ""}`}>
-                <button
-                  className="ms-faq__q"
-                  aria-expanded={isOpen}
-                  onClick={() => setOpen(isOpen ? -1 : i)}
-                >
-                  <span>{item.q}</span>
-                  <span className="ms-faq__sign" aria-hidden>
-                    {isOpen ? "−" : "+"}
-                  </span>
-                </button>
-                <div className="ms-faq__a" hidden={!isOpen}>
-                  <p>{item.a}</p>
+              <Reveal key={i} delay={i * 50}>
+                <div className={`ms-faq__item ${isOpen ? "is-open" : ""}`}>
+                  <button
+                    className="ms-faq__q"
+                    aria-expanded={isOpen}
+                    onClick={() => setOpen(isOpen ? -1 : i)}
+                  >
+                    <span>{item.q}</span>
+                    <span className="ms-faq__sign" aria-hidden>
+                      +
+                    </span>
+                  </button>
+                  {/* Animated via the 0fr → 1fr grid-row trick in globals.css */}
+                  <div className="ms-faq__a" aria-hidden={!isOpen}>
+                    <div className="ms-faq__a-inner">
+                      <p>{item.a}</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </Reveal>
             );
           })}
         </div>
@@ -408,10 +602,27 @@ function FaqAccordion({ t }: { t: SiteContent }) {
   );
 }
 
-/* Full-bleed orange call-to-action before contact. */
+/* Full-bleed orange call-to-action before contact, topped with a kinetic
+   text ribbon. The track holds two identical halves so the -50% translate
+   loops seamlessly. */
 function CtaBanner({ t }: { t: SiteContent }) {
+  const ribbonText = `${t.ctaBanner.title[0]} ${t.ctaBanner.title[1]}`;
   return (
     <section className="ms-section ms-section--orange ms-cta-banner">
+      <div className="ms-ribbon" aria-hidden>
+        <div className="ms-ribbon__track">
+          {[0, 1].map((half) => (
+            <div className="ms-ribbon__half" key={half}>
+              {Array.from({ length: 4 }).map((_, i) => (
+                <span key={i}>
+                  {ribbonText}
+                  <i>✺</i>
+                </span>
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
       <div className="ms-container">
         <Reveal className="ms-cta-banner__inner">
           <h2 className="ms-cta-banner__title">
@@ -420,9 +631,11 @@ function CtaBanner({ t }: { t: SiteContent }) {
           </h2>
           <div className="ms-cta-banner__side">
             <p className="ms-cta-banner__sub">{t.ctaBanner.sub}</p>
-            <a href="#contact" className="ms-btn ms-btn-dark">
-              {t.ctaBanner.button} <span>{t.cta.arrow}</span>
-            </a>
+            <Magnetic>
+              <a href="#contact" className="ms-btn ms-btn-dark">
+                {t.ctaBanner.button} <span>{t.cta.arrow}</span>
+              </a>
+            </Magnetic>
           </div>
         </Reveal>
       </div>
@@ -435,12 +648,12 @@ function ContactBlock({ t, lang }: { t: SiteContent; lang: Lang }) {
     <section className="ms-section ms-section--dark" id="contact">
       <div className="ms-container">
         <div className="ms-contact">
-          <div>
+          <Reveal>
             <span className="ms-section__eyebrow">{t.contact.eyebrow}</span>
             <h2 className="ms-contact__big">
               {t.contact.title[0]}
               <br />
-              <span className="brushed brushed--bold">{t.contact.title[1]}</span>
+              <span className="brushed brushed--bold brush-draw">{t.contact.title[1]}</span>
             </h2>
             <p className="ms-contact__sub">{t.contact.sub}</p>
             <div className="ms-contact__info">
@@ -448,8 +661,10 @@ function ContactBlock({ t, lang }: { t: SiteContent; lang: Lang }) {
               <div>📞 {t.footer.contact.phone}</div>
               <div>📍 {t.footer.contact.addr}</div>
             </div>
-          </div>
-          <ContactForm t={t} lang={lang} />
+          </Reveal>
+          <Reveal delay={120}>
+            <ContactForm t={t} lang={lang} />
+          </Reveal>
         </div>
       </div>
     </section>
@@ -497,8 +712,33 @@ export default function MarkerSite({ projects }: { projects: Project[] }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
 
+  // Paint .brush-draw strokes in once they reach the viewport (the hero runs
+  // its own GSAP-driven strokes and is not tagged with this class).
+  useEffect(() => {
+    const els = Array.from(document.querySelectorAll(".brush-draw"));
+    if (!els.length) return;
+    if (typeof IntersectionObserver === "undefined") {
+      els.forEach((el) => el.classList.add("is-inked"));
+      return;
+    }
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting) {
+            e.target.classList.add("is-inked");
+            io.unobserve(e.target);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+    els.forEach((el) => io.observe(el));
+    return () => io.disconnect();
+  }, [lang]);
+
   return (
     <div id="top" data-screen-label={lang === "en" ? "Marker Site (EN)" : "Marker Site (AR)"}>
+      <ScrollProgress />
       <SiteHeader lang={lang} setLang={setLang} t={t} />
       <main>
         <Hero t={t} />
