@@ -16,7 +16,7 @@ export function extractNotionId(s: string): string | null {
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-async function notionGet(path: string): Promise<any> {
+export async function notionGet(path: string): Promise<any> {
   const token = process.env.NOTION_TOKEN;
   if (!token) throw new Error("NOTION_TOKEN not set");
   const res = await fetch(`https://api.notion.com${path}`, {
