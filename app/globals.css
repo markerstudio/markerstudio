@@ -1049,3 +1049,109 @@ body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
   /* Flatten the document card so it fills the page without a frame. */
   main .rounded-2xl { box-shadow: none !important; border: none !important; }
 }
+
+/* ===============================================================
+   CLIENT PORTAL — premium layer. Sticky glass header, textured
+   hero with an accent watermark, elevated cards with motion, and
+   the documents hub. Pure additions over the .ms-portal base.
+   =============================================================== */
+.ms-portal .ms-header {
+  position: sticky;
+  top: 0;
+  z-index: 120;
+  background: rgba(250, 248, 244, 0.86);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--border);
+}
+
+.ms-portal-hero { position: relative; overflow: hidden; }
+.ms-portal-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 56px 56px;
+  pointer-events: none;
+}
+.ms-portal-hero::after {
+  content: "";
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  inset-inline-end: -160px;
+  top: -220px;
+  background: radial-gradient(circle, rgba(255, 145, 0, 0.16), transparent 62%);
+  pointer-events: none;
+}
+.ms-portal-hero .ms-container { position: relative; z-index: 1; }
+.ms-portal-watermark {
+  position: absolute;
+  inset-inline-end: -1.5%;
+  bottom: -0.16em;
+  font: 800 clamp(110px, 22vw, 300px) / 1 var(--font-display);
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.045);
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  z-index: 0;
+}
+body.ar .ms-portal-watermark { font-family: var(--font-arabic-display); }
+
+/* staggered entrance for portal sections & cards */
+.ms-rise { animation: adm-rise 520ms var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) { .ms-rise { animation: none; } }
+
+/* cards lift gently; the dark card glows instead */
+.ms-pcard { transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out), border-color 200ms; }
+.ms-pcard:hover { box-shadow: 0 16px 38px rgba(48, 48, 48, 0.09); transform: translateY(-2px); }
+.ms-pcard--dark:hover { box-shadow: 0 16px 38px rgba(0, 0, 0, 0.28); }
+
+/* vitals bars sweep in */
+.ms-portal-bar i em { transform-origin: 0 50%; animation: ms-bar-grow 900ms var(--ease-out) both; }
+[dir="rtl"] .ms-portal-bar i em { transform-origin: 100% 50%; }
+@keyframes ms-bar-grow { from { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { .ms-portal-bar i em { animation: none; } }
+
+/* dashboard story cards */
+.ms-story-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 28px; }
+@media (max-width: 980px) { .ms-story-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .ms-story-grid { grid-template-columns: 1fr; } }
+.ms-story-card { position: relative; background: #fff; border: 1px solid var(--border); border-radius: var(--r-md); padding: 20px; overflow: hidden; }
+.ms-story-card::before { content: ""; position: absolute; top: 0; inset-inline-start: 0; width: 34px; height: 3px; background: var(--marker-orange); }
+.ms-story-card .tag { font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; color: var(--fg-muted); display: block; margin-bottom: 10px; }
+.ms-story-card .value { font: 800 26px/1 var(--font-display); letter-spacing: -0.02em; color: var(--marker-ink); }
+.ms-story-card .desc { margin-top: 8px; font: 400 13px/1.5 var(--font-body); color: var(--fg-muted); }
+
+/* documents hub — live proposal / agreement cards */
+.ms-doc-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--marker-charcoal);
+  color: #fff;
+  border-radius: var(--r-md);
+  padding: 26px;
+  overflow: hidden;
+  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+}
+.ms-doc-card:hover { transform: translateY(-2px); box-shadow: 0 16px 38px rgba(0, 0, 0, 0.26); }
+.ms-doc-card::after {
+  content: "";
+  position: absolute;
+  width: 220px;
+  height: 220px;
+  inset-inline-end: -80px;
+  bottom: -110px;
+  background: radial-gradient(circle, rgba(255, 145, 0, 0.25), transparent 65%);
+  pointer-events: none;
+}
+.ms-doc-card .ms-doc-kicker { font: 800 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.18em; color: var(--marker-orange); }
+.ms-doc-card h3 { margin: 0; font: 800 24px/1.1 var(--font-display); letter-spacing: -0.02em; }
+body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
+.ms-doc-card p { margin: 0; font: 400 13.5px/1.55 var(--font-body); color: rgba(255, 255, 255, 0.7); }
+.ms-doc-card .ms-doc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
