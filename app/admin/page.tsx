@@ -42,6 +42,7 @@ function StatusPill({ status }: { status: string }) {
 
 const ATTENTION_ICONS: Record<string, string> = {
   overdue: "⏰",
+  "due-soon": "📅",
   "pending-client": "🆕",
   proposal: "📄",
   agreement: "✍️",
@@ -122,11 +123,17 @@ export default async function AdminDashboard() {
           <p className="text-sm text-white/60 mt-1">{today}</p>
         </div>
         <div className="relative flex items-center gap-2.5 flex-wrap">
-          <Link href="/admin/projects/new" className="bg-orange text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-orange-deep transition-colors">
-            + New project
+          <Link href="/admin/invoices" className="bg-orange text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-orange-deep transition-colors">
+            + New invoice
           </Link>
-          <Link href="/admin/clients/new" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
+          <Link href="/admin/proposals" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
+            + New proposal
+          </Link>
+          <Link href="/admin/clients" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
             + New client
+          </Link>
+          <Link href="/admin/projects/new" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
+            + New project
           </Link>
           <Link href="/" target="_blank" className="text-white/70 text-sm font-medium hover:text-white transition-colors px-1">
             View site ↗
@@ -147,7 +154,7 @@ export default async function AdminDashboard() {
       )}
 
       {/* ---- KPI cards ---- */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         {[
           {
             label: "Outstanding",
@@ -157,10 +164,23 @@ export default async function AdminDashboard() {
             accent: true,
           },
           {
+            label: "Overdue",
+            value: d.overdueCount ? fmtMoney(d.overdueTotal) : "None",
+            note: d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule",
+            href: "/admin/invoices?f=overdue",
+            red: d.overdueCount > 0,
+          },
+          {
+            label: "This month",
+            value: fmtMoney(d.thisMonthCollected),
+            note: `collected · ${fmtMoney(d.thisMonthBilled)} billed`,
+            href: "/admin/finance",
+          },
+          {
             label: "Collected this year",
             value: fmtMoney(d.collectedYear),
             note: `${d.invoiceStatusCounts.paid} invoice${d.invoiceStatusCounts.paid === 1 ? "" : "s"} fully paid`,
-            href: "/admin/invoices",
+            href: "/admin/invoices?f=paid",
           },
           {
             label: "Active clients",
@@ -182,10 +202,10 @@ export default async function AdminDashboard() {
             style={{ animationDelay: `${60 + i * 60}ms` }}
           >
             <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-              <span className={`inline-block w-4 h-[3px] rounded-full ${kpi.accent ? "bg-orange" : "bg-charcoal-20 group-hover:bg-orange transition-colors"}`} />
+              <span className={`inline-block w-4 h-[3px] rounded-full ${kpi.red ? "bg-red-500" : kpi.accent ? "bg-orange" : "bg-charcoal-20 group-hover:bg-orange transition-colors"}`} />
               {kpi.label}
             </div>
-            <div className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${kpi.accent ? "text-orange-deep" : "text-neutral-900"}`}>
+            <div className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${kpi.red ? "text-red-600" : kpi.accent ? "text-orange-deep" : "text-neutral-900"}`}>
               {kpi.value}
             </div>
             <div className="mt-1 text-xs text-neutral-500">{kpi.note}</div>
