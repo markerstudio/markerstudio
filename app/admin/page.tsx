@@ -252,12 +252,12 @@ export default async function AdminDashboard() {
       {/* ---- Finance snapshot (Notion Budget Tracker) — streams in ---- */}
       <Suspense
         fallback={
-          <div className="bg-white border border-neutral-200 rounded-xl p-5 animate-pulse">
-            <div className="h-4 w-32 bg-neutral-100 rounded mb-4" />
+          <div className="bg-white border border-neutral-200 rounded-xl p-5" aria-busy="true">
+            <div className="adm-skeleton h-4 w-32 rounded mb-4" />
             <div className="grid sm:grid-cols-3 gap-4">
-              <div className="h-16 bg-neutral-50 rounded-lg" />
-              <div className="h-16 bg-neutral-50 rounded-lg" />
-              <div className="h-16 bg-neutral-50 rounded-lg" />
+              <div className="adm-skeleton h-16 rounded-lg" />
+              <div className="adm-skeleton h-16 rounded-lg" />
+              <div className="adm-skeleton h-16 rounded-lg" />
             </div>
           </div>
         }
