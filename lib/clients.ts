@@ -4,6 +4,7 @@
 // lives in a JSONB `data` column shaped like ClientData below. Reads tolerate a
 // missing table (pre-migration) by returning empty/undefined.
 import { getSql, isDbEnabled } from "@/lib/db";
+import type { AgreementDoc, ProposalDoc, ProposalSelection } from "@/lib/docs";
 
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
@@ -94,8 +95,31 @@ export type ClientData = {
   onboarding?: OnboardingBrief; // the brief captured at signup
   // Proposal & agreement are prepared by the studio and only shown to the
   // client once `published` is set (sent). They are not auto-generated to the client.
-  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string; timeline?: TimelinePhase[]; archived?: boolean };
-  agreement?: { published?: boolean; sentAt?: string; acceptedAt?: string; signedName?: string; value?: string };
+  proposal?: {
+    published?: boolean;
+    sentAt?: string;
+    acceptedAt?: string;
+    note?: string;
+    timeline?: TimelinePhase[];
+    archived?: boolean;
+    // The paged document (see lib/docs.ts). When absent, a default is built
+    // from the client's data so previews always work.
+    doc?: ProposalDoc;
+    // Captured on acceptance from the document's form.
+    acceptedBy?: string;
+    acceptedTitle?: string;
+    acceptedNotes?: string;
+    selection?: ProposalSelection;
+  };
+  agreement?: {
+    published?: boolean;
+    sentAt?: string;
+    acceptedAt?: string;
+    signedName?: string;
+    value?: string;
+    doc?: AgreementDoc;
+    archived?: boolean;
+  };
   // Itemised quote — one line per package / service, shown on the proposal & agreement.
   pricing?: { items: { label: string; amount: string }[]; note?: string };
   notionDbId?: string;
