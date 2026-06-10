@@ -5,20 +5,24 @@ import type { InvoiceStatus } from "@/lib/invoices";
 
 const STATUSES: InvoiceStatus[] = ["draft", "due", "partial", "paid"];
 
-// Dropdown that saves the invoice status the moment it changes.
+// Dropdown that saves the invoice status the moment it changes. `back`
+// overrides the redirect target (e.g. stay on /admin/invoices).
 export default function InvoiceStatusSelect({
   id,
   slug,
   status,
+  back,
 }: {
   id: number;
   slug: string;
   status: InvoiceStatus;
+  back?: string;
 }) {
   return (
     <form action={setInvoiceStatusAction}>
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="id" value={id} />
+      {back && <input type="hidden" name="back" value={back} />}
       <select
         name="status"
         defaultValue={status}

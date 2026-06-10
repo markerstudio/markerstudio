@@ -94,7 +94,7 @@ export type ClientData = {
   onboarding?: OnboardingBrief; // the brief captured at signup
   // Proposal & agreement are prepared by the studio and only shown to the
   // client once `published` is set (sent). They are not auto-generated to the client.
-  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string; timeline?: TimelinePhase[] };
+  proposal?: { published?: boolean; sentAt?: string; acceptedAt?: string; note?: string; timeline?: TimelinePhase[]; archived?: boolean };
   agreement?: { published?: boolean; sentAt?: string; acceptedAt?: string; signedName?: string; value?: string };
   // Itemised quote — one line per package / service, shown on the proposal & agreement.
   pricing?: { items: { label: string; amount: string }[]; note?: string };
@@ -172,6 +172,34 @@ export function slugify(s: string): string {
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "") || "client"
   );
+}
+
+// Find a client by name (or its slug form); create a minimal portal if none
+// exists. Lets invoices/proposals be started from a free-typed client name.
+export async function resolveOrCreateClientByName(name: string): Promise<{ id: number; slug: string } | null> {
+  const trimmed = name.trim();
+  if (!trimmed || !isDbEnabled()) return null;
+  const sql = getSql();
+  await ensureClientSchema();
+  const base = slugify(trimmed);
+  const existing = (await sql`
+    SELECT id, slug FROM clients WHERE slug = ${base} OR lower(name) = ${trimmed.toLowerCase()} LIMIT 1
+  `) as unknown as { id: number; slug: string }[];
+  if (existing[0]) return existing[0];
+
+  let slug = base;
+  let n = 2;
+  for (;;) {
+    const r = (await sql`SELECT 1 FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as unknown[];
+    if (r.length === 0) break;
+    slug = `${base}-${n++}`;
+  }
+  const ins = (await sql`
+    INSERT INTO clients (slug, name, color, data)
+    VALUES (${slug}, ${trimmed}, '#303030', ${JSON.stringify(blankClientData())}::jsonb)
+    RETURNING id, slug
+  `) as unknown as { id: number; slug: string }[];
+  return ins[0] ?? null;
 }
 
 async function retry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
