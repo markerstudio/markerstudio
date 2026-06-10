@@ -343,23 +343,14 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Finance" hint="From Notion on sync: Money left + Paid % are the Budget Tracker's combined figures; Branding fee is the source's Branding Cost; Branding covered counts Income payments whose name contains 'branding'. You can override anything here.">
-        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Marketing — monthly fee</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
+      <Group title="Finance" hint="From Notion on sync: Money left + Paid % are the Budget Tracker's combined figures (branding + marketing + extras − paid, one number); Branding fee is the source's Branding Cost, shown for reference only. You can override anything here.">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
+          <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
           <Text label="Money left (combined)" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
           <div>
             <label className={lbl}>Paid (combined): {data.finance?.progress ?? 0}%</label>
             <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
-          </div>
-        </div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Branding — fixed fee</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-4 mb-5">
-          <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
-          <Text label="Branding left" value={data.finance?.brandingLeft ?? ""} onChange={(brandingLeft) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingLeft } })} placeholder="e.g. 0 ILS" />
-          <div>
-            <label className={lbl}>Branding covered: {data.finance?.brandingProgress ?? 0}%</label>
-            <input type="range" min={0} max={100} value={data.finance?.brandingProgress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingProgress: Number(e.target.value) } })} className="w-full accent-orange" />
           </div>
         </div>
         <label className={lbl}>Payment history</label>

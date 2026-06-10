@@ -27,7 +27,7 @@ async function notionGet(path: string): Promise<any> {
   return res.json();
 }
 
-async function notionPost(path: string, body: any): Promise<any> {
+export async function notionPost(path: string, body: any): Promise<any> {
   const token = process.env.NOTION_TOKEN;
   if (!token) throw new Error("NOTION_TOKEN not set");
   const res = await fetch(`https://api.notion.com${path}`, {
@@ -52,8 +52,8 @@ const CLIENTS_DB = process.env.NOTION_CLIENTS_DB || "16c2487b8e7e806bbe28da2772e
 // "Payments" relation on the client page is often a separate, empty one-way link).
 const INCOME_DB = process.env.NOTION_INCOME_DB || "1822487b8e7e81d4821bede793d640d5";
 
-// Map one Income row's properties to an invoice + whether it's a "branding" payment.
-function incomeRowToInvoice(ip: any): (Invoice & { _d: string; branding: boolean; ilsPaid: number }) {
+// Map one Income row's properties to an invoice line.
+function incomeRowToInvoice(ip: any): (Invoice & { _d: string }) {
   const ils = ip["ILS"]?.number;
   const usd = ip["USD"]?.number;
   const amount = ils != null ? `${ils.toLocaleString()} ILS` : usd != null ? `$${usd.toLocaleString()}` : "";
@@ -61,18 +61,12 @@ function incomeRowToInvoice(ip: any): (Invoice & { _d: string; branding: boolean
   const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
   const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
 
-  // A payment counts toward branding when its NAME mentions branding
-  // (e.g. "Branding", "Branding deposit"). Income rows have no category field.
-  const branding = /brand/i.test(nm);
-
   return {
     cycle: nm || payDate || dueDate || "Payment",
     desc: payDate ? `Paid ${payDate}` : dueDate ? `Due ${dueDate}` : "",
     amount,
     status: payDate ? "paid" : "due",
     _d: payDate || dueDate || "",
-    branding,
-    ilsPaid: branding && payDate && typeof ils === "number" ? ils : 0,
   };
 }
 
@@ -137,11 +131,13 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
 }
 
 // Pull a single client record from the Clients Database (a page), plus its
-// linked Income rows mapped to invoices.
+// linked Income rows mapped to invoices. The balance ("Money Left") is the
+// Budget Tracker's single combined figure — branding + marketing + extras −
+// paid. We deliberately do NOT derive a separate branding-only balance.
 export async function fetchNotionClient(pageId: string): Promise<{
   name: string; start: string; end: string; active: boolean; planName: string; note: string;
   balance: string; monthlyFee: string; progress: number; invoices: Invoice[];
-  brandingFee: string; brandingProgress: number; brandingLeft: string;
+  brandingFee: string;
 }> {
   const page = await notionGet(`/v1/pages/${pageId}`);
   const p = page.properties || {};
@@ -163,16 +159,13 @@ export async function fetchNotionClient(pageId: string): Promise<{
   // Database" relation points back to this client (reliable, one request).
   // Fallback: the client page's own "Payments" relation (one GET per row).
   const rows: ReturnType<typeof incomeRowToInvoice>[] = [];
-  let brandingPaid = 0; // sum of paid payments marked "branding"
   try {
     const q = await notionPost(`/v1/databases/${INCOME_DB}/query`, {
       filter: { property: "Clients Database", relation: { contains: pageId } },
       page_size: 100,
     });
     for (const r of q.results || []) {
-      const row = incomeRowToInvoice(r.properties || {});
-      brandingPaid += row.ilsPaid;
-      rows.push(row);
+      rows.push(incomeRowToInvoice(r.properties || {}));
     }
   } catch {
     /* Income query failed — fall back to the relation below */
@@ -182,30 +175,19 @@ export async function fetchNotionClient(pageId: string): Promise<{
     for (const r of rel.slice(0, 80)) {
       try {
         const inc = await notionGet(`/v1/pages/${r.id}`);
-        const row = incomeRowToInvoice(inc.properties || {});
-        brandingPaid += row.ilsPaid;
-        rows.push(row);
+        rows.push(incomeRowToInvoice(inc.properties || {}));
       } catch {
         /* skip a payment that can't be read */
       }
     }
   }
   rows.sort((a, b) => (a._d < b._d ? 1 : a._d > b._d ? -1 : 0)); // newest first
-  const invoices: Invoice[] = rows.map(({ _d, branding, ilsPaid, ...inv }) => inv);
-
-  // Branding coverage: branding payments against the fixed branding fee.
-  const bFee = parseFloat((fin.brandingFee || "").replace(/[^0-9.]/g, "")) || 0;
-  let brandingProgress = 0;
-  let brandingLeft = "";
-  if (bFee > 0) {
-    brandingProgress = Math.max(0, Math.min(100, Math.round((brandingPaid / bFee) * 100)));
-    brandingLeft = `${Math.max(0, bFee - brandingPaid).toLocaleString()} ILS`;
-  }
+  const invoices: Invoice[] = rows.map(({ _d, ...inv }) => inv);
 
   return {
     name, start, end, active, planName, note,
     balance: fin.balance, monthlyFee: fin.monthlyFee, progress: fin.progress, invoices,
-    brandingFee: fin.brandingFee, brandingProgress, brandingLeft,
+    brandingFee: fin.brandingFee,
   };
 }
 

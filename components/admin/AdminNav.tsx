@@ -17,6 +17,7 @@ export default function AdminNav({ unreadInquiries, unreadApplications }: { unre
     { href: "/admin/proposals", label: "Proposals" },
     { href: "/admin/agreements", label: "Agreements" },
     { href: "/admin/invoices", label: "Invoices" },
+    { href: "/admin/finance", label: "Finance" },
     { href: "/admin/inquiries", label: "Inquiries", badge: unreadInquiries },
     { href: "/admin/applications", label: "Applications", badge: unreadApplications },
     { href: "/admin/users", label: "Users" },

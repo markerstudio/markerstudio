@@ -554,8 +554,6 @@ export async function quickCreateFromNotion(formData: FormData) {
     monthlyFee: info.monthlyFee || "",
     progress: info.progress || 0,
     brandingFee: info.brandingFee || "",
-    brandingProgress: info.brandingProgress || 0,
-    brandingLeft: info.brandingLeft || "",
   };
   if (info.invoices.length) data.invoices = info.invoices;
 
@@ -610,8 +608,6 @@ export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; err
         monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
         progress: info.progress || data.finance?.progress || 0,
         brandingFee: info.brandingFee || data.finance?.brandingFee || "",
-        brandingProgress: info.brandingProgress || data.finance?.brandingProgress || 0,
-        brandingLeft: info.brandingLeft || data.finance?.brandingLeft || "",
       };
       if (info.invoices.length) data.invoices = info.invoices;
     }
@@ -697,8 +693,6 @@ export async function syncNotionClient(formData: FormData) {
     monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
     progress: info.progress || data.finance?.progress || 0,
     brandingFee: info.brandingFee || data.finance?.brandingFee || "",
-    brandingProgress: info.brandingProgress || data.finance?.brandingProgress || 0,
-    brandingLeft: info.brandingLeft || data.finance?.brandingLeft || "",
   };
   if (info.invoices.length) data.invoices = info.invoices;
 
@@ -710,6 +704,17 @@ export async function syncNotionClient(formData: FormData) {
   }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=client-synced-${info.invoices.length}`);
+}
+
+// --- Finance (Notion Budget Tracker) ----------------------------------------
+
+// Bust the cached Budget Tracker read so /admin/finance refetches from Notion.
+export async function syncFinance() {
+  if (!(await getSession())) redirect("/login");
+  revalidateTag("finance");
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin");
+  redirect("/admin/finance?ok=synced");
 }
 
 // --- Invite links ----------------------------------------------------------

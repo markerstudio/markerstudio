@@ -375,31 +375,13 @@ export default function PortalView({
                 </div>
               )}
 
+              {/* Branding fee is shown for reference only — the "Money left"
+                  figure above is the single combined balance (branding +
+                  marketing + extras − paid). No separate branding balance. */}
               {(edit || d.finance?.brandingFee) && (
                 <div className="ms-pcard pc-4">
                   <span className="ms-portal-mini">{ui("Branding fee (fixed)", "رسوم الهوية (ثابتة)")}</span>
                   <div className="ms-portal-big" style={{ marginTop: 8, color: "var(--marker-ink)" }}>{f(d.finance?.brandingFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.brandingFee = v; }), false, "—")}</div>
-                </div>
-              )}
-              {(edit || d.finance?.brandingFee) && (
-                <div className="ms-pcard pc-4">
-                  <span className="ms-portal-mini">{ui("Branding left", "المتبقّي من الهوية")}</span>
-                  <div className="ms-portal-big" style={{ marginTop: 8 }}>{f(d.finance?.brandingLeft ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.brandingLeft = v; }), false, "—")}</div>
-                </div>
-              )}
-              {(edit || d.finance?.brandingFee) && (
-                <div className="ms-pcard pc-4">
-                  <span className="ms-portal-mini">{ui("Branding covered", "نسبة تغطية الهوية")}</span>
-                  {edit ? (
-                    <input type="range" min={0} max={100} value={d.finance?.brandingProgress ?? 0} className="w-full accent-orange" style={{ marginTop: 12 }} onChange={(e) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.brandingProgress = Number(e.target.value); })} />
-                  ) : (
-                    <>
-                      <div className="ms-portal-big" style={{ marginTop: 8 }}>{d.finance?.brandingProgress ?? 0}%</div>
-                      <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
-                        <div style={{ height: "100%", width: `${d.finance?.brandingProgress ?? 0}%`, background: "var(--marker-ink)", borderRadius: 999 }} />
-                      </div>
-                    </>
-                  )}
                 </div>
               )}
             </div>
