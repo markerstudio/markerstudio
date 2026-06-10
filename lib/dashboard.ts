@@ -87,7 +87,7 @@ export async function getDashboardData(): Promise<DashboardData> {
   }, false);
   if (!ready) return { ...EMPTY, dbOff: false, needsSetup: true, months: emptyMonths() };
 
-  const [invoices, clients, inquiries, unreadApps, projectCount] = await Promise.all([
+  const [invoices, clients, inquiries, unreadApps, projectCount, unreadInquiries] = await Promise.all([
     safe(
       async () =>
         (await sql`
@@ -116,12 +116,11 @@ export async function getDashboardData(): Promise<DashboardData> {
       const r = (await sql`SELECT count(*)::int AS n FROM projects`) as unknown as { n: number }[];
       return r[0]?.n ?? 0;
     }, 0),
+    safe(async () => {
+      const r = (await sql`SELECT count(*)::int AS n FROM inquiries WHERE read_at IS NULL`) as unknown as { n: number }[];
+      return r[0]?.n ?? 0;
+    }, 0),
   ]);
-
-  const unreadInquiries = await safe(async () => {
-    const r = (await sql`SELECT count(*)::int AS n FROM inquiries WHERE read_at IS NULL`) as unknown as { n: number }[];
-    return r[0]?.n ?? 0;
-  }, 0);
 
   // ---- Invoice money math -------------------------------------------------
   const now = new Date();

@@ -284,11 +284,16 @@ async function fetchFinance(): Promise<FinanceData> {
 
   // ---- Debt leaderboard — only sources in the tracker's client-debt set ----
   const debtors: Debtor[] = [];
+  let rawMoneyLeftSum = 0; // raw sum, matching the tracker's Total Debt rollup
   for (const s of sources) {
     if (debtSet.size && !debtSet.has(String(s.id).replace(/-/g, ""))) continue;
     const p = s.properties || {};
     const name = title(p, "Name") || "Untitled";
-    const debt = numLoose(p, "Money Left"); // the single combined figure
+    // Sign convention in the tracker: Money Left is NEGATIVE when the client
+    // owes us (e.g. -2000 = 2,000 ILS of debt). Positive/zero = nothing owed.
+    const moneyLeft = numLoose(p, "Money Left");
+    rawMoneyLeftSum += moneyLeft;
+    const debt = Math.max(0, -moneyLeft);
     let paidPct = numLoose(p, "Paid Percentage") || numLoose(p, "Progress");
     if (paidPct > 0 && paidPct <= 1) paidPct *= 100;
     paidPct = Math.max(0, Math.min(100, Math.round(paidPct)));
@@ -353,7 +358,9 @@ async function fetchFinance(): Promise<FinanceData> {
     banks: bankAccounts,
     bankTotal: bankAccounts.reduce((s, b) => s + b.balance, 0),
     debtors,
-    totalDebt: debtors.reduce((s, d) => s + Math.max(0, d.debt), 0),
+    // Mirror the tracker's "Total Debt Amount" rollup: raw Money Left summed
+    // (clients in credit offset it), sign flipped to read as money owed.
+    totalDebt: Math.max(0, -rawMoneyLeftSum),
     overdue,
     overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
     collectedThisMonthILS,

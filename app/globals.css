@@ -820,11 +820,20 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 .adm-rise { animation: adm-rise 480ms var(--ease-out) both; }
 @keyframes adm-bar-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 .adm-bar { animation: adm-bar-grow 640ms var(--ease-out) both; transform-origin: bottom; }
+/* Skeleton cards — a soft shimmer sweeping across warm-neutral blocks while
+   a page or section loads. */
+@keyframes adm-shimmer { from { background-position: 100% 0; } to { background-position: 0 0; } }
+.adm-skeleton {
+  background: linear-gradient(90deg, #EFEDEA 25%, #F8F6F3 37%, #EFEDEA 63%);
+  background-size: 400% 100%;
+  animation: adm-shimmer 1.4s ease infinite;
+}
 /* Horizontal nav scroller without a visible scrollbar */
 .scrollbar-none { scrollbar-width: none; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 @media (prefers-reduced-motion: reduce) {
   .adm-rise, .adm-bar { animation: none; }
+  .adm-skeleton { animation: none; background: #EFEDEA; }
 }
 
 /* ===============================================================

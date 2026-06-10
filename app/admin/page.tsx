@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { getDashboardData, fmtMoney, timeAgo } from "@/lib/dashboard";
 import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
@@ -6,13 +7,15 @@ import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
 export const dynamic = "force-dynamic";
 
 // Budget Tracker snapshot for the dashboard. Cached ~5 min in lib/finance;
-// the race keeps a cold Notion fetch from stalling the whole dashboard.
+// rendered inside <Suspense> so a cold Notion fetch streams in after first
+// paint instead of stalling the whole dashboard. The race is a last resort
+// so the stream itself can't hang on a slow Notion response.
 async function financeSnapshot(): Promise<FinanceData | null> {
   if (!process.env.NOTION_TOKEN) return null;
   try {
     const data = await Promise.race([
       getFinance(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 6000)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000)),
     ]);
     return data && data.available ? data : null;
   } catch {
@@ -46,8 +49,54 @@ const ATTENTION_ICONS: Record<string, string> = {
   applications: "👋",
 };
 
+// Async section component — awaited inside <Suspense>, not by the page.
+async function FinanceCard() {
+  const fin = await financeSnapshot();
+  if (!fin) return null;
+  return (
+    <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-bold tracking-tight">Money &amp; debts</h2>
+        <Link href="/admin/finance" className="text-xs font-semibold text-neutral-500 hover:text-orange">Full analysis →</Link>
+      </div>
+      <div className="grid sm:grid-cols-3 gap-4">
+        <div className="rounded-lg bg-neutral-50 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">In the bank</div>
+          <div className="mt-1 text-2xl font-extrabold tabular-nums text-neutral-900">{fmtILS(fin.bankTotal)}</div>
+        </div>
+        <div className="rounded-lg bg-neutral-50 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Clients owe us</div>
+          <div className="mt-1 text-2xl font-extrabold tabular-nums text-orange-deep">{fmtILS(fin.totalDebt)}</div>
+        </div>
+        <div className="rounded-lg bg-neutral-50 px-4 py-3">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Overdue</div>
+          <div className={`mt-1 text-2xl font-extrabold tabular-nums ${fin.overdue.length ? "text-red-600" : "text-neutral-900"}`}>
+            {fin.overdue.length ? `${fin.overdue.length} · ${fmtILS(fin.overdueTotal)}` : "None"}
+          </div>
+        </div>
+      </div>
+      {fin.debtors.filter((x) => x.debt > 0).length > 0 && (
+        <ul className="mt-4 space-y-1.5">
+          {fin.debtors.filter((x) => x.debt > 0).slice(0, 3).map((t) => (
+            <li key={t.sourceId} className="flex items-center gap-3 text-sm">
+              <span className="text-neutral-700 font-medium truncate">{t.name}</span>
+              <span className="flex-1 h-1.5 rounded-full bg-neutral-100 overflow-hidden">
+                <span
+                  className="block h-full rounded-full bg-orange"
+                  style={{ width: `${Math.max(3, Math.round((t.debt / Math.max(1, fin.debtors[0]?.debt || 1)) * 100))}%` }}
+                />
+              </span>
+              <span className="tabular-nums font-semibold text-neutral-900 whitespace-nowrap">{fmtILS(t.debt)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default async function AdminDashboard() {
-  const [user, d, fin] = await Promise.all([getSession(), getDashboardData(), financeSnapshot()]);
+  const [user, d] = await Promise.all([getSession(), getDashboardData()]);
   const firstName = (user?.name || "there").split(" ")[0];
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const maxBilled = Math.max(1, ...d.months.map((m) => m.billed));
@@ -200,47 +249,21 @@ export default async function AdminDashboard() {
         </div>
       </div>
 
-      {/* ---- Finance snapshot (Notion Budget Tracker) ---- */}
-      {fin && (
-        <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "330ms" }}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold tracking-tight">Money &amp; debts</h2>
-            <Link href="/admin/finance" className="text-xs font-semibold text-neutral-500 hover:text-orange">Full analysis →</Link>
-          </div>
-          <div className="grid sm:grid-cols-3 gap-4">
-            <div className="rounded-lg bg-neutral-50 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">In the bank</div>
-              <div className="mt-1 text-2xl font-extrabold tabular-nums text-neutral-900">{fmtILS(fin.bankTotal)}</div>
-            </div>
-            <div className="rounded-lg bg-neutral-50 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Clients owe us</div>
-              <div className="mt-1 text-2xl font-extrabold tabular-nums text-orange-deep">{fmtILS(fin.totalDebt)}</div>
-            </div>
-            <div className="rounded-lg bg-neutral-50 px-4 py-3">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Overdue</div>
-              <div className={`mt-1 text-2xl font-extrabold tabular-nums ${fin.overdue.length ? "text-red-600" : "text-neutral-900"}`}>
-                {fin.overdue.length ? `${fin.overdue.length} · ${fmtILS(fin.overdueTotal)}` : "None"}
-              </div>
+      {/* ---- Finance snapshot (Notion Budget Tracker) — streams in ---- */}
+      <Suspense
+        fallback={
+          <div className="bg-white border border-neutral-200 rounded-xl p-5" aria-busy="true">
+            <div className="adm-skeleton h-4 w-32 rounded mb-4" />
+            <div className="grid sm:grid-cols-3 gap-4">
+              <div className="adm-skeleton h-16 rounded-lg" />
+              <div className="adm-skeleton h-16 rounded-lg" />
+              <div className="adm-skeleton h-16 rounded-lg" />
             </div>
           </div>
-          {fin.debtors.filter((x) => x.debt > 0).length > 0 && (
-            <ul className="mt-4 space-y-1.5">
-              {fin.debtors.filter((x) => x.debt > 0).slice(0, 3).map((t) => (
-                <li key={t.sourceId} className="flex items-center gap-3 text-sm">
-                  <span className="text-neutral-700 font-medium truncate">{t.name}</span>
-                  <span className="flex-1 h-1.5 rounded-full bg-neutral-100 overflow-hidden">
-                    <span
-                      className="block h-full rounded-full bg-orange"
-                      style={{ width: `${Math.max(3, Math.round((t.debt / Math.max(1, fin.debtors[0]?.debt || 1)) * 100))}%` }}
-                    />
-                  </span>
-                  <span className="tabular-nums font-semibold text-neutral-900 whitespace-nowrap">{fmtILS(t.debt)}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
+        }
+      >
+        <FinanceCard />
+      </Suspense>
 
       {/* ---- Latest inquiries + recent invoices ---- */}
       <div className="grid lg:grid-cols-2 gap-4">

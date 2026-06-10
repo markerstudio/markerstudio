@@ -105,10 +105,12 @@ async function fetchSourceFinance(clientPageId: string): Promise<{ balance: stri
       if (typeof n === "number" && n > 0) { out.brandingFee = `${n.toLocaleString()} ILS`; break; }
     }
 
-    // Money Left = total still owed (combined: branding + monthly + extras − paid).
+    // Money Left = combined balance (branding + monthly + extras − paid). The
+    // tracker stores it NEGATIVE when the client owes money, so flip the sign
+    // for the portal's "Money left" figure; zero/positive means nothing owed.
     const ml = props["Money Left"];
     const mlNum = ml?.type === "formula" ? ml.formula?.number : ml?.number;
-    if (mlNum != null) out.balance = `${mlNum.toLocaleString()} ILS`;
+    if (mlNum != null) out.balance = `${Math.max(0, -mlNum).toLocaleString()} ILS`;
     else if (ml?.formula?.string) out.balance = ml.formula.string;
 
     // Monthly fee.
