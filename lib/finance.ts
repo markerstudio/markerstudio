@@ -3,22 +3,27 @@
 // (Due Date vs Pay Date on Income rows), bank balances, and overdue payments.
 //
 // Databases (override ids via env if the workspace changes):
-//   Sources       — one row per client/income source: Monthly Income, Branding
-//                   Cost, Extra, Settlements, "Money Left" (combined debt
-//                   formula) and Paid rollups
+//   Sources       — one row per income source: Monthly Income, Branding Cost,
+//                   Extra, Settlements, "Money Left" (combined debt formula)
+//                   and Paid rollups. Not every source is a client.
+//   All Time Clients Debt — the tracker's own definition of client debt: its
+//                   "Sources" relation curates WHICH sources count as client
+//                   debt, and its "Rollup" sums their Money Left. The debt
+//                   leaderboard follows this set rather than guessing.
 //   Income        — individual payments with Due Date / Pay Date / ILS / USD
 //   Bank Accounts — Starting Balance + income/expense rollups + Current Balance
 //   Expenses      — spend rows with Date / ILS / USD
 //
 // Cached ~5 minutes (tag "finance"); the admin's "Sync now" busts the tag.
 import { unstable_cache } from "next/cache";
-import { notionPost } from "@/lib/notion";
+import { notionPost, notionGet } from "@/lib/notion";
 import { getSql, isDbEnabled } from "@/lib/db";
 
 const SOURCES_DB = process.env.NOTION_SOURCES_DB || "1822487b8e7e81a2a412d3b1d6cc8108";
 const INCOME_DB = process.env.NOTION_INCOME_DB || "1822487b8e7e81d4821bede793d640d5";
 const BANKS_DB = process.env.NOTION_BANKS_DB || "1cb2487b8e7e8067a0f4d86d0efc5751";
 const EXPENSES_DB = process.env.NOTION_EXPENSES_DB || "1822487b8e7e81479d0acbca4f3a19c5";
+const DEBT_DB = process.env.NOTION_DEBT_DB || "1fd2487b8e7e80cd8ff0e1624470eba8";
 
 // Days of slack before a payment counts as "late".
 const GRACE_DAYS = 3;
@@ -108,6 +113,28 @@ async function queryAll(dbId: string, body: any = {}, maxPages = 5): Promise<any
   return out;
 }
 
+// Every id in a relation property. Page objects cap relation arrays at 25
+// (has_more) — the curated debt list is longer, so follow the property-items
+// endpoint for the rest.
+async function fullRelationIds(pageId: string, prop: any): Promise<string[]> {
+  const out = new Set<string>(((prop?.relation || []) as { id: string }[]).map((r) => r.id.replace(/-/g, "")));
+  if (prop?.has_more && prop?.id) {
+    let cursor: string | undefined;
+    for (let i = 0; i < 10; i++) {
+      const q = await notionGet(
+        `/v1/pages/${pageId}/properties/${encodeURIComponent(prop.id)}?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`
+      );
+      for (const it of q.results || []) {
+        const id = it?.relation?.id;
+        if (id) out.add(String(id).replace(/-/g, ""));
+      }
+      if (!q.has_more || !q.next_cursor) break;
+      cursor = q.next_cursor;
+    }
+  }
+  return Array.from(out);
+}
+
 const title = (p: any, k: string) => ((p?.[k]?.title || []) as any[]).map((t) => t.plain_text).join("");
 const num = (p: any, k: string): number => {
   const prop = p?.[k];
@@ -172,6 +199,18 @@ async function fetchFinance(): Promise<FinanceData> {
     ]);
   } catch {
     return { ...EMPTY, error: "Couldn't reach the Budget Tracker in Notion. Check sharing/permissions for the integration." };
+  }
+
+  // The tracker's own client-debt definition: the "All Time Clients Debt"
+  // row(s) relate to exactly the sources that count as client debt. If that
+  // table can't be read, fall back to treating every source as in-scope.
+  const debtSet = new Set<string>();
+  try {
+    for (const r of await queryAll(DEBT_DB)) {
+      for (const id of await fullRelationIds(r.id, (r.properties || {})["Sources"])) debtSet.add(id);
+    }
+  } catch {
+    /* fall back below */
   }
 
   const clients = await linkedClients();
@@ -243,9 +282,10 @@ async function fetchFinance(): Promise<FinanceData> {
   }
   overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
 
-  // ---- Debt leaderboard from Sources --------------------------------------
+  // ---- Debt leaderboard — only sources in the tracker's client-debt set ----
   const debtors: Debtor[] = [];
   for (const s of sources) {
+    if (debtSet.size && !debtSet.has(String(s.id).replace(/-/g, ""))) continue;
     const p = s.properties || {};
     const name = title(p, "Name") || "Untitled";
     const debt = numLoose(p, "Money Left"); // the single combined figure

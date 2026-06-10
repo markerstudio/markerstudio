@@ -91,7 +91,9 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
           <div className="grid lg:grid-cols-5 gap-4">
             <div className="adm-rise lg:col-span-3 bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "240ms" }}>
               <h2 className="font-bold tracking-tight mb-1">Debt leaderboard</h2>
-              <p className="text-xs text-neutral-500 mb-4">Combined money left per client — branding + marketing + extras − paid, one number.</p>
+              <p className="text-xs text-neutral-500 mb-4">
+                Follows the tracker&apos;s &ldquo;All Time Clients Debt&rdquo; source list — combined money left, one number per client.
+              </p>
               {f.debtors.filter((d) => d.debt > 0).length === 0 ? (
                 <p className="text-sm text-neutral-400 py-8 text-center">No one owes you anything. Frame this page.</p>
               ) : (
