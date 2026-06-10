@@ -180,14 +180,41 @@ a { color: inherit; text-decoration: none; }
   backdrop-filter: blur(8px) saturate(1.4);
   -webkit-backdrop-filter: blur(8px) saturate(1.4);
   border-bottom: 1px solid var(--border);
+  transition: background 240ms var(--ease-out), box-shadow 240ms var(--ease-out);
 }
-.ms-header__inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 24px; }
+.ms-header__inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 24px; transition: padding 240ms var(--ease-out); }
 .ms-logo { display: flex; align-items: center; gap: 10px; }
-.ms-logo img { height: 36px; width: auto; }
+.ms-logo img { height: 36px; width: auto; transition: height 240ms var(--ease-out); }
+/* Compact state once the page scrolls */
+.ms-header.is-scrolled { background: rgba(250, 248, 244, 0.94); box-shadow: 0 6px 24px rgba(48, 48, 48, 0.07); }
+.ms-header.is-scrolled .ms-header__inner { padding: 10px 0; }
+.ms-header.is-scrolled .ms-logo img { height: 30px; }
 .ms-nav { display: flex; gap: 28px; align-items: center; }
 .ms-nav a { font: 500 14px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; padding: 8px 0; position: relative; }
 .ms-nav a:hover { color: var(--marker-orange); }
-.ms-nav a.active::after { content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px; background: var(--marker-orange); }
+/* Marker underline — draws in on hover and stays under the active section */
+.ms-nav a::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px;
+  border-radius: 2px; background: var(--marker-orange);
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 220ms var(--ease-out);
+}
+body.ar .ms-nav a::after { transform-origin: right; }
+.ms-nav a:hover::after, .ms-nav a.active::after { transform: scaleX(1); }
+.ms-nav a.active { color: var(--marker-orange); }
+
+/* ---- Scroll progress — orange marker line across the viewport top ---- */
+.ms-progress {
+  position: fixed; top: 0; left: 0; right: 0; height: 4px; z-index: 60;
+  background: var(--marker-orange);
+  transform: scaleX(0); transform-origin: left;
+  border-radius: 0 3px 3px 0;
+  pointer-events: none;
+}
+body.ar .ms-progress { transform-origin: right; border-radius: 3px 0 0 3px; }
+
+/* ---- Magnetic CTA wrapper ---- */
+.ms-magnetic { display: inline-flex; will-change: transform; }
 .ms-actions { display: flex; align-items: center; gap: 12px; }
 .ms-login { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; white-space: nowrap; }
 .ms-login:hover { color: var(--marker-orange); }
@@ -240,36 +267,75 @@ body.ar .ms-hero__title { font-family: var(--font-arabic-display); font-size: 80
 .ms-section--orange { background: var(--marker-orange); color: #fff; }
 .ms-section--cream { background: var(--marker-cream); }
 .ms-section__header { display: flex; align-items: end; justify-content: space-between; margin-bottom: 48px; gap: 32px; }
-.ms-section__eyebrow { font: 600 12px/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--marker-orange); margin-bottom: 14px; display: block; }
-.ms-section__title { font: 700 52px/1.05 var(--font-display); letter-spacing: -0.02em; color: var(--marker-ink); margin: 0; }
+.ms-section__eyebrow { font: 600 12px/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--marker-orange); margin-bottom: 14px; display: block; position: relative; padding-inline-start: 34px; }
+/* Marker dash before the eyebrow — swipes in when its reveal fires; eyebrows
+   outside a reveal wrapper show it statically. */
+.ms-section__eyebrow::before {
+  content: ''; position: absolute; inset-inline-start: 0; top: 50%; margin-top: -1.5px;
+  width: 24px; height: 3px; border-radius: 2px; background: var(--marker-orange);
+  transform: scaleX(1); transform-origin: left;
+  transition: transform 500ms var(--ease-out) 200ms;
+}
+body.ar .ms-section__eyebrow::before { transform-origin: right; }
+.ms-reveal .ms-section__eyebrow::before { transform: scaleX(0); }
+.ms-reveal.is-visible .ms-section__eyebrow::before { transform: scaleX(1); }
+.ms-section__title { font: 700 52px/1.05 var(--font-display); letter-spacing: -0.02em; color: var(--marker-ink); margin: 0; text-wrap: balance; }
 .ms-section--dark .ms-section__title { color: #fff; }
 .ms-section--orange .ms-section__title { color: #fff; }
 .ms-section--orange .ms-section__eyebrow { color: rgba(255,255,255,.85); }
-.ms-section__sub { font: 400 18px/1.55 var(--font-body); color: var(--fg-muted); margin: 12px 0 0; max-width: 50ch; }
+.ms-section__sub { font: 400 18px/1.55 var(--font-body); color: var(--fg-muted); margin: 12px 0 0; max-width: 50ch; text-wrap: pretty; }
 .ms-section--dark .ms-section__sub { color: rgba(255,255,255,.7); }
 
 /* ---- Work grid ---- */
 .ms-work-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 16px; }
-.ms-work-card { position: relative; overflow: hidden; border-radius: 8px; background: var(--marker-cream); transition: transform 280ms var(--ease-out); cursor: pointer; }
-.ms-work-card:hover { transform: translateY(-4px); }
+.ms-work-card { position: relative; overflow: hidden; border-radius: 8px; background: var(--marker-cream); cursor: pointer; }
+.ms-work-card:hover, .ms-work-card:focus-within { transform: translateY(-4px); }
 .ms-work-card--lg { grid-column: span 4; aspect-ratio: 16/9; }
 .ms-work-card--sm { grid-column: span 2; aspect-ratio: 4/5; }
 .ms-work-card--md { grid-column: span 3; aspect-ratio: 4/3; }
 .ms-work-card__media { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 32px; }
+/* Light sheen sweeping across the tile on hover */
+.ms-work-card__media::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(115deg, rgba(255,255,255,0) 38%, rgba(255,255,255,0.16) 50%, rgba(255,255,255,0) 62%);
+  transform: translateX(-130%);
+}
+.ms-work-card:hover .ms-work-card__media::after,
+.ms-work-card:focus-within .ms-work-card__media::after { transform: translateX(130%); transition: transform 700ms var(--ease-out); }
+body.ar .ms-work-card__media::after { transform: translateX(130%); }
+body.ar .ms-work-card:hover .ms-work-card__media::after,
+body.ar .ms-work-card:focus-within .ms-work-card__media::after { transform: translateX(-130%); }
 .ms-work-card__logo { max-width: 64%; max-height: 46%; width: auto; object-fit: contain; filter: brightness(0) invert(1); opacity: 0.95; transition: transform 320ms var(--ease-out); }
-.ms-work-card:hover .ms-work-card__logo { transform: scale(1.05); }
+.ms-work-card:hover .ms-work-card__logo, .ms-work-card:focus-within .ms-work-card__logo { transform: scale(1.05); }
 .ms-work-card__link { position: absolute; inset: 0; z-index: 6; }
 .ms-work-card__body { position: absolute; left: 0; right: 0; bottom: 0; padding: 24px; background: linear-gradient(to top, rgba(0,0,0,.65) 0%, transparent 100%); color: #fff; pointer-events: none; }
-.ms-work-card__tag { font: 600 10px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; margin-bottom: 8px; display: block; }
-.ms-work-card__title { font: 700 24px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; }
+.ms-work-card__tag { font: 600 10px/1 var(--font-display); letter-spacing: 0.12em; text-transform: uppercase; opacity: 0.85; margin-bottom: 8px; display: block; transition: transform 280ms var(--ease-out); }
+.ms-work-card__title { font: 700 24px/1.15 var(--font-display); letter-spacing: -0.01em; margin: 0; transition: transform 280ms var(--ease-out) 30ms; }
+/* "View project" affordance — rises in under the title on hover/focus */
+.ms-work-card__cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 600 12px/1 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--marker-orange-soft);
+  max-height: 0; opacity: 0; transform: translateY(8px); overflow: hidden;
+  transition: max-height 280ms var(--ease-out), opacity 280ms var(--ease-out) 60ms, transform 280ms var(--ease-out) 60ms, margin-top 280ms var(--ease-out);
+}
+.ms-work-card__cta svg { width: 14px; height: 14px; }
+body.ar .ms-work-card__cta svg { transform: scaleX(-1); }
+.ms-work-card:hover .ms-work-card__cta, .ms-work-card:focus-within .ms-work-card__cta { max-height: 20px; margin-top: 10px; opacity: 1; transform: none; }
 
 /* ---- Services grid ---- */
 .ms-services { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
 .ms-service { background: #fff; padding: 36px 32px; display: flex; flex-direction: column; gap: 14px; transition: background 180ms; cursor: pointer; min-height: 260px; }
 .ms-service:hover { background: var(--marker-cream); }
-.ms-service__num { font: 800 14px/1 var(--font-mono); color: var(--marker-orange); letter-spacing: 0.06em; }
-.ms-service__title { font: 700 28px/1.15 var(--font-display); letter-spacing: -0.01em; color: var(--marker-ink); margin: 0; }
-.ms-service__desc { font: 400 14px/1.55 var(--font-body); color: var(--fg-muted); margin: 0; flex: 1; }
+/* Big outlined index that fills with ink on hover */
+.ms-service__num {
+  font: 800 34px/1 var(--font-display); letter-spacing: -0.01em;
+  color: transparent; -webkit-text-stroke: 1.5px var(--marker-orange);
+  transition: color 260ms var(--ease-out);
+}
+.ms-service:hover .ms-service__num { color: var(--marker-orange); }
+.ms-service__title { font: 700 28px/1.15 var(--font-display); letter-spacing: -0.01em; color: var(--marker-ink); margin: 0; text-wrap: balance; }
+.ms-service__desc { font: 400 14px/1.55 var(--font-body); color: var(--fg-muted); margin: 0; flex: 1; text-wrap: pretty; }
 .ms-service__link { font: 600 13px/1 var(--font-display); color: var(--marker-charcoal); display: inline-flex; gap: 8px; align-items: center; }
 .ms-service__link svg { width: 14px; height: 14px; transition: transform 180ms; }
 .ms-service:hover .ms-service__link svg { transform: translateX(4px); }
@@ -278,17 +344,22 @@ body.ar .ms-hero__title { font-family: var(--font-arabic-display); font-size: 80
 .ms-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 32px; }
 .ms-metric { display: flex; flex-direction: column; gap: 8px; }
 .ms-metric__label { font: 600 11px/1 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,.6); }
-.ms-metric__value { font: 800 56px/1 var(--font-display); letter-spacing: -0.02em; color: var(--marker-orange); }
+.ms-metric__value { font: 800 56px/1 var(--font-display); letter-spacing: -0.02em; color: var(--marker-orange); font-variant-numeric: tabular-nums; }
 .ms-metric__delta { font: 500 13px/1 var(--font-body); color: rgba(255,255,255,.8); }
 
 /* ---- Process steps ---- */
 .ms-process { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
 .ms-step { padding: 28px 24px; border: 1px solid var(--border); border-radius: 8px; background: #fff; display: flex; flex-direction: column; gap: 12px; position: relative; overflow: hidden; }
-.ms-step__num { font: 800 12px/1 var(--font-mono); color: var(--marker-orange); letter-spacing: 0.1em; }
-.ms-step__title { font: 700 20px/1.2 var(--font-display); color: var(--marker-ink); margin: 0; }
-.ms-step__desc { font: 400 14px/1.55 var(--font-body); color: var(--fg-muted); margin: 0; }
-.ms-step__bar { position: absolute; bottom: 0; left: 24px; right: 24px; height: 3px; background: var(--marker-orange); transform: scaleX(0); transform-origin: left; transition: transform 320ms var(--ease-out); }
-.ms-step:hover .ms-step__bar { transform: scaleX(1); }
+.ms-step__num {
+  font: 800 26px/1 var(--font-display); letter-spacing: -0.01em;
+  color: transparent; -webkit-text-stroke: 1.5px var(--marker-orange);
+}
+.ms-step__title { font: 700 20px/1.2 var(--font-display); color: var(--marker-ink); margin: 0; text-wrap: balance; }
+.ms-step__desc { font: 400 14px/1.55 var(--font-body); color: var(--fg-muted); margin: 0; text-wrap: pretty; }
+/* Progress bar draws itself once the step is revealed, staggered after the lift */
+.ms-step__bar { position: absolute; bottom: 0; left: 24px; right: 24px; height: 3px; background: var(--marker-orange); transform: scaleX(0); transform-origin: left; transition: transform 460ms var(--ease-out) 280ms; }
+body.ar .ms-step__bar { transform-origin: right; }
+.ms-step.is-visible .ms-step__bar { transform: scaleX(1); }
 
 /* ---- Pricing ---- */
 .ms-pricing { position: relative; overflow: hidden; background: var(--marker-paper); }
@@ -389,7 +460,7 @@ body.ar .ms-plan__name { font-family: var(--font-arabic-display); }
 .ms-contact { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
 .ms-contact__big { font: 800 72px/1 var(--font-display); letter-spacing: -0.025em; color: #fff; margin: 0 0 24px; }
 body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 64px; }
-.ms-contact__sub { font: 400 18px/1.55 var(--font-body); color: rgba(255,255,255,.75); margin: 0 0 32px; max-width: 40ch; }
+.ms-contact__sub { font: 400 18px/1.55 var(--font-body); color: rgba(255,255,255,.75); margin: 0 0 32px; max-width: 40ch; text-wrap: pretty; }
 .ms-contact__info { display: grid; gap: 12px; color: rgba(255,255,255,.85); font-family: var(--font-body); }
 .ms-contact__form { background: #fff; border-radius: 8px; padding: 32px; color: var(--fg); }
 .ms-contact__field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
@@ -421,9 +492,37 @@ body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 6
 /* ---- Scroll reveal ---- */
 .ms-reveal { opacity: 0; transform: translateY(24px); transition: opacity 620ms var(--ease-out), transform 620ms var(--ease-out); will-change: opacity, transform; }
 .ms-reveal.is-visible { opacity: 1; transform: none; }
+
+/* Variant: marker wipe — the tile sweeps in like a stroke of ink. Transform
+   stays out of the entrance so the 280ms hover lift transitions cleanly. */
+.ms-reveal--wipe {
+  transform: none;
+  clip-path: inset(0 100% 0 0);
+  transition: opacity 620ms var(--ease-out), clip-path 720ms var(--ease-out), transform 280ms var(--ease-out);
+}
+body.ar .ms-reveal--wipe { clip-path: inset(0 0 0 100%); }
+.ms-reveal--wipe.is-visible, body.ar .ms-reveal--wipe.is-visible { clip-path: inset(0 0 0 0); }
+
+/* Variant: zoom — settles in from 96%. Once visible, the transform transition
+   shortens so card hover lifts stay snappy. */
+.ms-reveal--zoom { transform: translateY(16px) scale(0.96); }
+.ms-reveal--zoom.is-visible { transition: opacity 620ms var(--ease-out), transform 300ms var(--ease-out), border-color 200ms, box-shadow 200ms; }
+
+/* ---- Brushstroke draw-in — the signature stroke paints itself ---- */
+.brush-draw::after { clip-path: inset(0 100% 0 0); transition: clip-path 800ms var(--ease-out) 150ms; }
+body.ar .brush-draw::after { clip-path: inset(0 0 0 100%); }
+.brush-draw.is-inked::after, body.ar .brush-draw.is-inked::after { clip-path: inset(0 0 0 0); }
+
 @media (prefers-reduced-motion: reduce) {
-  .ms-reveal { opacity: 1; transform: none; transition: none; }
-  .ms-marquee__track { animation: none; }
+  .ms-reveal, .ms-reveal--wipe, .ms-reveal--zoom { opacity: 1; transform: none; transition: none; clip-path: none; }
+  .ms-marquee__track, .ms-ribbon__track { animation: none; }
+  .ms-progress { display: none; }
+  .brush-draw::after { clip-path: none; transition: none; }
+  .ms-step__bar { transform: scaleX(1); transition: none; }
+  .ms-section__eyebrow::before, .ms-reveal .ms-section__eyebrow::before { transform: scaleX(1); transition: none; }
+  .ms-work-card__media::after { display: none; }
+  .ms-faq__a, .ms-faq__sign { transition: none; }
+  .ms-header, .ms-header__inner, .ms-logo img { transition: none; }
 }
 
 /* ---- Clients marquee ---- */
@@ -442,9 +541,9 @@ body.ar .ms-marquee__track { animation-direction: reverse; }
 
 /* ---- Studio ---- */
 .ms-studio { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 64px; align-items: center; }
-.ms-studio__title { font: 800 52px/1.05 var(--font-display); letter-spacing: -0.025em; color: var(--marker-ink); margin: 14px 0 24px; }
+.ms-studio__title { font: 800 52px/1.05 var(--font-display); letter-spacing: -0.025em; color: var(--marker-ink); margin: 14px 0 24px; text-wrap: balance; }
 body.ar .ms-studio__title { font-family: var(--font-arabic-display); }
-.ms-studio__p { font: 400 18px/1.6 var(--font-body); color: var(--fg-muted); margin: 0 0 16px; max-width: 52ch; }
+.ms-studio__p { font: 400 18px/1.6 var(--font-body); color: var(--fg-muted); margin: 0 0 16px; max-width: 52ch; text-wrap: pretty; }
 .ms-studio__marks { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .ms-mark { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 36px 24px; border: 1px solid var(--border); border-radius: var(--r-lg); background: #fff; transition: transform 220ms var(--ease-out), box-shadow 220ms; }
 .ms-mark:hover { transform: translateY(-4px); box-shadow: var(--shadow-3); }
@@ -461,7 +560,7 @@ body.ar .ms-quote::before { left: auto; right: 0; }
 .ms-quote:hover { transform: translateY(-4px); box-shadow: var(--shadow-3); border-color: transparent; }
 .ms-quote:hover::before { transform: scaleY(1); }
 .ms-quote__mark { font: 800 56px/0.5 var(--font-display); color: var(--marker-orange-200); height: 24px; }
-.ms-quote__text { font: 500 18px/1.55 var(--font-body); color: var(--marker-ink); margin: 0; flex: 1; }
+.ms-quote__text { font: 500 18px/1.55 var(--font-body); color: var(--marker-ink); margin: 0; flex: 1; text-wrap: pretty; }
 .ms-quote__by { display: flex; flex-direction: column; gap: 3px; padding-top: 6px; border-top: 1px solid var(--border); }
 .ms-quote__name { font: 700 15px/1.2 var(--font-display); color: var(--marker-charcoal); }
 .ms-quote__role { font: 600 11px/1 var(--font-display); letter-spacing: 0.1em; text-transform: uppercase; color: var(--fg-subtle); }
@@ -473,17 +572,34 @@ body.ar .ms-quote::before { left: auto; right: 0; }
 .ms-faq__q { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 24px; background: transparent; border: none; cursor: pointer; text-align: start; font: 600 19px/1.35 var(--font-display); color: var(--marker-ink); }
 body.ar .ms-faq__q { font-family: var(--font-arabic-display); }
 .ms-faq__q:hover { color: var(--marker-orange); }
-.ms-faq__sign { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--marker-orange-50); color: var(--marker-orange); font: 700 20px/1 var(--font-display); transition: background 180ms, color 180ms; }
-.ms-faq__item.is-open .ms-faq__sign { background: var(--marker-orange); color: #fff; }
-.ms-faq__a { padding: 0 24px 24px; }
-.ms-faq__a p { margin: 0; font: 400 16px/1.6 var(--font-body); color: var(--fg-muted); max-width: 62ch; }
+.ms-faq__sign { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--marker-orange-50); color: var(--marker-orange); font: 700 20px/1 var(--font-display); transition: background 180ms, color 180ms, transform 280ms var(--ease-snap); }
+.ms-faq__item.is-open .ms-faq__sign { background: var(--marker-orange); color: #fff; transform: rotate(45deg); }
+/* Answer opens via the 0fr → 1fr grid-row trick (height animates smoothly) */
+.ms-faq__a { display: grid; grid-template-rows: 0fr; padding: 0 24px; transition: grid-template-rows 320ms var(--ease-out); }
+.ms-faq__item.is-open .ms-faq__a { grid-template-rows: 1fr; }
+.ms-faq__a-inner { overflow: hidden; min-height: 0; }
+.ms-faq__a p { margin: 0; padding-bottom: 24px; font: 400 16px/1.6 var(--font-body); color: var(--fg-muted); max-width: 62ch; text-wrap: pretty; }
 
 /* ---- CTA banner ---- */
+.ms-section.ms-cta-banner { padding-top: 0; overflow: hidden; }
 .ms-cta-banner__inner { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
-.ms-cta-banner__title { font: 800 64px/0.98 var(--font-display); letter-spacing: -0.03em; color: #fff; margin: 0; }
+.ms-cta-banner__title { font: 800 64px/0.98 var(--font-display); letter-spacing: -0.03em; color: #fff; margin: 0; text-wrap: balance; }
 body.ar .ms-cta-banner__title { font-family: var(--font-arabic-display); font-size: 56px; }
 .ms-cta-banner__side { display: flex; flex-direction: column; gap: 24px; align-items: start; }
-.ms-cta-banner__sub { font: 400 20px/1.55 var(--font-body); color: rgba(255,255,255,.92); margin: 0; max-width: 40ch; }
+.ms-cta-banner__sub { font: 400 20px/1.55 var(--font-body); color: rgba(255,255,255,.92); margin: 0; max-width: 40ch; text-wrap: pretty; }
+
+/* Kinetic text ribbon across the top of the banner */
+.ms-ribbon { border-bottom: 1px solid rgba(255,255,255,.28); margin-bottom: 72px; direction: ltr; }
+.ms-ribbon__track { display: flex; width: max-content; animation: ms-scroll 26s linear infinite; }
+.ms-ribbon__half { display: flex; flex: none; }
+.ms-ribbon span {
+  display: inline-flex; align-items: center; gap: 20px; padding: 16px 20px 16px 0;
+  font: 800 15px/1 var(--font-display); letter-spacing: 0.16em; text-transform: uppercase;
+  color: rgba(255,255,255,.92); white-space: nowrap;
+}
+body.ar .ms-ribbon span { font-family: var(--font-arabic-display); letter-spacing: 0.06em; }
+.ms-ribbon i { font-style: normal; color: var(--marker-ink); font-size: 17px; }
+body.ar .ms-ribbon__track { animation-direction: reverse; }
 .ms-btn-dark { background: var(--marker-ink); color: #fff; }
 .ms-btn-dark:hover { background: #000; transform: translateY(-1px); box-shadow: var(--shadow-3); }
 
@@ -546,6 +662,8 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
   .ms-cta-banner__title { font-size: 40px; }
   body.ar .ms-cta-banner__title { font-size: 38px; }
   .ms-cta-banner__sub { font-size: 18px; }
+  .ms-ribbon { margin-bottom: 48px; }
+  .ms-ribbon span { font-size: 13px; padding: 13px 16px 13px 0; }
 }
 @media (max-width: 480px) {
   .ms-footer__top { grid-template-columns: 1fr; }
