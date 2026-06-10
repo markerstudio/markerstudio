@@ -8,7 +8,7 @@ import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, type ClientData } from "@/lib/clients";
-import { fetchNotionPosts, fetchNotionClient, extractNotionId } from "@/lib/notion";
+import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients } from "@/lib/notion";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -704,6 +704,93 @@ export async function syncNotionClient(formData: FormData) {
   }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=client-synced-${info.invoices.length}`);
+}
+
+// Import EVERY client from the Notion Clients Database in one click.
+// - Already-imported clients (matched by notionPageId) are left alone.
+// - A manually-created portal with the same name/slug gets LINKED to its
+//   Notion record (plan/finance/invoices synced onto it) instead of duplicated.
+// - Everyone else gets a fresh portal, same as quickCreateFromNotion.
+export async function importAllNotionClients() {
+  if (!(await getSession())) redirect("/login");
+  await ensureClientSchema();
+  if (!process.env.NOTION_TOKEN) redirect("/admin/clients?error=notion-token");
+
+  const list = await listNotionClients();
+  if (list.length === 0) redirect("/admin/clients?error=notion-fetch");
+
+  const sql = getSql();
+  type Row = { id: number; slug: string; name: string; data: ClientData };
+  const existing = (await sql`SELECT id, slug, name, data FROM clients`) as unknown as Row[];
+  const norm = (s: string) => (s || "").replace(/-/g, "").toLowerCase();
+  const linkedPages = new Set(existing.map((e) => norm(e.data?.notionPageId || "")).filter(Boolean));
+  const slugs = new Set(existing.map((e) => e.slug));
+
+  let imported = 0;
+  let linked = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  for (const c of list) {
+    const pageId = extractNotionId(c.id);
+    if (!pageId) { failed++; continue; }
+    if (linkedPages.has(norm(pageId))) { skipped++; continue; }
+
+    let info: Awaited<ReturnType<typeof fetchNotionClient>>;
+    try {
+      info = await fetchNotionClient(pageId);
+    } catch {
+      failed++;
+      continue;
+    }
+    const name = info.name || c.name || "Client";
+    const base = slugify(name);
+
+    // Existing portal made by hand (no Notion link yet) with the same identity?
+    const match = existing.find(
+      (e) => !e.data?.notionPageId && (e.slug === base || e.name.trim().toLowerCase() === name.trim().toLowerCase())
+    );
+
+    const apply = (data: ClientData): ClientData => {
+      data.notionPageId = pageId;
+      data.plan = {
+        name: info.planName || data.plan?.name || "",
+        active: info.active,
+        start: info.start || data.plan?.start || "",
+        end: info.end || data.plan?.end || "",
+        notionUrl: data.plan?.notionUrl ?? "",
+        note: { en: info.note || data.plan?.note?.en || "", ar: data.plan?.note?.ar || "" },
+        balance: info.balance || data.plan?.balance || "",
+      };
+      data.finance = {
+        monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
+        progress: info.progress || data.finance?.progress || 0,
+        brandingFee: info.brandingFee || data.finance?.brandingFee || "",
+      };
+      if (info.invoices.length) data.invoices = info.invoices;
+      return data;
+    };
+
+    if (match) {
+      const data = apply((match.data || blankClientData()) as ClientData);
+      await sql`UPDATE clients SET name = ${name}, data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${match.id}`;
+      linkedPages.add(norm(pageId));
+      linked++;
+      continue;
+    }
+
+    let slug = base;
+    let n = 2;
+    while (slugs.has(slug)) slug = `${base}-${n++}`;
+    slugs.add(slug);
+    const data = apply(blankClientData());
+    await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
+    linkedPages.add(norm(pageId));
+    imported++;
+  }
+
+  revalidatePath("/admin/clients");
+  redirect(`/admin/clients?bulk=${imported}.${linked}.${skipped}.${failed}`);
 }
 
 // --- Finance (Notion Budget Tracker) ----------------------------------------
