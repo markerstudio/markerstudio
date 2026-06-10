@@ -73,6 +73,8 @@ export type FinanceData = {
   debtors: Debtor[]; // sorted by debt, highest first
   totalDebt: number;
   debtTableRead: boolean; // All Time Clients Debt table reachable
+  debtSourceCount: number; // sources in the tracker's curated debt list
+  diag?: string; // surfaced when the debt source list looks incomplete
   overdue: OverduePayment[]; // unpaid rows past their due date, most overdue first
   overdueTotal: number;
   collectedThisMonthILS: number;
@@ -88,6 +90,7 @@ const EMPTY: FinanceData = {
   debtors: [],
   totalDebt: 0,
   debtTableRead: false,
+  debtSourceCount: 0,
   overdue: [],
   overdueTotal: 0,
   collectedThisMonthILS: 0,
@@ -117,25 +120,41 @@ async function queryAll(dbId: string, body: any = {}, maxPages = 5): Promise<any
 
 // Every id in a relation property. Notion truncates relation arrays at 25 —
 // and database-query responses may omit the has_more flag entirely — so
-// whenever the list hits the cap, walk the property-items endpoint for the rest.
-async function fullRelationIds(pageId: string, prop: any): Promise<string[]> {
+// whenever the list hits the cap, walk the property-items endpoint for the
+// rest. Tries with and without an explicit page_size; reports what happened
+// so an incomplete read is never silent.
+async function fullRelationIds(
+  pageId: string,
+  prop: any
+): Promise<{ ids: string[]; reported: number; error?: string }> {
   const base = (prop?.relation || []) as { id: string }[];
   const out = new Set<string>(base.map((r) => r.id.replace(/-/g, "")));
-  if (prop?.id && (prop?.has_more || base.length >= 25)) {
-    let cursor: string | undefined;
-    for (let i = 0; i < 10; i++) {
-      const q = await notionGet(
-        `/v1/pages/${pageId}/properties/${encodeURIComponent(prop.id)}?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`
-      );
-      for (const it of q.results || []) {
-        const id = it?.relation?.id;
-        if (id) out.add(String(id).replace(/-/g, ""));
+  const reported = base.length;
+  if (!prop?.id || (!prop?.has_more && reported < 25)) return { ids: Array.from(out), reported };
+
+  let error: string | undefined;
+  for (const sizeParam of ["?page_size=100", ""]) {
+    try {
+      let cursor: string | undefined;
+      for (let i = 0; i < 20; i++) {
+        const sep = sizeParam ? "&" : "?";
+        const q = await notionGet(
+          `/v1/pages/${pageId}/properties/${encodeURIComponent(prop.id)}${sizeParam}${cursor ? `${sep}start_cursor=${encodeURIComponent(cursor)}` : ""}`
+        );
+        for (const it of q.results || []) {
+          const id = it?.relation?.id;
+          if (id) out.add(String(id).replace(/-/g, ""));
+        }
+        if (!q?.has_more || !q?.next_cursor) break;
+        cursor = q.next_cursor;
       }
-      if (!q.has_more || !q.next_cursor) break;
-      cursor = q.next_cursor;
+      return { ids: Array.from(out), reported };
+    } catch (e) {
+      error = e instanceof Error ? e.message : String(e);
     }
   }
-  return Array.from(out);
+  console.error(`[finance] relation pagination failed for ${pageId}/${prop.id}: ${error}`);
+  return { ids: Array.from(out), reported, error };
 }
 
 const title = (p: any, k: string) => ((p?.[k]?.title || []) as any[]).map((t) => t.plain_text).join("");
@@ -210,15 +229,14 @@ async function fetchFinance(): Promise<FinanceData> {
   // reports as 0 — so the total is computed from the complete source set.
   const debtSet = new Set<string>();
   let debtTableRead = false;
+  let diag: string | undefined;
   try {
     for (const r of await queryAll(DEBT_DB)) {
       debtTableRead = true;
-      const p = r.properties || {};
-      try {
-        for (const id of await fullRelationIds(r.id, p["Sources"])) debtSet.add(id);
-      } catch {
-        /* keep whatever the page object carried (first 25) */
-        for (const id of relIds(p, "Sources")) debtSet.add(id);
+      const { ids, reported, error } = await fullRelationIds(r.id, (r.properties || {})["Sources"]);
+      for (const id of ids) debtSet.add(id);
+      if (error) {
+        diag = `Debt source list may be incomplete — Notion returned ${ids.length} of ${reported}+ linked sources (pagination error: ${error}).`;
       }
     }
   } catch {
@@ -375,6 +393,8 @@ async function fetchFinance(): Promise<FinanceData> {
     // debts so unrelated positive balances can't shrink the number.
     totalDebt: debtSet.size ? Math.max(0, -rawMoneyLeftSum) : debtors.reduce((s, d) => s + d.debt, 0),
     debtTableRead,
+    debtSourceCount: debtSet.size,
+    diag,
     overdue,
     overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
     collectedThisMonthILS,
