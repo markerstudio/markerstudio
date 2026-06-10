@@ -351,6 +351,28 @@ export async function deleteInquiry(formData: FormData) {
   redirect("/admin/inquiries?ok=removed");
 }
 
+// --- Applications (careers / "work with us" submissions) -------------------
+
+export async function markApplicationRead(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  await getSql()`UPDATE applications SET read_at = now() WHERE id = ${id}`;
+  redirect("/admin/applications");
+}
+
+export async function markAllApplicationsRead() {
+  if (!(await getSession())) redirect("/login");
+  await getSql()`UPDATE applications SET read_at = now() WHERE read_at IS NULL`;
+  redirect("/admin/applications");
+}
+
+export async function deleteApplication(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  await getSql()`DELETE FROM applications WHERE id = ${id}`;
+  redirect("/admin/applications?ok=removed");
+}
+
 // --- User management -------------------------------------------------------
 
 export async function createUser(formData: FormData) {

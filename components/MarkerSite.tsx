@@ -97,6 +97,9 @@ function SiteHeader({
               {item}
             </a>
           ))}
+          <Link href="/careers" onClick={() => setMenuOpen(false)}>
+            {lang === "ar" ? "الوظائف" : "Careers"}
+          </Link>
           <Link href="/login" className="ms-nav__login" onClick={() => setMenuOpen(false)}>
             {t.cta.login}
           </Link>
