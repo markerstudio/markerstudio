@@ -354,7 +354,7 @@ export async function createProposalFromTab(formData: FormData) {
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
 
   revalidatePath("/admin/proposals");
-  redirect(`/admin/clients/${targetSlug}/edit?ok=proposal-started`);
+  redirect(`/admin/proposals/${targetSlug}`);
 }
 
 // Archive / restore a proposal from the Proposals tab. Archiving also unsends

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
-import { createInvoice, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
+import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 
 async function clientBySlug(slug: string) {
@@ -123,6 +123,44 @@ export async function setInvoiceArchivedAction(formData: FormData) {
   await setInvoiceArchived(id, archived);
   revalidatePath("/admin/invoices");
   redirect(`/admin/invoices${archived ? "" : "?archived=1"}`);
+}
+
+// Record a payment against an invoice — adds to what's already been paid and
+// re-derives the status (due → partial → paid).
+export async function recordPaymentAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  const slug = String(formData.get("slug") || "").trim();
+  const back = String(formData.get("back") || "").trim();
+  const amount = parseFloat(String(formData.get("amount") || "0")) || 0;
+  const inv = await getInvoice(id);
+  if (inv && amount > 0) {
+    await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
+    revalidatePath(`/portal/${slug}`);
+    revalidatePath("/admin/invoices");
+    revalidatePath("/admin");
+  }
+  redirect(back || "/admin/invoices");
+}
+
+// Duplicate an invoice as a fresh draft (new number, today's date, nothing paid).
+// Handy for the monthly billing cycle.
+export async function duplicateInvoiceAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  const inv = await getInvoice(id);
+  if (!inv) redirect("/admin/invoices");
+  const { number } = await createInvoice({
+    clientId: inv.client_id,
+    clientSlug: inv.client_slug,
+    items: inv.items,
+    note: inv.note || undefined,
+    source: "custom",
+    vatRate: Number(inv.vat_rate) || 0,
+    status: "draft",
+  });
+  revalidatePath("/admin/invoices");
+  redirect(`/admin/invoices?ok=${encodeURIComponent(number)}`);
 }
 
 export async function deleteInvoiceAction(formData: FormData) {

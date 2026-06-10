@@ -3,8 +3,6 @@ import { notFound } from "next/navigation";
 import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
-import PricingEditor from "@/components/admin/PricingEditor";
-import ProposalTimelineEditor from "@/components/admin/ProposalTimelineEditor";
 import InvoiceEditor from "@/components/admin/InvoiceEditor";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
@@ -12,7 +10,7 @@ import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-a
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient, sendProposal, sendAgreement } from "../../../actions";
+import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -202,76 +200,49 @@ export default async function EditClientPage({
         <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
           <p className="text-sm text-neutral-500 mb-5">
-            Prepare each document, then send it. It only appears on the client&apos;s portal once you send it.
+            Both are paged, bilingual documents prepared in their builders. They only appear on the client&apos;s portal once sent.
           </p>
 
-          {/* Pricing — itemised quote shown on both documents */}
-          <PricingEditor slug={client.slug} initial={seededPricing} note={client.data.pricing?.note || ""} />
-
-          {/* Timeline — ordered phases shown on the proposal */}
-          <ProposalTimelineEditor slug={client.slug} initial={client.data.proposal?.timeline || []} />
-
-          {/* Proposal */}
-          <div className="border border-neutral-200 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="font-semibold text-sm">
-                Proposal{" "}
-                {client.data.proposal?.acceptedAt ? (
-                  <span className="ml-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Accepted</span>
-                ) : client.data.proposal?.published ? (
-                  <span className="ml-1 text-xs font-semibold text-orange-deep bg-orange-50 rounded-full px-2 py-0.5">Sent</span>
-                ) : (
-                  <span className="ml-1 text-xs font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">Draft — not sent</span>
-                )}
+          <div className="grid sm:grid-cols-2 gap-3">
+            {(
+              [
+                {
+                  label: "Proposal",
+                  doc: client.data.proposal,
+                  doneLabel: "Accepted",
+                  builder: `/admin/proposals/${client.slug}`,
+                  view: `/portal/${client.slug}/proposal`,
+                },
+                {
+                  label: "Agreement",
+                  doc: client.data.agreement,
+                  doneLabel: "Signed",
+                  builder: `/admin/agreements/${client.slug}`,
+                  view: `/portal/${client.slug}/agreement`,
+                },
+              ] as const
+            ).map((x) => (
+              <div key={x.label} className="border border-neutral-200 rounded-lg p-4">
+                <div className="font-semibold text-sm mb-2">
+                  {x.label}{" "}
+                  {x.doc?.acceptedAt ? (
+                    <span className="ml-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">{x.doneLabel}</span>
+                  ) : x.doc?.published ? (
+                    <span className="ml-1 text-xs font-semibold text-orange-deep bg-orange-50 rounded-full px-2 py-0.5">Sent</span>
+                  ) : (
+                    <span className="ml-1 text-xs font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">Draft</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <Link href={x.builder} className="bg-charcoal text-white font-semibold rounded-md px-3.5 py-2 text-sm hover:bg-ink transition-colors">
+                    Open builder →
+                  </Link>
+                  <Link href={x.view} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">
+                    Client view ↗
+                  </Link>
+                </div>
               </div>
-              <Link href={`/portal/${client.slug}/proposal`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">Preview ↗</Link>
-            </div>
-            <form action={sendProposal} className="space-y-3">
-              <input type="hidden" name="slug" value={client.slug} />
-              <textarea
-                name="note"
-                defaultValue={client.data.proposal?.note || ""}
-                placeholder="Optional intro shown to the client at the top of the proposal…"
-                className={`${inputCls} min-h-[64px]`}
-              />
-              <div className="flex gap-2">
-                <button name="send" value="1" className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">
-                  {client.data.proposal?.published ? "Update / resend" : "Send to client"}
-                </button>
-                {client.data.proposal?.published && (
-                  <button name="send" value="0" className="text-sm font-medium text-neutral-500 hover:text-red-600 px-2">Unsend</button>
-                )}
-              </div>
-            </form>
-          </div>
-
-          {/* Agreement */}
-          <div className="border border-neutral-200 rounded-lg p-4">
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <div className="font-semibold text-sm">
-                Agreement{" "}
-                {client.data.agreement?.acceptedAt ? (
-                  <span className="ml-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Signed</span>
-                ) : client.data.agreement?.published ? (
-                  <span className="ml-1 text-xs font-semibold text-orange-deep bg-orange-50 rounded-full px-2 py-0.5">Sent</span>
-                ) : (
-                  <span className="ml-1 text-xs font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">Draft — not sent</span>
-                )}
-              </div>
-              <Link href={`/portal/${client.slug}/agreement`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">Preview ↗</Link>
-            </div>
-            <p className="text-xs text-neutral-500 mb-3">Pricing above appears in the agreement summary &amp; payment breakdown.</p>
-            <form action={sendAgreement} className="space-y-3">
-              <input type="hidden" name="slug" value={client.slug} />
-              <div className="flex gap-2">
-                <button name="send" value="1" className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">
-                  {client.data.agreement?.published ? "Update / resend" : "Send to client"}
-                </button>
-                {client.data.agreement?.published && (
-                  <button name="send" value="0" className="text-sm font-medium text-neutral-500 hover:text-red-600 px-2">Unsend</button>
-                )}
-              </div>
-            </form>
+            ))}
           </div>
         </div>
       )}

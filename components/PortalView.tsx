@@ -129,10 +129,25 @@ export default function PortalView({
       {tab === "dashboard" && (
         <>
           <section className="ms-portal-hero">
+            {(d.accent || client.name) && !edit && (
+              <span className="ms-portal-watermark" aria-hidden>
+                {d.accent || client.name.split(" ")[0]}
+              </span>
+            )}
             <div className="ms-container">
               <span className="ms-portal-hero__eyebrow">{ui("Marker Studio · Client report", "ماركر استديو · تقرير العميل")}</span>
               <h1 className="ms-portal-hero__title">{client.name}</h1>
               <p className="ms-portal-hero__sub">{f(tr(d.hero), (v) => up((c) => (c.hero[lang] = v)), true, ui("Intro line…", "سطر تعريفي…"))}</p>
+              {edit && (
+                <div style={{ marginTop: 10, maxWidth: 320 }}>
+                  <input
+                    className="ms-edit"
+                    value={d.accent ?? ""}
+                    placeholder={ui("Watermark word (e.g. JACK)", "كلمة الخلفية")}
+                    onChange={(e) => up((c) => (c.accent = e.target.value))}
+                  />
+                </div>
+              )}
 
               <div className="ms-ed-figures">
                 <div className="ms-ed-fig">
@@ -161,11 +176,36 @@ export default function PortalView({
             </div>
           </section>
 
-          {(edit || tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0) && (
-            <section className="ms-section">
+          {(edit || tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0 || (d.dashboard?.cards ?? []).length > 0) && (
+            <section className="ms-section ms-rise">
               <div className="ms-container">
                 <span className="ms-section__eyebrow">{ui("Overview", "نظرة عامة")}</span>
                 <h2 className="ms-ed-statement" style={{ marginTop: 10 }}>{f(tr(d.dashboard?.headline), (v) => up((c) => (c.dashboard.headline[lang] = v)), false, ui("One-line summary…", "ملخّص بسطر…"))}</h2>
+                {(edit || (d.dashboard?.cards ?? []).length > 0) && (
+                  <div className="ms-story-grid">
+                    {(d.dashboard?.cards ?? []).map((sc, i) => (
+                      <div key={i} className="ms-story-card ms-rise" style={{ animationDelay: `${80 + i * 70}ms`, position: "relative" }}>
+                        {del(() => up((c) => c.dashboard.cards.splice(i, 1)))}
+                        <span className="tag">{f(sc.tag, (v) => up((c) => (c.dashboard.cards[i].tag = v)), false, ui("Tag", "وسم"))}</span>
+                        <div className="value">{f(sc.value, (v) => up((c) => (c.dashboard.cards[i].value = v)), false, "—")}</div>
+                        <p className="desc">{f(sc.desc, (v) => up((c) => (c.dashboard.cards[i].desc = v)), true, ui("Story…", "وصف…"))}</p>
+                      </div>
+                    ))}
+                    {edit && (
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        {add(() => up((c) => c.dashboard.cards.push({ tag: "", value: "", desc: "" })), ui("Add card", "بطاقة"))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {(edit || tr(d.dashboard?.diagnosis)) && (
+                  <div className="ms-pcard ms-pcard--dark ms-rise" style={{ marginTop: 28, maxWidth: 760, animationDelay: "180ms" }}>
+                    <span className="ms-section__eyebrow">{ui("Our reading", "قراءتنا")}</span>
+                    <p className="ms-pmuted" style={{ fontSize: 16, marginTop: 8 }}>
+                      {f(tr(d.dashboard?.diagnosis), (v) => up((c) => { if (!c.dashboard.diagnosis) c.dashboard.diagnosis = { en: "", ar: "" }; c.dashboard.diagnosis[lang] = v; }), true, ui("What the numbers mean…", "ماذا تعني الأرقام…"))}
+                    </p>
+                  </div>
+                )}
                 {(edit || (d.dashboard?.vitals ?? []).length > 0) && (
                   <div className="ms-pcard" style={{ marginTop: 28, maxWidth: 680 }}>
                     <span className="ms-section__eyebrow">{ui("Account health", "صحة الحساب")}</span>
@@ -202,7 +242,7 @@ export default function PortalView({
 
       {/* PLAN */}
       {tab === "plan" && (
-        <section className="ms-section">
+        <section className="ms-section ms-rise">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
@@ -252,7 +292,7 @@ export default function PortalView({
 
       {/* SOCIAL */}
       {tab === "social" && (
-        <section className="ms-section">
+        <section className="ms-section ms-rise">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
@@ -268,7 +308,7 @@ export default function PortalView({
 
       {/* ANALYSIS */}
       {tab === "analysis" && (
-        <section className="ms-section">
+        <section className="ms-section ms-rise">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
@@ -337,7 +377,7 @@ export default function PortalView({
 
       {/* FINANCE */}
       {tab === "invoices" && (
-        <section className="ms-section">
+        <section className="ms-section ms-rise">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
@@ -420,7 +460,7 @@ export default function PortalView({
 
       {/* DOCUMENTS */}
       {tab === "documents" && (
-        <section className="ms-section">
+        <section className="ms-section ms-rise">
           <div className="ms-container">
             <div className="ms-section__header">
               <div>
@@ -428,6 +468,50 @@ export default function PortalView({
                 <h2 className="ms-section__title">{ui("Proposals & agreements.", "العروض والاتفاقيات.")}</h2>
               </div>
             </div>
+
+            {/* Live studio documents — shown once sent (admins always see them). */}
+            {(canEdit || client.data.proposal?.published || client.data.agreement?.published) && (
+              <div className="ms-portal-grid" style={{ marginBottom: 20 }}>
+                {(canEdit || client.data.proposal?.published) && (
+                  <a className="ms-doc-card pc-6 ms-rise" href={`/portal/${client.slug}/proposal`}>
+                    <span className="ms-doc-kicker">{ui("Interactive document", "مستند تفاعلي")}</span>
+                    <h3>{ui("Your proposal", "عرضك")}</h3>
+                    <p>
+                      {client.data.proposal?.acceptedAt
+                        ? ui("Accepted — thank you. You can reopen and export it any time.", "تم القبول — شكرًا لك. يمكنك فتحه وتصديره في أي وقت.")
+                        : client.data.proposal?.published
+                        ? ui("Review the scope, pick your plan and accept — all inside the document.", "راجع النطاق، اختر خطتك واقبل — كل ذلك داخل المستند.")
+                        : ui("Draft — only the studio can see this for now.", "مسودة — يراها الاستوديو فقط حاليًا.")}
+                    </p>
+                    <div className="ms-doc-foot">
+                      <span className={`ms-portal-pill ${client.data.proposal?.acceptedAt ? "ms-portal-pill--green" : "ms-portal-pill--orange"}`}>
+                        {client.data.proposal?.acceptedAt ? ui("Accepted", "مقبول") : client.data.proposal?.published ? ui("Awaiting your review", "بانتظار مراجعتك") : ui("Draft", "مسودة")}
+                      </span>
+                      <span style={{ fontWeight: 700 }}>{ui("Open", "افتح")} →</span>
+                    </div>
+                  </a>
+                )}
+                {(canEdit || client.data.agreement?.published) && (
+                  <a className="ms-doc-card pc-6 ms-rise" style={{ animationDelay: "90ms" }} href={`/portal/${client.slug}/agreement`}>
+                    <span className="ms-doc-kicker">{ui("E-sign document", "مستند للتوقيع الإلكتروني")}</span>
+                    <h3>{ui("Service agreement", "اتفاقية الخدمة")}</h3>
+                    <p>
+                      {client.data.agreement?.acceptedAt
+                        ? ui("Signed and in force. Reopen or export it any time.", "موقّعة وسارية. افتحها أو صدّرها في أي وقت.")
+                        : client.data.agreement?.published
+                        ? ui("Read the terms and sign electronically when you're ready.", "اقرأ الشروط ووقّع إلكترونيًا عندما تكون جاهزًا.")
+                        : ui("Draft — only the studio can see this for now.", "مسودة — يراها الاستوديو فقط حاليًا.")}
+                    </p>
+                    <div className="ms-doc-foot">
+                      <span className={`ms-portal-pill ${client.data.agreement?.acceptedAt ? "ms-portal-pill--green" : "ms-portal-pill--orange"}`}>
+                        {client.data.agreement?.acceptedAt ? ui("Signed", "موقّعة") : client.data.agreement?.published ? ui("Awaiting signature", "بانتظار التوقيع") : ui("Draft", "مسودة")}
+                      </span>
+                      <span style={{ fontWeight: 700 }}>{ui("Open", "افتح")} →</span>
+                    </div>
+                  </a>
+                )}
+              </div>
+            )}
             <div className="ms-portal-grid">
               {(d.documents ?? []).map((doc, i) => (
                 <div key={i} className="ms-pcard pc-4" style={{ display: "flex", flexDirection: "column", gap: 14, position: "relative" }}>

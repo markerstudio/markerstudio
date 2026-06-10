@@ -13,7 +13,7 @@ export type MonthBar = {
 };
 
 export type AttentionItem = {
-  kind: "overdue" | "pending-client" | "proposal" | "agreement" | "inquiries" | "applications";
+  kind: "overdue" | "due-soon" | "pending-client" | "proposal" | "agreement" | "inquiries" | "applications";
   text: string;
   href: string;
   count?: number;
@@ -33,7 +33,11 @@ export type DashboardData = {
   needsSetup: boolean;
   // KPIs
   outstanding: number; // still owed across due/partial invoices
+  overdueCount: number;
+  overdueTotal: number;
   collectedYear: number; // paid across invoices issued this calendar year
+  thisMonthBilled: number;
+  thisMonthCollected: number;
   activeClients: number;
   totalClients: number;
   unreadInquiries: number;
@@ -52,7 +56,11 @@ const EMPTY: DashboardData = {
   dbOff: true,
   needsSetup: false,
   outstanding: 0,
+  overdueCount: 0,
+  overdueTotal: 0,
   collectedYear: 0,
+  thisMonthBilled: 0,
+  thisMonthCollected: 0,
   activeClients: 0,
   totalClients: 0,
   unreadInquiries: 0,
@@ -125,23 +133,42 @@ export async function getDashboardData(): Promise<DashboardData> {
   // ---- Invoice money math -------------------------------------------------
   const now = new Date();
   const thisYear = now.getFullYear();
+  const soonCutoff = new Date(now.getTime() + 14 * 24 * 3600 * 1000);
   let outstanding = 0;
+  let overdueTotal = 0;
   let collectedYear = 0;
+  let thisMonthBilled = 0;
+  let thisMonthCollected = 0;
   const statusCounts = { draft: 0, due: 0, partial: 0, paid: 0 };
   const months = emptyMonths();
   const overdue: Invoice[] = [];
+  const dueSoon: { inv: Invoice; remaining: number }[] = [];
 
   for (const inv of invoices) {
+    if (inv.archived_at) continue;
     const vat = Number(inv.vat_rate) || 0;
     const paid = Number(inv.paid_amount) || 0;
     const grand = invoiceGrandTotal(inv.items, vat);
     const issued = new Date(inv.issued_date);
 
     if (inv.status === "due" || inv.status === "partial") {
-      outstanding += invoiceRemaining(inv.items, vat, paid);
-      if (inv.due_date && new Date(inv.due_date) < now) overdue.push(inv);
+      const remaining = invoiceRemaining(inv.items, vat, paid);
+      outstanding += remaining;
+      if (inv.due_date) {
+        const due = new Date(inv.due_date);
+        if (due < now) {
+          overdue.push(inv);
+          overdueTotal += remaining;
+        } else if (due <= soonCutoff) {
+          dueSoon.push({ inv, remaining });
+        }
+      }
     }
     if (issued.getFullYear() === thisYear) collectedYear += paid;
+    if (issued.getFullYear() === thisYear && issued.getMonth() === now.getMonth()) {
+      thisMonthBilled += grand;
+      thisMonthCollected += paid;
+    }
     if (inv.status in statusCounts) statusCounts[inv.status as keyof typeof statusCounts]++;
 
     const idx = monthIndex(issued, now);
@@ -150,6 +177,7 @@ export async function getDashboardData(): Promise<DashboardData> {
       months[idx].collected += paid;
     }
   }
+  dueSoon.sort((a, b) => (a.inv.due_date! < b.inv.due_date! ? -1 : 1));
 
   // ---- Client pipeline ----------------------------------------------------
   const pulses: ClientPulse[] = clients.map((c) => ({
@@ -175,9 +203,17 @@ export async function getDashboardData(): Promise<DashboardData> {
   if (overdue.length) {
     attention.push({
       kind: "overdue",
-      text: `${overdue.length} invoice${overdue.length === 1 ? " is" : "s are"} past due`,
-      href: "/admin/invoices",
+      text: `${overdue.length} invoice${overdue.length === 1 ? " is" : "s are"} past due — ${fmtMoney(overdueTotal)} outstanding`,
+      href: "/admin/invoices?f=overdue",
       count: overdue.length,
+    });
+  }
+  for (const { inv, remaining } of dueSoon.slice(0, 3)) {
+    const days = Math.max(0, Math.ceil((new Date(inv.due_date!).getTime() - now.getTime()) / (24 * 3600 * 1000)));
+    attention.push({
+      kind: "due-soon",
+      text: `${inv.number} (/${inv.client_slug}) — ${fmtMoney(remaining)} due ${days === 0 ? "today" : `in ${days} day${days === 1 ? "" : "s"}`}`,
+      href: "/admin/invoices?f=due",
     });
   }
   for (const c of pendingClients.slice(0, 3)) {
@@ -224,7 +260,11 @@ export async function getDashboardData(): Promise<DashboardData> {
     dbOff: false,
     needsSetup: false,
     outstanding,
+    overdueCount: overdue.length,
+    overdueTotal,
     collectedYear,
+    thisMonthBilled,
+    thisMonthCollected,
     activeClients,
     totalClients: pulses.length,
     unreadInquiries,

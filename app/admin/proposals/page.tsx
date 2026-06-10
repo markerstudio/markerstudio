@@ -29,10 +29,39 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
   const archivedCount = withProposal.filter((c) => c.data.proposal?.archived).length;
   const clients = withProposal.filter((c) => (showArchived ? c.data.proposal?.archived : !c.data.proposal?.archived));
 
+  // Pipeline stats across non-archived proposals.
+  const active = withProposal.filter((c) => !c.data.proposal?.archived);
+  const drafts = active.filter((c) => !c.data.proposal?.published && !c.data.proposal?.acceptedAt).length;
+  const awaiting = active.filter((c) => c.data.proposal?.published && !c.data.proposal?.acceptedAt).length;
+  const acceptedList = active.filter((c) => c.data.proposal?.acceptedAt);
+  let wonMonthly = 0;
+  let wonOnce = 0;
+  for (const c of acceptedList) {
+    const sel = c.data.proposal?.selection;
+    if (sel) {
+      wonMonthly += sel.monthly || 0;
+      wonOnce += sel.once || 0;
+    }
+  }
+
+  const stats = [
+    { label: "Drafts", value: String(drafts), note: "being prepared" },
+    { label: "Awaiting acceptance", value: String(awaiting), note: "sent to clients", accent: awaiting > 0 },
+    { label: "Accepted", value: String(acceptedList.length), note: "proposals won", green: acceptedList.length > 0 },
+    {
+      label: "Won value",
+      value: wonMonthly || wonOnce ? `${(wonMonthly + wonOnce).toLocaleString("en-US")} ₪` : "—",
+      note: wonMonthly ? `${wonMonthly.toLocaleString("en-US")} ₪/mo recurring` : "from accepted selections",
+    },
+  ];
+
   return (
     <div>
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Proposals</h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Proposals</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">Paged, bilingual documents — built in the studio, accepted in the portal.</p>
+        </div>
         <div className="flex items-center gap-2 text-sm">
           <Link
             href="/admin/proposals"
@@ -58,16 +87,30 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
       {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>}
 
       {!dbOff && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+          {stats.map((s) => (
+            <div key={s.label} className="adm-rise bg-white border border-neutral-200 rounded-xl px-4 py-3.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{s.label}</div>
+              <div className={`mt-1 text-2xl font-extrabold tabular-nums ${s.green ? "text-green-700" : s.accent ? "text-orange-deep" : "text-neutral-900"}`}>
+                {s.value}
+              </div>
+              <div className="text-xs text-neutral-400">{s.note}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!dbOff && (
         <form action={createProposalFromTab} className="bg-white border border-neutral-200 rounded-xl p-4 mb-6 flex items-end gap-3 flex-wrap">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">Start a proposal</label>
             <ClientSelectOrType clients={all.map((c) => ({ slug: c.slug, name: c.name || c.slug }))} />
           </div>
           <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">
-            Start →
+            Open builder →
           </button>
           <p className="text-xs text-neutral-400 basis-full sm:basis-auto sm:ml-auto">
-            Opens the client&apos;s page to prepare pricing, timeline &amp; the send.
+            Starts from the studio template — cover, scope, work plan, selectable pricing &amp; acceptance.
           </p>
         </form>
       )}
@@ -78,6 +121,7 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
           const tone = p?.acceptedAt ? "green" : p?.published ? "orange" : "neutral";
           const label = p?.acceptedAt ? "Accepted" : p?.published ? "Sent" : "Draft";
           const when = p?.acceptedAt || p?.sentAt;
+          const sel = p?.selection;
           return (
             <div key={c.slug} className="flex items-center gap-4 px-4 py-3 flex-wrap">
               <div className="flex-1 min-w-[160px]">
@@ -85,11 +129,19 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
                 <div className="text-xs text-neutral-500 truncate">
                   /{c.slug}
                   {when && ` · ${new Date(when).toLocaleDateString("en-GB")}`}
+                  {p?.acceptedAt && sel && (sel.monthly || sel.once)
+                    ? ` · ${[sel.monthly ? `${sel.monthly.toLocaleString("en-US")} ${sel.currency}/mo` : "", sel.once ? `${sel.once.toLocaleString("en-US")} ${sel.currency}` : ""].filter(Boolean).join(" + ")}`
+                    : ""}
+                  {p?.acceptedAt && p.acceptedBy ? ` · by ${p.acceptedBy}` : ""}
                 </div>
               </div>
               {badge(label, tone)}
-              <Link href={`/portal/${c.slug}/proposal`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">Preview ↗</Link>
-              <Link href={`/admin/clients/${c.slug}/edit`} className="text-sm font-medium text-neutral-700 hover:text-orange">Prepare</Link>
+              <Link href={`/admin/proposals/${c.slug}`} className="text-sm font-semibold text-charcoal hover:text-orange">
+                Builder →
+              </Link>
+              <Link href={`/portal/${c.slug}/proposal`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">
+                Client view ↗
+              </Link>
               <form action={setProposalArchived}>
                 <input type="hidden" name="slug" value={c.slug} />
                 <input type="hidden" name="archived" value={p?.archived ? "" : "1"} />
