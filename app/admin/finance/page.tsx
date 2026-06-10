@@ -48,6 +48,13 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
         <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Synced fresh numbers from Notion.</p>
       )}
 
+      {f.available && !f.debtTableRead && (
+        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-2.5">
+          Couldn&apos;t read the <b>All Time Clients Debt</b> table, so totals are computed from the sources directly.
+          Share that table (or the whole Budget Tracker page) with the Notion integration for exact numbers.
+        </p>
+      )}
+
       {!f.available ? (
         <div className="bg-white border border-neutral-200 rounded-xl p-8 text-center">
           <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 inline-block">

@@ -72,6 +72,7 @@ export type FinanceData = {
   bankTotal: number;
   debtors: Debtor[]; // sorted by debt, highest first
   totalDebt: number;
+  debtTableRead: boolean; // All Time Clients Debt table reachable
   overdue: OverduePayment[]; // unpaid rows past their due date, most overdue first
   overdueTotal: number;
   collectedThisMonthILS: number;
@@ -86,6 +87,7 @@ const EMPTY: FinanceData = {
   bankTotal: 0,
   debtors: [],
   totalDebt: 0,
+  debtTableRead: false,
   overdue: [],
   overdueTotal: 0,
   collectedThisMonthILS: 0,
@@ -133,6 +135,30 @@ async function fullRelationIds(pageId: string, prop: any): Promise<string[]> {
     }
   }
   return Array.from(out);
+}
+
+// Authoritative rollup value. Page objects can mis-report rollups whose
+// relation exceeds 25 references, so paginate the property-item endpoint and
+// keep the last aggregate it reports; fall back to the inline value.
+async function rollupNumber(pageId: string, prop: any): Promise<number | null> {
+  const inline = typeof prop?.rollup?.number === "number" ? prop.rollup.number : null;
+  if (!prop?.id) return inline;
+  try {
+    let cursor: string | undefined;
+    let val: number | null = null;
+    for (let i = 0; i < 20; i++) {
+      const q = await notionGet(
+        `/v1/pages/${pageId}/properties/${encodeURIComponent(prop.id)}?page_size=100${cursor ? `&start_cursor=${cursor}` : ""}`
+      );
+      const r = q?.property_item?.rollup ?? q?.rollup;
+      if (typeof r?.number === "number") val = r.number;
+      if (!q?.has_more || !q?.next_cursor) break;
+      cursor = q.next_cursor;
+    }
+    return val ?? inline;
+  } catch {
+    return inline;
+  }
 }
 
 const title = (p: any, k: string) => ((p?.[k]?.title || []) as any[]).map((t) => t.plain_text).join("");
@@ -202,12 +228,24 @@ async function fetchFinance(): Promise<FinanceData> {
   }
 
   // The tracker's own client-debt definition: the "All Time Clients Debt"
-  // row(s) relate to exactly the sources that count as client debt. If that
-  // table can't be read, fall back to treating every source as in-scope.
+  // row(s) relate to exactly the sources that count as client debt, and their
+  // "Rollup" property is the authoritative Total Debt Amount. Read both —
+  // each row isolated so one bad read doesn't drop the rest.
   const debtSet = new Set<string>();
+  let debtRollupTotal: number | null = null; // raw (negative = owed)
+  let debtTableRead = false;
   try {
     for (const r of await queryAll(DEBT_DB)) {
-      for (const id of await fullRelationIds(r.id, (r.properties || {})["Sources"])) debtSet.add(id);
+      debtTableRead = true;
+      const p = r.properties || {};
+      const roll = await rollupNumber(r.id, p["Rollup"]);
+      if (roll != null) debtRollupTotal = (debtRollupTotal ?? 0) + roll;
+      try {
+        for (const id of await fullRelationIds(r.id, p["Sources"])) debtSet.add(id);
+      } catch {
+        /* keep whatever the page object carried (first 25) */
+        for (const id of relIds(p, "Sources")) debtSet.add(id);
+      }
     }
   } catch {
     /* fall back below */
@@ -358,9 +396,17 @@ async function fetchFinance(): Promise<FinanceData> {
     banks: bankAccounts,
     bankTotal: bankAccounts.reduce((s, b) => s + b.balance, 0),
     debtors,
-    // Mirror the tracker's "Total Debt Amount" rollup: raw Money Left summed
-    // (clients in credit offset it), sign flipped to read as money owed.
-    totalDebt: Math.max(0, -rawMoneyLeftSum),
+    // Total debt, by preference: the tracker's own Total Debt rollup (exact),
+    // then the raw Money Left sum over the curated debt set (credits offset),
+    // then — with no debt table at all — pure per-source debts, no offsets,
+    // so positive balances on unrelated sources can't shrink the number.
+    totalDebt:
+      debtRollupTotal != null
+        ? Math.max(0, -debtRollupTotal)
+        : debtSet.size
+        ? Math.max(0, -rawMoneyLeftSum)
+        : debtors.reduce((s, d) => s + d.debt, 0),
+    debtTableRead,
     overdue,
     overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
     collectedThisMonthILS,
