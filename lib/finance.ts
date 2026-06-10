@@ -141,6 +141,7 @@ async function fullRelationIds(
         const q = await notionGet(
           `/v1/pages/${pageId}/properties/${encodeURIComponent(prop.id)}${sizeParam}${cursor ? `${sep}start_cursor=${encodeURIComponent(cursor)}` : ""}`
         );
+        if (!Array.isArray(q?.results)) throw new Error(`unexpected response shape (object=${q?.object})`);
         for (const it of q.results || []) {
           const id = it?.relation?.id;
           if (id) out.add(String(id).replace(/-/g, ""));
@@ -231,13 +232,42 @@ async function fetchFinance(): Promise<FinanceData> {
   let debtTableRead = false;
   let diag: string | undefined;
   try {
-    for (const r of await queryAll(DEBT_DB)) {
+    const debtRows = await queryAll(DEBT_DB);
+    const debtRowIds = new Set(debtRows.map((r: any) => String(r.id).replace(/-/g, "")));
+
+    let cappedAt25 = false;
+    for (const r of debtRows) {
       debtTableRead = true;
       const { ids, reported, error } = await fullRelationIds(r.id, (r.properties || {})["Sources"]);
       for (const id of ids) debtSet.add(id);
       if (error) {
         diag = `Debt source list may be incomplete — Notion returned ${ids.length} of ${reported}+ linked sources (pagination error: ${error}).`;
+      } else if (reported >= 25 && ids.length === reported) {
+        cappedAt25 = true; // pagination "succeeded" but yielded nothing new
       }
+    }
+
+    // Preferred membership signal: a two-way relation back from each Source
+    // to the debt row (1 item per source — never hits Notion's 25-item cap).
+    // Present whenever "Show on Sources" is enabled on the debt relation.
+    let viaBackRelation = 0;
+    if (debtRowIds.size) {
+      for (const s of sources) {
+        for (const prop of Object.values(s.properties || {}) as any[]) {
+          if (prop?.type !== "relation") continue;
+          if (((prop.relation || []) as { id: string }[]).some((x) => debtRowIds.has(x.id.replace(/-/g, "")))) {
+            debtSet.add(String(s.id).replace(/-/g, ""));
+            viaBackRelation++;
+            break;
+          }
+        }
+      }
+    }
+    if (viaBackRelation > 0) {
+      diag = undefined; // exact membership via the synced back-relation
+    } else if (cappedAt25 && !diag) {
+      diag =
+        "Notion's API caps relation lists at 25, so some debtors are missing. One-time fix in Notion: open the All Time Clients Debt table → edit its \"Sources\" relation → turn ON \"Show on Sources\". The next sync then reads the complete list.";
     }
   } catch {
     /* fall back below */
