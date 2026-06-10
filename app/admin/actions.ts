@@ -98,8 +98,8 @@ export async function importSeedProjects() {
     added++;
   }
   revalidatePath("/");
-  revalidatePath("/admin");
-  redirect(`/admin?imported=${added}`);
+  revalidatePath("/admin/projects");
+  redirect(`/admin/projects?imported=${added}`);
 }
 
 export async function login(formData: FormData) {
@@ -184,7 +184,7 @@ export async function saveProject(formData: FormData) {
   revalidatePath("/");
   revalidatePath(`/work/${slug}`);
   if (original && original !== slug) revalidatePath(`/work/${original}`);
-  redirect("/admin");
+  redirect("/admin/projects");
 }
 
 export async function deleteProject(formData: FormData) {
@@ -194,7 +194,7 @@ export async function deleteProject(formData: FormData) {
   await sql`DELETE FROM projects WHERE slug = ${slug}`;
   revalidatePath("/");
   revalidatePath(`/work/${slug}`);
-  redirect("/admin");
+  redirect("/admin/projects");
 }
 
 // --- Onboarding: connect a draft portal to an existing one -----------------
@@ -335,12 +335,14 @@ export async function markInquiryRead(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   await getSql()`UPDATE inquiries SET read_at = now() WHERE id = ${id}`;
+  revalidatePath("/admin/inquiries");
   redirect("/admin/inquiries");
 }
 
 export async function markAllInquiriesRead() {
   if (!(await getSession())) redirect("/login");
   await getSql()`UPDATE inquiries SET read_at = now() WHERE read_at IS NULL`;
+  revalidatePath("/admin/inquiries");
   redirect("/admin/inquiries");
 }
 
@@ -348,6 +350,7 @@ export async function deleteInquiry(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   await getSql()`DELETE FROM inquiries WHERE id = ${id}`;
+  revalidatePath("/admin/inquiries");
   redirect("/admin/inquiries?ok=removed");
 }
 
@@ -357,12 +360,14 @@ export async function markApplicationRead(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   await getSql()`UPDATE applications SET read_at = now() WHERE id = ${id}`;
+  revalidatePath("/admin/applications");
   redirect("/admin/applications");
 }
 
 export async function markAllApplicationsRead() {
   if (!(await getSession())) redirect("/login");
   await getSql()`UPDATE applications SET read_at = now() WHERE read_at IS NULL`;
+  revalidatePath("/admin/applications");
   redirect("/admin/applications");
 }
 
@@ -370,6 +375,7 @@ export async function deleteApplication(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   await getSql()`DELETE FROM applications WHERE id = ${id}`;
+  revalidatePath("/admin/applications");
   redirect("/admin/applications?ok=removed");
 }
 
@@ -434,6 +440,7 @@ export async function saveClient(formData: FormData) {
     `;
   }
   revalidatePath(`/portal/${slug}`);
+  if (original && original !== slug) revalidatePath(`/portal/${original}`);
   redirect(`/admin/clients/${slug}/edit?ok=saved`);
 }
 
@@ -444,6 +451,8 @@ export async function deleteClient(formData: FormData) {
   const rows = (await sql`SELECT id FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number }[];
   if (rows[0]) await sql`DELETE FROM users WHERE client_id = ${rows[0].id}`;
   await sql`DELETE FROM clients WHERE slug = ${slug}`;
+  revalidatePath(`/portal/${slug}`);
+  revalidatePath("/admin/clients");
   redirect("/admin/clients");
 }
 
@@ -467,6 +476,7 @@ export async function createClientUser(formData: FormData) {
   } catch {
     dup = true;
   }
+  revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?${dup ? "error=exists" : "ok=login"}`);
 }
 
@@ -475,6 +485,7 @@ export async function deleteClientUser(formData: FormData) {
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
   await getSql()`DELETE FROM users WHERE id = ${id} AND role = 'client'`;
+  revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=removed`);
 }
 
@@ -712,6 +723,7 @@ export async function createInvite(formData: FormData) {
   if (!rows[0]) redirect("/admin/clients");
   const token = randomBytes(24).toString("base64url");
   await sql`INSERT INTO invites (token, client_id) VALUES (${token}, ${rows[0].id})`;
+  revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invite`);
 }
 
@@ -720,6 +732,7 @@ export async function deleteInvite(formData: FormData) {
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "");
   await getSql()`DELETE FROM invites WHERE id = ${id}`;
+  revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invite-removed`);
 }
 

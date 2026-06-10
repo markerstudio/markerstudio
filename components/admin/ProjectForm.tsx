@@ -51,7 +51,7 @@ export default function ProjectForm({ project }: { project?: Project }) {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold tracking-tight">{p ? `Edit · ${p.name.en}` : "New project"}</h1>
-        <Link href="/admin" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
+        <Link href="/admin/projects" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
       </div>
 
       <form action={saveProject} className="bg-white border border-neutral-200 rounded-xl p-6">
@@ -90,7 +90,7 @@ export default function ProjectForm({ project }: { project?: Project }) {
           <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">
             {p ? "Save changes" : "Create project"}
           </button>
-          <Link href="/admin" className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</Link>
+          <Link href="/admin/projects" className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</Link>
         </div>
       </form>
     </div>
