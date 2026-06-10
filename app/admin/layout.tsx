@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
+import { countUnreadApplications } from "@/lib/applications";
 import { logout } from "./actions";
 
 export const metadata = { title: "Marker Admin", robots: { index: false, follow: false } };
@@ -9,6 +10,7 @@ export const metadata = { title: "Marker Admin", robots: { index: false, follow:
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
   const unread = user && isDbEnabled() ? await countUnreadInquiries() : 0;
+  const apps = user && isDbEnabled() ? await countUnreadApplications() : 0;
   return (
     <div dir="ltr" className="min-h-screen bg-neutral-100 text-neutral-900 font-sans">
       {user && (
@@ -28,6 +30,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Inquiries
                 {unread > 0 && (
                   <span className="text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none">{unread}</span>
+                )}
+              </Link>
+              <Link href="/admin/applications" className="text-neutral-600 hover:text-neutral-900 inline-flex items-center gap-1.5">
+                Applications
+                {apps > 0 && (
+                  <span className="text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none">{apps}</span>
                 )}
               </Link>
               <Link href="/admin/users" className="text-neutral-600 hover:text-neutral-900">Users</Link>
