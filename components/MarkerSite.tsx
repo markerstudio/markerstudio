@@ -602,27 +602,10 @@ function FaqAccordion({ t }: { t: SiteContent }) {
   );
 }
 
-/* Full-bleed orange call-to-action before contact, topped with a kinetic
-   text ribbon. The track holds two identical halves so the -50% translate
-   loops seamlessly. */
+/* Full-bleed orange call-to-action before contact. */
 function CtaBanner({ t }: { t: SiteContent }) {
-  const ribbonText = `${t.ctaBanner.title[0]} ${t.ctaBanner.title[1]}`;
   return (
     <section className="ms-section ms-section--orange ms-cta-banner">
-      <div className="ms-ribbon" aria-hidden>
-        <div className="ms-ribbon__track">
-          {[0, 1].map((half) => (
-            <div className="ms-ribbon__half" key={half}>
-              {Array.from({ length: 4 }).map((_, i) => (
-                <span key={i}>
-                  {ribbonText}
-                  <i>✺</i>
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
       <div className="ms-container">
         <Reveal className="ms-cta-banner__inner">
           <h2 className="ms-cta-banner__title">
