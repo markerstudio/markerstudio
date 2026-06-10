@@ -18,6 +18,7 @@ export type Invoice = {
   source: "custom" | "notion";
   vat_rate: number; // 0 = no VAT; otherwise percentage applied to the subtotal
   paid_amount: number; // already paid / deposit against this invoice
+  archived_at: string | null; // hidden from the default admin list when set
   created_at: string;
 };
 
@@ -41,6 +42,7 @@ export async function ensureInvoicesTable(): Promise<void> {
   `;
   await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS vat_rate NUMERIC NOT NULL DEFAULT 0`;
   await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS paid_amount NUMERIC NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ`;
   // Status set was "draft | sent | paid"; "sent" is now "due".
   await sql`UPDATE invoices SET status = 'due' WHERE status = 'sent'`;
 }
@@ -92,7 +94,7 @@ export async function createInvoice(input: {
 export async function listInvoices(): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices ORDER BY created_at DESC LIMIT 500
   `) as unknown as Invoice[];
 }
@@ -100,7 +102,7 @@ export async function listInvoices(): Promise<Invoice[]> {
 export async function listClientInvoices(clientId: number): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices WHERE client_id = ${clientId} ORDER BY created_at DESC
   `) as unknown as Invoice[];
 }
@@ -108,10 +110,19 @@ export async function listClientInvoices(clientId: number): Promise<Invoice[]> {
 export async function getInvoice(id: number): Promise<Invoice | undefined> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, created_at
+    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices WHERE id = ${id} LIMIT 1
   `) as unknown as Invoice[];
   return rows[0];
+}
+
+// Archive hides an invoice from the default admin list (kept for records).
+export async function setInvoiceArchived(id: number, archived: boolean): Promise<void> {
+  if (archived) {
+    await getSql()`UPDATE invoices SET archived_at = now() WHERE id = ${id}`;
+  } else {
+    await getSql()`UPDATE invoices SET archived_at = NULL WHERE id = ${id}`;
+  }
 }
 
 export async function setInvoiceStatus(id: number, status: InvoiceStatus): Promise<void> {

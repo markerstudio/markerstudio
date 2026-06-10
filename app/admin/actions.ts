@@ -7,7 +7,7 @@ import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
-import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, type ClientData } from "@/lib/clients";
+import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients } from "@/lib/notion";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
@@ -327,6 +327,70 @@ export async function saveProposalTimeline(formData: FormData) {
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=timeline-saved`);
+}
+
+// Start a proposal from the Proposals tab — pick a client from the dropdown
+// or type a name (unknown names get a minimal portal created). Initializes a
+// draft proposal and lands on the client's edit page to prepare it.
+export async function createProposalFromTab(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const clientName = String(formData.get("clientName") || "").trim();
+
+  let targetSlug = "";
+  if (slug && slug !== "__new") {
+    targetSlug = slug;
+  } else if (clientName) {
+    const c = await resolveOrCreateClientByName(clientName);
+    if (c) targetSlug = c.slug;
+  }
+  if (!targetSlug) redirect("/admin/proposals?error=client");
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${targetSlug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/proposals?error=client");
+  const data = (rows[0].data || {}) as ClientData;
+  data.proposal = { published: false, ...data.proposal, archived: false };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+
+  revalidatePath("/admin/proposals");
+  redirect(`/admin/clients/${targetSlug}/edit?ok=proposal-started`);
+}
+
+// Archive / restore a proposal from the Proposals tab. Archiving also unsends
+// it, so an archived proposal can't linger visible in the client's portal.
+export async function setProposalArchived(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const archived = String(formData.get("archived") || "") === "1";
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/proposals");
+  const data = (rows[0].data || {}) as ClientData;
+  data.proposal = { ...data.proposal, archived, ...(archived ? { published: false } : {}) };
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+
+  revalidatePath("/admin/proposals");
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/proposals${archived ? "" : "?archived=1"}`);
+}
+
+// Delete a proposal outright (the client record and its pricing stay).
+export async function deleteProposal(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/proposals");
+  const data = (rows[0].data || {}) as ClientData;
+  delete data.proposal;
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+
+  revalidatePath("/admin/proposals");
+  revalidatePath(`/portal/${slug}`);
+  redirect("/admin/proposals?ok=deleted");
 }
 
 // --- Inquiries (contact-form submissions) ----------------------------------

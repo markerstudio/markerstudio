@@ -4,8 +4,8 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
-import { createInvoice, setInvoiceStatus, deleteInvoice, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
-import type { ClientData } from "@/lib/clients";
+import { createInvoice, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
+import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 
 async function clientBySlug(slug: string) {
   const sql = getSql();
@@ -63,21 +63,75 @@ export async function createInvoiceFromNotion(formData: FormData) {
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }
 
+// New invoice straight from the Invoices tab. The client comes from the
+// dropdown (slug) or a free-typed name — an unknown name gets a minimal
+// portal created on the spot.
+export async function createInvoiceFromTab(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const clientName = String(formData.get("clientName") || "").trim();
+  const note = String(formData.get("note") || "").trim();
+  const dueDate = String(formData.get("dueDate") || "").trim();
+  const items = parseItems(formData.get("items"));
+  const addVat = String(formData.get("addVat") || "") === "on";
+  const vatRate = addVat ? parseFloat(String(formData.get("vatRate") || "16")) || 16 : 0;
+  const paidAmount = parseFloat(String(formData.get("paidAmount") || "0")) || 0;
+
+  if (items.length === 0) redirect("/admin/invoices?error=empty");
+
+  let target: { id: number; slug: string } | null = null;
+  if (slug && slug !== "__new") {
+    const c = await clientBySlug(slug);
+    if (c) target = { id: c.id, slug: c.slug };
+  } else if (clientName) {
+    target = await resolveOrCreateClientByName(clientName);
+  }
+  if (!target) redirect("/admin/invoices?error=client");
+
+  const { number } = await createInvoice({
+    clientId: target.id,
+    clientSlug: target.slug,
+    items,
+    note,
+    dueDate: dueDate || undefined,
+    source: "custom",
+    vatRate,
+    paidAmount,
+  });
+  revalidatePath(`/portal/${target.slug}`);
+  revalidatePath("/admin/invoices");
+  redirect(`/admin/invoices?ok=${encodeURIComponent(number)}`);
+}
+
 export async function setInvoiceStatusAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
+  const back = String(formData.get("back") || "").trim();
   const status = String(formData.get("status") || "draft") as InvoiceStatus;
   await setInvoiceStatus(id, status);
   revalidatePath(`/portal/${slug}`);
-  redirect(`/admin/clients/${slug}/edit?ok=invoice-updated`);
+  revalidatePath("/admin/invoices");
+  redirect(back || `/admin/clients/${slug}/edit?ok=invoice-updated`);
+}
+
+// Archive / restore from the Invoices tab (kept for records, hidden by default).
+export async function setInvoiceArchivedAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  const archived = String(formData.get("archived") || "") === "1";
+  await setInvoiceArchived(id, archived);
+  revalidatePath("/admin/invoices");
+  redirect(`/admin/invoices${archived ? "" : "?archived=1"}`);
 }
 
 export async function deleteInvoiceAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
+  const back = String(formData.get("back") || "").trim();
   await deleteInvoice(id);
   revalidatePath(`/portal/${slug}`);
-  redirect(`/admin/clients/${slug}/edit?ok=invoice-deleted`);
+  revalidatePath("/admin/invoices");
+  redirect(back || `/admin/clients/${slug}/edit?ok=invoice-deleted`);
 }
