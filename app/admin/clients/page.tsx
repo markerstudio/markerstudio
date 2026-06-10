@@ -1,30 +1,76 @@
-import Link from "next/link";
 import { isDbEnabled } from "@/lib/db";
 import { getClients } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
-import { deleteClient, quickCreateClient, quickCreateFromNotion } from "../actions";
+import ClientsGrid, { type ClientCardData } from "@/components/admin/ClientsGrid";
+import { quickCreateClient, quickCreateFromNotion, importAllNotionClients } from "../actions";
 
 export const dynamic = "force-dynamic";
+// Bulk Notion import walks every client record; give the action headroom.
+export const maxDuration = 60;
 
 const ERR: Record<string, string> = {
   name: "Enter a client name.",
   "notion-token": "NOTION_TOKEN isn't set. Add it in Vercel → Environment Variables and redeploy.",
   "notion-id": "Couldn't read a Notion page ID — paste the Clients Database row URL or its 32-char ID.",
-  "notion-fetch": "Couldn't reach that Notion page. Check the ID and that it's shared with your integration.",
+  "notion-fetch": "Couldn't reach Notion. Check NOTION_TOKEN and that the Clients Database is shared with your integration.",
 };
 
-export default async function ClientsHome({ searchParams }: { searchParams: { error?: string } }) {
+export default async function ClientsHome({ searchParams }: { searchParams: { error?: string; bulk?: string } }) {
   const dbOff = !isDbEnabled();
   const clients = dbOff ? [] : await getClients();
   const notionClients = await listNotionClients();
 
+  const norm = (s: string) => (s || "").replace(/-/g, "").toLowerCase();
+  const linkedPages = new Set(clients.map((c) => norm(c.data?.notionPageId || "")).filter(Boolean));
+  const notYetImported = notionClients.filter((n) => !linkedPages.has(norm(n.id)));
+
+  const cards: ClientCardData[] = clients.map((c) => ({
+    slug: c.slug,
+    name: c.name || c.slug,
+    color: c.color || "#303030",
+    logo: c.logo || "",
+    planName: c.data?.plan?.name || "",
+    balance: c.data?.plan?.balance || "",
+    status: c.data?.status === "pending" ? "pending" : c.data?.plan?.active ? "active" : "inactive",
+    notion: !!c.data?.notionPageId,
+  }));
+
+  // ?bulk=imported.linked.skipped.failed from the bulk import action.
+  const bulk = (searchParams.bulk || "").split(".").map((n) => parseInt(n, 10));
+  const bulkMsg =
+    bulk.length === 4 && bulk.every((n) => Number.isFinite(n))
+      ? [
+          bulk[0] ? `${bulk[0]} imported` : "",
+          bulk[1] ? `${bulk[1]} linked to existing portals` : "",
+          bulk[2] ? `${bulk[2]} already set up` : "",
+          bulk[3] ? `${bulk[3]} failed` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : "";
+
   return (
     <div>
-      <h1 className="text-2xl font-bold tracking-tight mb-6">Client portals</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+        <h1 className="text-2xl font-bold tracking-tight">Client portals</h1>
+        {notYetImported.length > 0 && (
+          <form action={importAllNotionClients}>
+            <button className="bg-charcoal text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-ink transition-colors">
+              Import all from Notion ({notYetImported.length})
+            </button>
+          </form>
+        )}
+      </div>
 
       {searchParams.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-5">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
+      {bulkMsg && (
+        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-5">
+          Notion import finished — {bulkMsg}.
+        </p>
+      )}
+      {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-5">No database configured.</p>}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <form action={quickCreateClient} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
@@ -37,12 +83,15 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
 
         <form action={quickCreateFromNotion} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Or import from Notion</label>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Or import one from Notion</label>
             {notionClients.length > 0 ? (
               <select name="notionPageId" required className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
                 <option value="">Choose a client…</option>
                 {notionClients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {linkedPages.has(norm(c.id)) ? " ✓ imported" : ""}
+                  </option>
                 ))}
               </select>
             ) : (
@@ -55,44 +104,11 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
 
       {notionClients.length === 0 && (
         <p className="text-xs text-neutral-500 -mt-3 mb-6">
-          Tip: to get a client dropdown here, set <code>NOTION_TOKEN</code> in Vercel and share your <b>Clients Database</b> with the integration (Notion → ••• → Connections).
+          Tip: to import clients here, set <code>NOTION_TOKEN</code> in Vercel and share your <b>Clients Database</b> with the integration (Notion → ••• → Connections).
         </p>
       )}
 
-      {dbOff && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>
-      )}
-
-      <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100">
-        {clients.map((c) => (
-          <div key={c.slug} className="flex items-center gap-4 px-4 py-3">
-            <span className="w-10 h-10 rounded-md flex items-center justify-center shrink-0" style={{ background: c.color }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              {c.logo && <img src={c.logo} alt="" className="max-w-[70%] max-h-[60%] object-contain invert brightness-0 opacity-90" />}
-            </span>
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate flex items-center gap-2">
-                {c.name}
-                {c.data?.status === "pending" && (
-                  <span className="shrink-0 text-[10px] font-semibold bg-orange text-white rounded-full px-1.5 py-0.5 leading-none uppercase tracking-wide">New</span>
-                )}
-              </div>
-              <div className="text-xs text-neutral-500 truncate">/portal/{c.slug}</div>
-            </div>
-            <Link href={`/portal/${c.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View ↗</Link>
-            <Link href={`/admin/clients/${c.slug}/edit`} className="text-sm font-medium text-neutral-700 hover:text-orange">Edit</Link>
-            <form action={deleteClient}>
-              <input type="hidden" name="slug" value={c.slug} />
-              <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Delete</button>
-            </form>
-          </div>
-        ))}
-        {!dbOff && clients.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-neutral-500">
-            No clients yet — create one, or click <b>Import example</b> to load the Dr. Jack demo.
-          </div>
-        )}
-      </div>
+      <ClientsGrid clients={cards} />
     </div>
   );
 }
