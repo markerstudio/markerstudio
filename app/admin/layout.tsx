@@ -10,8 +10,8 @@ export const metadata = { title: "Marker Admin", robots: { index: false, follow:
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getSession();
-  const unread = user && isDbEnabled() ? await countUnreadInquiries() : 0;
-  const apps = user && isDbEnabled() ? await countUnreadApplications() : 0;
+  const [unread, apps] =
+    user && isDbEnabled() ? await Promise.all([countUnreadInquiries(), countUnreadApplications()]) : [0, 0];
   return (
     <div dir="ltr" className="min-h-screen bg-neutral-100 text-neutral-900 font-sans">
       {user && (
