@@ -21,3 +21,24 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- Photo/video consent forms (see lib/consents.ts; created automatically by
+-- ensureConsentSchema). A form is a shareable signing link; each person who
+-- signs it becomes a consent_signatures row.
+CREATE TABLE IF NOT EXISTS consent_forms (
+  id          SERIAL PRIMARY KEY,
+  token       TEXT UNIQUE NOT NULL,
+  label       TEXT NOT NULL DEFAULT '',
+  lang        TEXT NOT NULL DEFAULT 'en',
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS consent_signatures (
+  id          SERIAL PRIMARY KEY,
+  form_id     INTEGER NOT NULL,
+  name        TEXT NOT NULL,
+  contact     TEXT NOT NULL DEFAULT '',
+  lang        TEXT NOT NULL DEFAULT 'en',
+  signature   TEXT NOT NULL,  -- hand-drawn signature as a PNG data URL
+  signed_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
