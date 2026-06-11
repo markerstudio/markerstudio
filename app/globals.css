@@ -1159,26 +1159,68 @@ body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
 /* ---- Portal header, mobile: two rows. Row 1 = logo + language + sign out,
    row 2 = full-width scrollable tabs. Stops the logo being crushed and the
    sign-out button wrapping when everything fought for one row. ---- */
+.ms-bottomnav { display: none; }
 @media (max-width: 760px) {
-  .ms-portal .ms-header__inner { flex-wrap: wrap; gap: 8px 10px; padding: 10px 0; }
+  /* Header: one calm row — logo, language, sign out. Tabs move to the
+     app-style bottom navigation below. */
+  .ms-portal .ms-header__inner { gap: 10px; padding: 10px 0; }
   .ms-portal .ms-logo { flex: 0 0 auto; }
   .ms-portal .ms-logo img { height: 24px; width: auto; }
   .ms-portal .ms-actions { margin-inline-start: auto; gap: 8px; flex: 0 0 auto; }
   .ms-portal .ms-lang { flex-direction: row; flex-wrap: nowrap; }
   .ms-portal .ms-lang button { padding: 8px 0; min-width: 38px; text-align: center; }
   .ms-portal .ms-portal-signout { padding: 8px 11px; font-size: 12px; white-space: nowrap; }
-  .ms-portal .ms-portal-tabs {
-    order: 5;
-    flex: 1 1 100%;
-    margin-inline-start: 0;
+  .ms-portal .ms-portal-tabs { display: none; }
+
+  /* Bottom navigation — floating liquid-glass dock, safe-area aware. */
+  .ms-bottomnav {
+    position: fixed;
+    bottom: calc(12px + env(safe-area-inset-bottom));
+    left: 12px;
+    right: 12px;
+    z-index: 150;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
     gap: 2px;
-    /* fade the trailing edge so it's obvious there's more to scroll */
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    padding: 6px;
+    border-radius: 30px;
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0.34));
+    -webkit-backdrop-filter: blur(24px) saturate(1.9);
+    backdrop-filter: blur(24px) saturate(1.9);
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    box-shadow:
+      0 16px 44px rgba(26, 26, 26, 0.2),
+      0 2px 8px rgba(26, 26, 26, 0.08),
+      inset 0 1px 0 rgba(255, 255, 255, 0.8),
+      inset 0 -1px 0 rgba(26, 26, 26, 0.05);
   }
-  [dir="rtl"] .ms-portal .ms-portal-tabs {
-    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
-    mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+  .ms-bottomnav button {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: 0;
+    color: rgba(26, 26, 26, 0.55);
+    font: 700 9.5px/1 var(--font-display);
+    letter-spacing: 0.02em;
+    padding: 9px 2px 8px;
+    border-radius: 24px;
+    cursor: pointer;
+    transition: color 160ms var(--ease-out), background 160ms var(--ease-out), box-shadow 160ms var(--ease-out), transform 120ms;
   }
-  .ms-portal .ms-portal-tab { padding: 8px 11px; font-size: 12.5px; }
+  body.ar .ms-bottomnav button { font-family: var(--font-arabic); font-size: 10.5px; }
+  .ms-bottomnav button svg { width: 19px; height: 19px; }
+  .ms-bottomnav button:active { transform: scale(0.93); }
+  .ms-bottomnav button.on {
+    color: #fff;
+    background: linear-gradient(180deg, #ffa226, var(--marker-orange));
+    box-shadow:
+      0 6px 18px rgba(255, 145, 0, 0.42),
+      inset 0 1px 0 rgba(255, 255, 255, 0.45);
+  }
+
+  /* Clear the floating dock: page bottom padding + lift the admin edit bar. */
+  .ms-portal { padding-bottom: 96px; }
+  .ms-portal .ms-edit-bar { bottom: calc(96px + env(safe-area-inset-bottom)); }
 }

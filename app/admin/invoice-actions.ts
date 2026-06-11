@@ -155,15 +155,24 @@ export async function invoicePaymentHistoryAction(formData: FormData) {
     }
     const amountNum = parseFloat((h.amount || "").replace(/[^0-9.]/g, "")) || 0;
     const paid = h.status === "paid" ? amountNum : 0;
+    // Notion-synced entries carry their real dates in the description
+    // ("Paid 2026-03-14" / "Due 2026-04-01") — use them so the invoice keeps
+    // the payment's actual timeline instead of being dated today.
+    const text = `${h.cycle || ""} ${h.desc || ""}`;
+    const payDate = text.match(/Paid\s+(\d{4}-\d{2}-\d{2})/i)?.[1];
+    const dueParsed = text.match(/Due\s+(\d{4}-\d{2}-\d{2})/i)?.[1];
+    const issuedDate = payDate || dueParsed || undefined;
     const dueDate =
-      h.status === "overdue" ? new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10) : undefined;
+      dueParsed ||
+      (h.status === "overdue" ? new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10) : undefined);
     await createInvoice({
       clientId: c.id,
       clientSlug: c.slug,
       items: [{ label, amount: h.amount || "" }],
-      source: "custom",
+      source: payDate || dueParsed ? "notion" : "custom",
       paidAmount: paid,
       status: h.status === "paid" ? "paid" : "due",
+      issuedDate,
       dueDate,
     });
     have.add(label.toLowerCase());

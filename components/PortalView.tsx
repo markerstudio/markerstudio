@@ -25,6 +25,38 @@ const STATUS_PILL: Record<string, string> = {
   overdue: "ms-portal-pill--red",
 };
 
+// Short labels for the dock — six columns on a phone leave no room for long words.
+const DOCK_LABELS: Record<string, { en: string; ar: string }> = {
+  dashboard: { en: "Home", ar: "الرئيسية" },
+  plan: { en: "Plan", ar: "الخطة" },
+  social: { en: "Social", ar: "سوشال" },
+  analysis: { en: "Analysis", ar: "التحليل" },
+  invoices: { en: "Finance", ar: "المالية" },
+  documents: { en: "Docs", ar: "مستندات" },
+};
+
+// Bottom-nav icons (mobile) — one simple stroke glyph per tab.
+const TAB_ICONS: Record<string, React.ReactNode> = {
+  dashboard: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+  ),
+  plan: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 21V4a1 1 0 0 1 1-1h11l-2 4 2 4H5" /></svg>
+  ),
+  social: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18" /></svg>
+  ),
+  analysis: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 20V10M10 20V4M16 20v-7M21 20H3" /></svg>
+  ),
+  invoices: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="6" width="18" height="13" rx="2" /><path d="M3 10h18M7 15h4" /></svg>
+  ),
+  documents: (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 2h8l5 5v15H6z" /><path d="M14 2v6h6" /></svg>
+  ),
+};
+
 export default function PortalView({
   client,
   canEdit = false,
@@ -384,6 +416,9 @@ export default function PortalView({
                 <span className="ms-section__eyebrow">{ui("Finance", "المالية")}</span>
                 <h2 className="ms-section__title">{ui("Payments & balance.", "المدفوعات والرصيد.")}</h2>
               </div>
+              <a className="ms-btn ms-btn-outline" href={`/portal/${client.slug}/invoices`}>
+                {ui("All invoices", "كل الفواتير")} <span>→</span>
+              </a>
             </div>
 
             <div className="ms-portal-grid">
@@ -543,6 +578,23 @@ export default function PortalView({
           </div>
         </section>
       )}
+
+      {/* Mobile bottom navigation — replaces the header tab row on phones. */}
+      <nav className="ms-bottomnav" aria-label={ui("Portal sections", "أقسام البوابة")}>
+        {TABS.map((tb) => (
+          <button
+            key={tb.id}
+            className={tab === tb.id ? "on" : ""}
+            onClick={() => {
+              setTab(tb.id);
+              window.scrollTo({ top: 0 });
+            }}
+          >
+            {TAB_ICONS[tb.id]}
+            <span>{ui(DOCK_LABELS[tb.id]?.en || tb.en, DOCK_LABELS[tb.id]?.ar || tb.ar)}</span>
+          </button>
+        ))}
+      </nav>
 
       <footer className="ms-footer">
         <div className="ms-container">
