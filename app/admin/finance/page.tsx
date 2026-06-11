@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getFinance, fmtILS, type MonthFin } from "@/lib/finance";
+import { getFinance, fmtILS, type MonthFin, type PaymentRow } from "@/lib/finance";
 import { timeAgo } from "@/lib/dashboard";
 import { syncFinance } from "../actions";
 
@@ -52,6 +52,20 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
 
   const chartMax = Math.max(1, ...months.map((m) => Math.max(m.income, m.expenses)));
   const bestMonth = months.reduce((best, m) => (m.income > best.income ? m : best), months[0]);
+
+  // Payments of the selected year, grouped by month (newest month first —
+  // payments inside a month are already newest-first from the lib).
+  const paymentMonths: { ym: string; rows: PaymentRow[]; total: number }[] = [];
+  for (const p of f.payments.filter((p) => p.payDate.startsWith(`${year}-`))) {
+    const ym = p.payDate.slice(0, 7);
+    let g = paymentMonths[paymentMonths.length - 1];
+    if (!g || g.ym !== ym) {
+      g = { ym, rows: [], total: 0 };
+      paymentMonths.push(g);
+    }
+    g.rows.push(p);
+    g.total += p.ils;
+  }
 
   // Year-over-year overview rows.
   const yearRows = years.map((y) => {
@@ -228,6 +242,63 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
                 )}
               </div>
             </div>
+          </div>
+
+          {/* ---- Payments received, month by month ---- */}
+          <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "330ms" }}>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
+              <h2 className="font-bold tracking-tight">Payments — {year}</h2>
+              {paymentMonths.length > 0 && (
+                <span className="text-xs text-neutral-400 tabular-nums">
+                  {paymentMonths.reduce((n, g) => n + g.rows.length, 0)} payments · {fmtILS(paymentMonths.reduce((s, g) => s + g.total, 0))}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-500 mb-3">Every payment received, newest first. The current month is open — tap a month to expand it.</p>
+            {paymentMonths.length === 0 ? (
+              <p className="text-sm text-neutral-400 py-6 text-center">No payments recorded in {year} yet.</p>
+            ) : (
+              <div className="divide-y divide-neutral-100">
+                {paymentMonths.map((g, gi) => (
+                  <details key={g.ym} open={gi === 0} className="group">
+                    <summary className="flex items-center gap-3 py-2.5 cursor-pointer select-none list-none [&::-webkit-details-marker]:hidden">
+                      <span className="text-neutral-300 text-xs transition-transform group-open:rotate-90">▶</span>
+                      <span className="font-bold text-neutral-900">
+                        {MONTHS[Number(g.ym.slice(5)) - 1]} {g.ym.slice(0, 4)}
+                      </span>
+                      <span className="text-xs text-neutral-400 tabular-nums">
+                        {g.rows.length} payment{g.rows.length === 1 ? "" : "s"}
+                      </span>
+                      <span className="ml-auto tabular-nums font-bold text-green-700">{fmtILS(g.total)}</span>
+                    </summary>
+                    <ul className="pb-3 pl-6 divide-y divide-neutral-50">
+                      {g.rows.map((p, i) => (
+                        <li key={i} className="py-2 flex items-center gap-3 flex-wrap">
+                          <div className="flex-1 min-w-[160px]">
+                            <div className="text-sm font-semibold text-neutral-900 truncate">{p.sourceName || p.name}</div>
+                            <div className="text-[11px] text-neutral-500 truncate">
+                              {p.sourceName && p.name !== p.sourceName ? `${p.name} · ` : ""}
+                              paid {new Date(p.payDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                            </div>
+                          </div>
+                          {p.daysLate > 3 && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold bg-red-100 text-red-700 whitespace-nowrap">
+                              {p.daysLate}d late
+                            </span>
+                          )}
+                          <span className="tabular-nums text-sm font-bold text-neutral-900">{p.amountLabel}</span>
+                          {p.clientSlug ? (
+                            <Link href={`/admin/clients/${p.clientSlug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">→</Link>
+                          ) : p.notionUrl ? (
+                            <a href={p.notionUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-neutral-300 hover:text-orange">↗</a>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ---- Month-by-month ledger ---- */}

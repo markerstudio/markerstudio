@@ -4,6 +4,8 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { deleteClient } from "@/app/admin/actions";
 
+export type SectionState = "done" | "sent" | "draft" | "empty";
+
 export type ClientCardData = {
   slug: string;
   name: string;
@@ -13,6 +15,8 @@ export type ClientCardData = {
   balance: string; // combined money left, already formatted ("600 ILS")
   status: "active" | "pending" | "inactive";
   notion: boolean; // linked to a Notion Clients Database record
+  sections: { key: string; state: SectionState; href: string }[]; // fill matrix
+  pct: number; // % of sections filled/sent
 };
 
 type Filter = "all" | "active" | "pending" | "inactive";
@@ -25,8 +29,17 @@ const STATUS_META: Record<ClientCardData["status"], { label: string; cls: string
 
 const ORDER: Record<ClientCardData["status"], number> = { pending: 0, active: 1, inactive: 2 };
 
+const DOT: Record<SectionState, string> = {
+  done: "bg-green-500",
+  sent: "bg-orange",
+  draft: "bg-neutral-300",
+  empty: "bg-neutral-200 border border-dashed border-neutral-300",
+};
+
 /* Clients as a classified card grid: filter chips with live counts, name
-   search, and per-card quick actions. Pending sign-ups float to the top. */
+   search, and the fill matrix on every card. Pending sign-ups float to the
+   top. Clicking the card opens the portal editor (the daily task); settings,
+   portal preview and delete are explicit actions on the card. */
 export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -59,7 +72,7 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
   return (
     <div>
       {/* Toolbar — classification chips + search */}
-      <div className="flex items-center gap-3 flex-wrap mb-4">
+      <div className="flex items-center gap-3 flex-wrap mb-3">
         <div className="flex items-center gap-1.5 flex-wrap">
           {chips.map((c) => {
             const on = filter === c.key;
@@ -82,8 +95,17 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search clients…"
+          autoComplete="off"
           className="ml-auto w-full sm:w-56 border border-neutral-200 bg-white rounded-full px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange"
         />
+      </div>
+
+      {/* Fill-matrix legend */}
+      <div className="flex items-center gap-3 text-[11px] text-neutral-500 mb-4 flex-wrap">
+        <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.done}`} /> filled</span>
+        <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.sent}`} /> sent</span>
+        <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.draft}`} /> draft</span>
+        <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.empty}`} /> empty</span>
       </div>
 
       {/* Card grid */}
@@ -101,8 +123,8 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                 className="adm-rise group relative bg-white border border-neutral-200 rounded-xl p-4 hover:border-orange hover:shadow-md hover:-translate-y-0.5 transition-all"
                 style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
               >
-                {/* Whole-card link to edit; action buttons sit above it */}
-                <Link href={`/admin/clients/${c.slug}/edit`} className="absolute inset-0 z-0" aria-label={`Edit ${c.name}`} />
+                {/* Whole-card link opens the portal editor; explicit actions sit above it */}
+                <Link href={`/portal/${c.slug}?edit=1`} className="absolute inset-0 z-0" aria-label={`Fill ${c.name}'s portal`} />
 
                 <div className="flex items-start justify-between gap-3 pointer-events-none">
                   <span className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-lg" style={{ background: c.color }}>
@@ -110,7 +132,7 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.logo} alt="" className="max-w-[70%] max-h-[60%] object-contain invert brightness-0 opacity-90" />
                     ) : (
-                      c.name.charAt(0).toUpperCase()
+                      (c.name || c.slug).charAt(0).toUpperCase()
                     )}
                   </span>
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${meta.cls}`}>{meta.label}</span>
@@ -128,11 +150,26 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                   <div className="text-xs text-neutral-500 truncate mt-0.5">{c.planName || `/portal/${c.slug}`}</div>
                 </div>
 
-                <div className="mt-3 flex items-center justify-between gap-2 min-h-[26px]">
+                {/* Fill matrix — each dot links to where that section is edited */}
+                <div className="relative z-10 mt-3 flex items-center gap-1.5">
+                  {c.sections.map((s) => (
+                    <Link key={s.key} href={s.href} title={`${s.key}: ${s.state}`} className="group/dot">
+                      <span className={`inline-block w-3.5 h-3.5 rounded-full transition-transform group-hover/dot:scale-125 ${DOT[s.state]}`} />
+                    </Link>
+                  ))}
+                  <span className={`ml-auto tabular-nums text-xs font-bold ${c.pct === 100 ? "text-green-700" : c.pct >= 50 ? "text-neutral-700" : "text-orange-deep"}`}>
+                    {c.pct}%
+                  </span>
+                </div>
+
+                <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between gap-2">
                   <span className={`pointer-events-none text-xs font-semibold tabular-nums ${c.balance ? "text-orange-deep" : "text-neutral-300"}`}>
                     {c.balance ? `${c.balance} left` : "—"}
                   </span>
-                  <span className="relative z-10 flex items-center gap-2 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                  <span className="relative z-10 flex items-center gap-2.5">
+                    <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-500 hover:text-orange">
+                      Settings
+                    </Link>
                     <Link href={`/portal/${c.slug}`} target="_blank" className="text-xs font-semibold text-neutral-500 hover:text-orange">
                       Portal ↗
                     </Link>
