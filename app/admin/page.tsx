@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { getDashboardData, fmtMoney, timeAgo } from "@/lib/dashboard";
 import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
+import { runPaymentHistoryBackfill } from "@/lib/backfill";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +98,9 @@ async function FinanceCard() {
 }
 
 export default async function AdminDashboard() {
+  // One-time: invoice every client's payment history (backdated). Self-guarded
+  // by a flag row — after the first run this is a single cheap SELECT.
+  await runPaymentHistoryBackfill();
   const [user, d] = await Promise.all([getSession(), getDashboardData()]);
   const firstName = (user?.name || "there").split(" ")[0];
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
