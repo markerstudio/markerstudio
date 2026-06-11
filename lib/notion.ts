@@ -63,7 +63,9 @@ function incomeRowToInvoice(ip: any): (Invoice & { _d: string }) {
 
   return {
     cycle: nm || payDate || dueDate || "Payment",
-    desc: payDate ? `Paid ${payDate}` : dueDate ? `Due ${dueDate}` : "",
+    // Keep BOTH dates — the portal shows them, and "Invoice payment history"
+    // uses them to backdate the generated invoice to the real timeline.
+    desc: [dueDate ? `Due ${dueDate}` : "", payDate ? `Paid ${payDate}` : ""].filter(Boolean).join(" · "),
     amount,
     status: payDate ? "paid" : "due",
     _d: payDate || dueDate || "",
@@ -87,45 +89,73 @@ export async function listNotionClients(): Promise<{ id: string; name: string }[
   }
 }
 
-async function fetchSourceFinance(clientPageId: string): Promise<{ balance: string; monthlyFee: string; progress: number; brandingFee: string }> {
-  const out = { balance: "", monthlyFee: "", progress: 0, brandingFee: "" };
+// Per-client finance from the Budget Tracker's Sources DB. A client often has
+// SEVERAL source rows (e.g. one for branding, one for monthly marketing) — so
+// everything money-related is summed across ALL of them. Reading just the
+// first row under-reported "Money left" whenever branding and marketing lived
+// in separate sources.
+async function fetchSourceFinance(clientPageId: string): Promise<{
+  balance: string;
+  balanceNum: number;
+  monthlyFee: string;
+  progress: number;
+  brandingFee: string;
+}> {
+  const out = { balance: "", balanceNum: 0, monthlyFee: "", progress: 0, brandingFee: "" };
   try {
     const q = await notionPost(`/v1/databases/${SOURCES_DB}/query`, {
       filter: { property: "Clients Database", relation: { contains: clientPageId } },
-      page_size: 1,
+      page_size: 50,
     });
-    const props = q.results?.[0]?.properties;
-    if (!props) return out;
+    const rows = (q.results || []).map((r: any) => r.properties).filter(Boolean);
+    if (rows.length === 0) return out;
 
-    // Branding (fixed) fee — the "Branding Cost" number (any number/formula
-    // property whose name mentions "branding").
-    for (const [name, prop] of Object.entries<any>(props)) {
-      if (!/brand/i.test(name)) continue;
-      const n = prop?.type === "formula" ? prop.formula?.number : prop?.number;
-      if (typeof n === "number" && n > 0) { out.brandingFee = `${n.toLocaleString()} ILS`; break; }
+    let owedSum = 0;
+    let sawMoneyLeft = false;
+    let brandingSum = 0;
+    let feeSum = 0;
+    const progresses: number[] = [];
+
+    for (const props of rows) {
+      // Branding (fixed) fee — any number/formula property mentioning "branding".
+      for (const [name, prop] of Object.entries<any>(props)) {
+        if (!/brand/i.test(name)) continue;
+        const n = prop?.type === "formula" ? prop.formula?.number : prop?.number;
+        if (typeof n === "number" && n > 0) {
+          brandingSum += n;
+          break;
+        }
+      }
+
+      // Money Left — the tracker stores it NEGATIVE while the client owes.
+      const ml = props["Money Left"];
+      const mlNum = ml?.type === "formula" ? ml.formula?.number : ml?.number;
+      if (mlNum != null) {
+        sawMoneyLeft = true;
+        owedSum += Math.max(0, -mlNum);
+      }
+
+      // Monthly fee — summed in case marketing is split across sources.
+      const fee = props["Monthly Income"]?.number;
+      if (typeof fee === "number" && fee > 0) feeSum += fee;
+
+      // Per-source coverage formula, kept as a fallback for the combined figure.
+      const pf = props["Progress"]?.formula ?? props["Paid Percentage"]?.formula;
+      const pp = typeof pf?.number === "number"
+        ? pf.number
+        : typeof pf?.string === "string"
+          ? parseFloat(pf.string.replace(/[^0-9.]/g, ""))
+          : NaN;
+      if (!Number.isNaN(pp)) progresses.push(Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp))));
     }
 
-    // Money Left = combined balance (branding + monthly + extras − paid). The
-    // tracker stores it NEGATIVE when the client owes money, so flip the sign
-    // for the portal's "Money left" figure; zero/positive means nothing owed.
-    const ml = props["Money Left"];
-    const mlNum = ml?.type === "formula" ? ml.formula?.number : ml?.number;
-    if (mlNum != null) out.balance = `${Math.max(0, -mlNum).toLocaleString()} ILS`;
-    else if (ml?.formula?.string) out.balance = ml.formula.string;
-
-    // Monthly fee.
-    const fee = props["Monthly Income"]?.number;
-    if (fee != null) out.monthlyFee = `${fee.toLocaleString()} ILS`;
-
-    // Coverage: use the source's own combined Progress / Paid Percentage formula
-    // (Money Left is combined, so we must NOT recompute it from the monthly fee).
-    const pf = props["Progress"]?.formula ?? props["Paid Percentage"]?.formula;
-    const pp = typeof pf?.number === "number"
-      ? pf.number
-      : typeof pf?.string === "string"
-        ? parseFloat(pf.string.replace(/[^0-9.]/g, ""))
-        : NaN;
-    if (!Number.isNaN(pp)) out.progress = Math.max(0, Math.min(100, Math.round(pp <= 1 ? pp * 100 : pp)));
+    if (sawMoneyLeft) {
+      out.balanceNum = owedSum;
+      out.balance = `${owedSum.toLocaleString()} ILS`;
+    }
+    if (brandingSum > 0) out.brandingFee = `${brandingSum.toLocaleString()} ILS`;
+    if (feeSum > 0) out.monthlyFee = `${feeSum.toLocaleString()} ILS`;
+    if (progresses.length) out.progress = Math.round(progresses.reduce((a, b) => a + b, 0) / progresses.length);
   } catch {
     /* ignore — no source linked, or query failed */
   }
@@ -186,9 +216,23 @@ export async function fetchNotionClient(pageId: string): Promise<{
   rows.sort((a, b) => (a._d < b._d ? 1 : a._d > b._d ? -1 : 0)); // newest first
   const invoices: Invoice[] = rows.map(({ _d, ...inv }) => inv);
 
+  // Combined "Paid %" from what actually happened: total ILS received across
+  // paid income rows vs. what's still owed (Money Left summed over ALL the
+  // client's sources — branding + marketing together). Falls back to the
+  // sources' own averaged Progress formula when there are no payments yet.
+  let progress = fin.progress;
+  const paidSum = rows.reduce((sum, r) => {
+    if (r.status !== "paid") return sum;
+    const m = (r.amount || "").match(/([\d,.]+)\s*ILS/i);
+    return sum + (m ? parseFloat(m[1].replace(/,/g, "")) || 0 : 0);
+  }, 0);
+  if (paidSum > 0 || fin.balanceNum > 0) {
+    progress = Math.max(0, Math.min(100, Math.round((paidSum / Math.max(1, paidSum + fin.balanceNum)) * 100)));
+  }
+
   return {
     name, start, end, active, planName, note,
-    balance: fin.balance, monthlyFee: fin.monthlyFee, progress: fin.progress, invoices,
+    balance: fin.balance, monthlyFee: fin.monthlyFee, progress, invoices,
     brandingFee: fin.brandingFee,
   };
 }

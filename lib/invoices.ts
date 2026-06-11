@@ -47,10 +47,10 @@ export async function ensureInvoicesTable(): Promise<void> {
   await sql`UPDATE invoices SET status = 'due' WHERE status = 'sent'`;
 }
 
-// INV-YYYY-NNN, sequential within the calendar year.
-async function nextNumber(): Promise<string> {
+// INV-YYYY-NNN, sequential within the calendar year (the issue year, so a
+// backdated payment gets a number from its own year's sequence).
+async function nextNumber(year = new Date().getFullYear()): Promise<string> {
   const sql = getSql();
-  const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
   const rows = (await sql`
     SELECT number FROM invoices WHERE number LIKE ${prefix + "%"} ORDER BY id DESC LIMIT 1
@@ -68,6 +68,7 @@ export async function createInvoice(input: {
   clientSlug: string;
   items: InvoiceItem[];
   note?: string;
+  issuedDate?: string; // backdate historical payments so records keep their real timeline
   dueDate?: string;
   source?: "custom" | "notion";
   vatRate?: number;
@@ -76,16 +77,18 @@ export async function createInvoice(input: {
 }): Promise<{ id: number; number: string }> {
   await ensureInvoicesTable();
   const sql = getSql();
-  const number = await nextNumber();
   const items = JSON.stringify(input.items || []);
   const vat = Number.isFinite(input.vatRate) ? Number(input.vatRate) : 0;
   const paid = Number.isFinite(input.paidAmount) ? Math.max(0, Number(input.paidAmount)) : 0;
+  const issued = input.issuedDate || new Date().toISOString().slice(0, 10);
+  const issuedYear = parseInt(issued.slice(0, 4), 10);
+  const number = await nextNumber(Number.isFinite(issuedYear) ? issuedYear : undefined);
   // Derive the opening status from what's been paid unless one was passed.
   const grand = invoiceGrandTotal(input.items || [], vat);
   const status = input.status || (paid <= 0 ? "draft" : paid >= grand && grand > 0 ? "paid" : "partial");
   const rows = (await sql`
-    INSERT INTO invoices (number, client_id, client_slug, due_date, items, note, source, vat_rate, paid_amount, status)
-    VALUES (${number}, ${input.clientId}, ${input.clientSlug}, ${input.dueDate || null}, ${items}::jsonb, ${input.note || null}, ${input.source || "custom"}, ${vat}, ${paid}, ${status})
+    INSERT INTO invoices (number, client_id, client_slug, issued_date, due_date, items, note, source, vat_rate, paid_amount, status)
+    VALUES (${number}, ${input.clientId}, ${input.clientSlug}, ${issued}, ${input.dueDate || null}, ${items}::jsonb, ${input.note || null}, ${input.source || "custom"}, ${vat}, ${paid}, ${status})
     RETURNING id
   `) as unknown as { id: number }[];
   return { id: rows[0].id, number };
