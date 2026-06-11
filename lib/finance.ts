@@ -65,6 +65,14 @@ export type OverduePayment = {
   clientSlug: string | null;
 };
 
+// One month of money movement, built from dated Income / Expenses rows.
+export type MonthFin = {
+  ym: string; // "2026-03"
+  income: number; // ILS actually received (Pay Date in this month)
+  expenses: number; // ILS spent (Date in this month)
+  expected: number; // unpaid income rows due this month (open money)
+};
+
 export type FinanceData = {
   available: boolean; // NOTION_TOKEN present and the tracker reachable
   error?: string;
@@ -77,6 +85,7 @@ export type FinanceData = {
   diag?: string; // surfaced when the debt source list looks incomplete
   overdue: OverduePayment[]; // unpaid rows past their due date, most overdue first
   overdueTotal: number;
+  monthly: MonthFin[]; // every month with activity, oldest first
   collectedThisMonthILS: number;
   expectedThisMonthILS: number; // unpaid rows due this month
   expensesThisMonthILS: number;
@@ -93,6 +102,7 @@ const EMPTY: FinanceData = {
   debtSourceCount: 0,
   overdue: [],
   overdueTotal: 0,
+  monthly: [],
   collectedThisMonthILS: 0,
   expectedThisMonthILS: 0,
   expensesThisMonthILS: 0,
@@ -292,6 +302,16 @@ async function fetchFinance(): Promise<FinanceData> {
     });
   }
 
+  // Time series — every dated shekel in or out, bucketed by month.
+  const monthlyMap = new Map<string, MonthFin>();
+  const bump = (date: string, k: "income" | "expenses" | "expected", v: number) => {
+    const ym = (date || "").slice(0, 7);
+    if (!/^\d{4}-\d{2}$/.test(ym) || !v) return;
+    const m = monthlyMap.get(ym) || { ym, income: 0, expenses: 0, expected: 0 };
+    m[k] += v;
+    monthlyMap.set(ym, m);
+  };
+
   for (const r of incomes) {
     const p = r.properties || {};
     const pay = dateOf(p, "Pay Date");
@@ -300,6 +320,9 @@ async function fetchFinance(): Promise<FinanceData> {
     const usd = num(p, "USD");
     const srcIds = relIds(p, "Source");
     const clientIds = relIds(p, "Clients Database");
+
+    if (pay) bump(pay, "income", ils);
+    else if (due) bump(due, "expected", ils);
 
     if (pay && pay >= monthStart && pay <= today) collectedThisMonthILS += ils;
     if (!pay && due && due >= monthStart && due <= `${today.slice(0, 8)}31`) expectedThisMonthILS += ils;
@@ -410,8 +433,11 @@ async function fetchFinance(): Promise<FinanceData> {
   for (const e of expenses) {
     const p = e.properties || {};
     const dt = dateOf(p, "Date");
-    if (dt && dt >= monthStart && dt <= today) expensesThisMonthILS += num(p, "ILS");
+    const ils = num(p, "ILS");
+    if (dt) bump(dt, "expenses", ils);
+    if (dt && dt >= monthStart && dt <= today) expensesThisMonthILS += ils;
   }
+  const monthly = Array.from(monthlyMap.values()).sort((a, b) => (a.ym < b.ym ? -1 : 1));
 
   return {
     available: true,
@@ -427,6 +453,7 @@ async function fetchFinance(): Promise<FinanceData> {
     diag,
     overdue,
     overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
+    monthly,
     collectedThisMonthILS,
     expectedThisMonthILS,
     expensesThisMonthILS,
