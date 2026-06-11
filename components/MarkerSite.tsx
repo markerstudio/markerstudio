@@ -220,6 +220,29 @@ function ScrollProgress() {
 // Nav items map to section anchors, by index, matching content order.
 const NAV_HREFS = ["#work", "#services", "#studio", "#faq", "#contact"];
 
+/* The Marker V — the mark alone, crisp at any size (inline SVG, brand orange). */
+function MarkerMark({ size = 30 }: { size?: number }) {
+  return (
+    <svg width={Math.round(size * 0.66)} height={size} viewBox="27 25 38 58" aria-hidden focusable="false">
+      <path d="M30 28 L46 72 L52 60 L40 28 Z" fill="#FF9100" />
+      <path d="M52 40 L62 28 L56 46 Z" fill="#FF9100" />
+      <path d="M40 72 L46 72 L43 80 Z" fill="#FF9100" />
+    </svg>
+  );
+}
+
+/* Menu icons — one stroke glyph per nav item (shown in the mobile menu). */
+const NAV_ICONS = [
+  <svg key="work" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>,
+  <svg key="services" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3l1.9 5.6L20 10l-6.1 1.4L12 17l-1.9-5.6L4 10l6.1-1.4L12 3z" /></svg>,
+  <svg key="studio" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="9" cy="8" r="3.5" /><path d="M3 20c0-3 2.7-5 6-5s6 2 6 5" /><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21 20c0-2.5-1.8-4.2-4.3-4.8" /></svg>,
+  <svg key="faq" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 3h9l5 5v13H6z" /><path d="M14 3v6h6M9 13h7M9 17h5" /></svg>,
+  <svg key="contact" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m4 7 8 6 8-6" /></svg>,
+];
+const CAREERS_ICON = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M3 12h18" /></svg>
+);
+
 function SiteHeader({
   lang,
   setLang,
@@ -264,9 +287,8 @@ function SiteHeader({
   return (
     <header className={`ms-header ${scrolled ? "is-scrolled" : ""}`}>
       <div className="ms-container ms-header__inner">
-        <a className="ms-logo" href="#top" onClick={() => setMenuOpen(false)}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={LOGO} alt="Marker Studio" />
+        <a className="ms-logo" href="#top" aria-label="Marker Studio" onClick={() => setMenuOpen(false)}>
+          <MarkerMark />
         </a>
         <nav className={`ms-nav ${menuOpen ? "is-open" : ""}`}>
           {t.nav.map((item, i) => (
@@ -276,24 +298,21 @@ function SiteHeader({
               className={active === NAV_HREFS[i] ? "active" : ""}
               onClick={() => setMenuOpen(false)}
             >
+              <span className="ms-nav__ic">{NAV_ICONS[i]}</span>
               {item}
             </a>
           ))}
           <Link href="/careers" onClick={() => setMenuOpen(false)}>
+            <span className="ms-nav__ic">{CAREERS_ICON}</span>
             {lang === "ar" ? "الوظائف" : "Careers"}
           </Link>
-          <Link href="/login" className="ms-nav__login" onClick={() => setMenuOpen(false)}>
-            {t.cta.login}
-          </Link>
+          <div className="ms-nav__foot">
+            <Link href="/login" className="ms-btn ms-btn-primary ms-nav__loginbtn" onClick={() => setMenuOpen(false)}>
+              {t.cta.login}
+            </Link>
+          </div>
         </nav>
         <div className="ms-actions">
-          <Link href="/login" className="ms-login" aria-label={t.cta.login}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
-              <circle cx="12" cy="8" r="4" />
-              <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
-            </svg>
-            <span>{t.cta.login}</span>
-          </Link>
           <div className="ms-lang" role="group" aria-label="Language">
             <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>
               EN
@@ -302,6 +321,12 @@ function SiteHeader({
               ع
             </button>
           </div>
+          <Link href="/login" className="ms-login" aria-label={t.cta.login} title={t.cta.login}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
+              <circle cx="12" cy="8" r="4" />
+              <path d="M4 20c0-3.3 3.6-6 8-6s8 2.7 8 6" />
+            </svg>
+          </Link>
           <Magnetic className="ms-cta-desktop">
             <a href="#contact" className="ms-btn ms-btn-primary">
               {t.cta.primary} <span>{t.cta.arrow}</span>
@@ -313,7 +338,6 @@ function SiteHeader({
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen((v) => !v)}
           >
-            <span />
             <span />
             <span />
           </button>
