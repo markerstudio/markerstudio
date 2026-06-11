@@ -125,7 +125,8 @@
 /* ===============================================================
    SEMANTIC TYPE STYLES
    =============================================================== */
-html { font-family: var(--font-latin); color: var(--fg); background: var(--bg); scroll-behavior: smooth; }
+html { font-family: var(--font-latin); color: var(--fg); background: var(--bg); scroll-behavior: smooth; overflow-x: clip; }
+body { overflow-x: clip; }
 /* Offset anchor jumps so the sticky header doesn't cover section tops */
 section[id], div[id="top"] { scroll-margin-top: 84px; }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
@@ -476,7 +477,7 @@ body.ar .ms-contact__big { font-family: var(--font-arabic-display); font-size: 6
 .ms-contact__success-ico { width: 56px; height: 56px; border-radius: var(--r-pill); background: var(--marker-orange); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: var(--shadow-orange); }
 .ms-contact__success p { font: 500 17px/1.5 var(--font-body); color: var(--fg); margin: 0; max-width: 32ch; }
 /* Honeypot — visually hidden, off the layout, ignored by humans. */
-.ms-hp { position: absolute; left: -9999px; top: auto; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.ms-hp { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; clip-path: inset(50%); pointer-events: none; }
 
 /* ---- Footer ---- */
 .ms-footer { padding: 64px 0 32px; background: var(--marker-ink); color: rgba(255,255,255,.7); }
@@ -633,10 +634,17 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
     backdrop-filter: blur(22px) saturate(1.8);
     -webkit-backdrop-filter: blur(22px) saturate(1.8);
   }
-  .ms-header .ms-container { padding: 0 18px; }
-  .ms-header__inner { padding: 9px 0; }
+  .ms-header .ms-container { padding: 0 16px; }
+  .ms-header__inner { padding: 8px 0; gap: 12px; }
   .ms-header.is-scrolled .ms-header__inner { padding: 8px 0; }
-  .ms-burger { display: flex; }
+  .ms-header .ms-logo img, .ms-header.is-scrolled .ms-logo img { height: 25px; }
+  .ms-header .ms-actions { gap: 8px; }
+  .ms-burger { display: flex; width: 34px; height: 34px; padding: 0 8px; gap: 4px; border-radius: 999px; }
+  .ms-burger.is-open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
+  .ms-burger.is-open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
+  .ms-login span { display: none; }
+  .ms-lang { border-radius: 999px; }
+  .ms-lang button { padding: 7px 10px; }
   .ms-cta-desktop { display: none; }
   .ms-nav {
     position: absolute; top: calc(100% + 10px); left: 6px; right: 6px;
