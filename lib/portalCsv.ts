@@ -72,11 +72,11 @@ export function toCSV(d: ClientData): string {
 
   bi("analysis.organic.headline", d.analysis?.organic?.headline);
   bi("analysis.organic.reading", d.analysis?.organic?.reading);
-  const metrics = d.analysis?.organic?.metrics?.length ? d.analysis.organic.metrics : [{ label: "", before: "", after: "", note: "" }];
+  const metrics = d.analysis?.organic?.metrics?.length ? d.analysis.organic.metrics : [{ label: "", value: "", delta: "", note: "" }];
   metrics.forEach((m, i) => {
     val(`analysis.organic.metrics[${i}].label`, m.label);
-    val(`analysis.organic.metrics[${i}].before`, m.before);
-    val(`analysis.organic.metrics[${i}].after`, m.after);
+    val(`analysis.organic.metrics[${i}].value`, m.value || m.after || "");
+    val(`analysis.organic.metrics[${i}].delta`, m.delta || "");
     val(`analysis.organic.metrics[${i}].note`, m.note);
   });
 
@@ -191,7 +191,7 @@ function pruneArrays(d: any): ClientData {
   d.dashboard.cards = clean(d.dashboard.cards, ["tag", "value", "desc"]);
   d.dashboard.vitals = clean(d.dashboard.vitals, ["label", "note"]);
   d.social.posts = clean(d.social.posts, ["date", "platform", "title"]);
-  d.analysis.organic.metrics = clean(d.analysis.organic.metrics, ["label", "before", "after", "note"]);
+  d.analysis.organic.metrics = clean(d.analysis.organic.metrics, ["label", "value", "delta", "note", "before", "after"]);
   d.analysis.paid.campaigns = clean(d.analysis.paid.campaigns, ["name", "period", "spend", "reach", "desc"]);
   d.invoices = clean(d.invoices, ["cycle", "desc", "amount"]);
   d.documents = clean(d.documents, ["title", "url"]);

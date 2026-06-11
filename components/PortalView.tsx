@@ -348,17 +348,52 @@ export default function PortalView({
                 <h2 className="ms-section__title">{f(tr(d.analysis?.organic?.headline), (v) => up((c) => (c.analysis.organic.headline[lang] = v)), false, ui("Headline…", "عنوان…"))}</h2>
               </div>
             </div>
-            <div className="ms-pcard">
+            <div className="ms-pcard" style={{ background: "transparent", border: 0, padding: 0, boxShadow: "none" }}>
               {!edit && (d.analysis?.organic?.metrics ?? []).length === 0 && <p className="ms-pmuted">{ui("No organic results yet.", "لا نتائج عضوية بعد.")}</p>}
-              {(d.analysis?.organic?.metrics ?? []).map((m, i) => (
-                <div key={i} className="ms-portal-metric" style={{ position: "relative" }}>
-                  <div className="ms-portal-metric__title">{f(m.label, (v) => up((c) => (c.analysis.organic.metrics[i].label = v)), false, "Metric")}</div>
-                  <div><span className="ms-portal-mini">{ui("Before", "قبل")}</span><div className="ms-portal-big" style={{ fontSize: 26, color: "var(--marker-ink)" }}>{f(m.before, (v) => up((c) => (c.analysis.organic.metrics[i].before = v)), false, "—")}</div></div>
-                  <div><span className="ms-portal-mini">{ui("After", "بعد")}</span><div className="ms-portal-big" style={{ fontSize: 26 }}>{f(m.after, (v) => up((c) => (c.analysis.organic.metrics[i].after = v)), false, "—")}</div></div>
-                  <div className="ms-pmuted ms-portal-metric__note">{f(m.note, (v) => up((c) => (c.analysis.organic.metrics[i].note = v)), true, "Note")}{del(() => up((c) => c.analysis.organic.metrics.splice(i, 1)))}</div>
-                </div>
-              ))}
-              <div style={{ marginTop: 12 }}>{add(() => up((c) => c.analysis.organic.metrics.push({ label: "", before: "", after: "", note: "" })), ui("Add metric", "مؤشر"))}</div>
+              <div className="ms-metric-grid">
+                {(d.analysis?.organic?.metrics ?? []).map((m, i) => {
+                  const value = m.value || m.after || "";
+                  // Old before/after rows: derive the change badge so legacy
+                  // data still reads as "the number + how it moved".
+                  let delta = m.delta || "";
+                  if (!delta && m.before && m.after) {
+                    const b = parseFloat(m.before.replace(/[^0-9.]/g, ""));
+                    const a = parseFloat(m.after.replace(/[^0-9.]/g, ""));
+                    if (Number.isFinite(b) && Number.isFinite(a) && b > 0) {
+                      const ratio = a / b;
+                      delta = ratio >= 2 ? `×${Math.round(ratio)}` : `${a >= b ? "+" : ""}${Math.round(((a - b) / b) * 100)}%`;
+                    }
+                  }
+                  const down = /^[−-]/.test(delta.trim());
+                  return (
+                    <div key={i} className="ms-metric-card ms-rise" style={{ animationDelay: `${60 + i * 60}ms` }}>
+                      {del(() => up((c) => c.analysis.organic.metrics.splice(i, 1)))}
+                      {edit ? (
+                        <div style={{ display: "grid", gap: 6 }}>
+                          <input className="ms-edit" value={m.label} placeholder={ui("Metric (e.g. Views)", "المؤشر")} onChange={(e) => up((c) => (c.analysis.organic.metrics[i].label = e.target.value))} />
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <input className="ms-edit" style={{ flex: 1 }} value={m.value ?? ""} placeholder={ui("Number (301,274)", "الرقم")} onChange={(e) => up((c) => (c.analysis.organic.metrics[i].value = e.target.value))} />
+                            <input className="ms-edit" style={{ width: 90 }} value={m.delta ?? ""} placeholder="+312%" onChange={(e) => up((c) => (c.analysis.organic.metrics[i].delta = e.target.value))} />
+                          </div>
+                          <textarea className="ms-edit" rows={2} value={m.note} placeholder={ui("What does it mean?", "ماذا يعني؟")} onChange={(e) => up((c) => (c.analysis.organic.metrics[i].note = e.target.value))} />
+                        </div>
+                      ) : (
+                        <>
+                          {delta && <span className={`ms-metric-delta ${down ? "down" : "up"}`}>{delta}</span>}
+                          <div className="ms-metric-value">{value || "—"}</div>
+                          <div className="ms-metric-label">{m.label}</div>
+                          {m.note && <p className="ms-metric-note">{m.note}</p>}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+                {edit && (
+                  <div style={{ display: "flex", alignItems: "center" }}>
+                    {add(() => up((c) => c.analysis.organic.metrics.push({ label: "", value: "", delta: "", note: "" })), ui("Add metric", "مؤشر"))}
+                  </div>
+                )}
+              </div>
             </div>
             {(edit || tr(d.analysis?.organic?.reading)) && (
               <div className="ms-portal-grid" style={{ marginTop: 16 }}>
