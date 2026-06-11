@@ -618,6 +618,8 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
 }
 @media (max-width: 768px) {
   .ms-container { padding: 0 20px; }
+  /* Headers need extra inset on phones — the logo sat too close to the edge. */
+  .ms-header .ms-container { padding: 0 26px; }
   .ms-burger { display: flex; }
   .ms-cta-desktop { display: none; }
   .ms-nav {
@@ -1059,10 +1061,11 @@ body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
   position: sticky;
   top: 0;
   z-index: 120;
-  background: rgba(250, 248, 244, 0.86);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(250, 248, 244, 0.92), rgba(250, 248, 244, 0.78));
+  -webkit-backdrop-filter: blur(20px) saturate(1.7);
+  backdrop-filter: blur(20px) saturate(1.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 1px 0 rgba(48, 48, 48, 0.06), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
 }
 
 .ms-portal-hero { position: relative; overflow: hidden; }
@@ -1223,4 +1226,113 @@ body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
   /* Clear the floating dock: page bottom padding + lift the admin edit bar. */
   .ms-portal { padding-bottom: 96px; }
   .ms-portal .ms-edit-bar { bottom: calc(96px + env(safe-area-inset-bottom)); }
+}
+
+/* ===============================================================
+   CLIENT PORTAL — liquid glass motion layer. Drifting light blobs
+   in the hero, a periodic sheen sweeping the dock, glass capsule
+   tabs on desktop, glass language toggle, and a specular sweep on
+   cards when hovered. All guarded for reduced motion.
+   =============================================================== */
+@keyframes ms-liquid-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-46px, 30px, 0) scale(1.18); }
+}
+@keyframes ms-liquid-drift-2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.8; }
+  50% { transform: translate3d(36px, -24px, 0) scale(1.12); opacity: 1; }
+}
+.ms-portal-hero::after { animation: ms-liquid-drift 16s ease-in-out infinite; }
+.ms-portal-hero .ms-container::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: 420px;
+  height: 420px;
+  inset-inline-start: -160px;
+  bottom: -200px;
+  background: radial-gradient(circle, rgba(255, 145, 0, 0.12), transparent 62%);
+  pointer-events: none;
+  animation: ms-liquid-drift-2 13s ease-in-out infinite;
+}
+
+/* desktop tabs — liquid glass capsule with an orange active pill */
+@media (min-width: 761px) {
+  .ms-portal .ms-portal-tabs {
+    background: linear-gradient(150deg, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.42));
+    -webkit-backdrop-filter: blur(18px) saturate(1.6);
+    backdrop-filter: blur(18px) saturate(1.6);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 999px;
+    padding: 4px;
+    gap: 2px;
+    box-shadow: 0 6px 22px rgba(48, 48, 48, 0.07), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+  .ms-portal .ms-portal-tab { border-radius: 999px; padding: 9px 14px; }
+  .ms-portal .ms-portal-tab.is-active {
+    background: linear-gradient(180deg, #ffa226, var(--marker-orange));
+    box-shadow: 0 4px 14px rgba(255, 145, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+}
+
+/* language toggle + sign out — glass pills */
+.ms-portal .ms-lang {
+  background: rgba(255, 255, 255, 0.55);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+.ms-portal .ms-lang button { border-radius: 999px; }
+.ms-portal .ms-portal-signout { border-radius: 999px; }
+
+/* dock — periodic specular sheen + springy active pill */
+.ms-bottomnav { overflow: hidden; }
+.ms-bottomnav::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 49%, transparent 60%);
+  background-size: 280% 100%;
+  background-position: 130% 0;
+  animation: ms-sheen 6.5s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes ms-sheen {
+  0%, 58% { background-position: 130% 0; }
+  100% { background-position: -110% 0; }
+}
+@keyframes ms-pop {
+  0% { transform: scale(0.9); }
+  55% { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.ms-bottomnav button.on { animation: ms-pop 360ms var(--ease-out); }
+
+/* cards — glass top light + specular sweep on hover */
+.ms-pcard { overflow: hidden; box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+.ms-pcard--dark { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12); }
+.ms-pcard::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -160%;
+  width: 55%;
+  height: 100%;
+  transform: skewX(-22deg);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  pointer-events: none;
+  transition: left 700ms var(--ease-out);
+}
+.ms-pcard:hover::after { left: 170%; }
+.ms-doc-card { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ms-portal-hero::after,
+  .ms-portal-hero .ms-container::before,
+  .ms-bottomnav::before,
+  .ms-bottomnav button.on { animation: none; }
+  .ms-pcard::after { display: none; }
 }
