@@ -6,7 +6,7 @@ import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
 import InvoiceEditor from "@/components/admin/InvoiceEditor";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
-import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
+import { createInvoiceFromNotion, deleteInvoiceAction, invoicePaymentHistoryAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
@@ -147,8 +147,27 @@ export default async function EditClientPage({
     logins = [];
   }
 
+  // Payment-history entries not yet turned into real invoices (matched by
+  // line label — the same key the action dedupes on).
+  const invoicedLabels = new Set(
+    clientInvoices.map((inv) => (inv.items?.[0]?.label || "").trim().toLowerCase()).filter(Boolean)
+  );
+  const historyEntries = (client.data.invoices || []).filter((h) => h.cycle || h.desc || h.amount);
+  const uninvoicedHistory = historyEntries.filter(
+    (h) => !invoicedLabels.has(([h.cycle, h.desc].filter(Boolean).join(" — ").trim() || "Payment").toLowerCase())
+  );
+  const uninvoicedPaid = uninvoicedHistory.filter((h) => h.status === "paid").length;
+
   const okKey = searchParams.ok;
-  const msg = okKey?.startsWith("synced-")
+  const historyMatch = okKey?.match(/^history-invoiced-(\d+)-(\d+)$/);
+  const msg = historyMatch
+    ? {
+        text: `${historyMatch[1]} invoice${historyMatch[1] === "1" ? "" : "s"} created from payment history${
+          historyMatch[2] !== "0" ? ` · ${historyMatch[2]} already invoiced, skipped` : ""
+        }. Paid entries were marked paid.`,
+        ok: true,
+      }
+    : okKey?.startsWith("synced-")
     ? { text: `Synced ${okKey.slice(7)} posts from Notion into the Social calendar.`, ok: true }
     : okKey?.startsWith("client-synced-")
     ? { text: `Pulled the client record from Notion (plan, dates, status + ${okKey.slice(14)} invoices). Review below.`, ok: true }
@@ -261,6 +280,25 @@ export default async function EditClientPage({
               <form action={createInvoiceFromNotion}>
                 <input type="hidden" name="slug" value={client.slug} />
                 <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Draft monthly invoice</button>
+              </form>
+            </div>
+          )}
+
+          {uninvoicedHistory.length > 0 && (
+            <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 mb-4">
+              <div className="text-sm">
+                <div className="font-semibold text-neutral-900">
+                  {uninvoicedHistory.length} payment-history entr{uninvoicedHistory.length === 1 ? "y" : "ies"} without an invoice
+                </div>
+                <div className="text-neutral-600">
+                  Creates one numbered invoice per entry{uninvoicedPaid > 0 ? ` — ${uninvoicedPaid} paid entr${uninvoicedPaid === 1 ? "y is" : "ies are"} marked paid in full` : ""}. Already-invoiced entries are skipped.
+                </div>
+              </div>
+              <form action={invoicePaymentHistoryAction}>
+                <input type="hidden" name="slug" value={client.slug} />
+                <button className="bg-charcoal text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-ink transition-colors">
+                  Invoice payment history →
+                </button>
               </form>
             </div>
           )}

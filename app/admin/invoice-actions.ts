@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
-import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
+import { createInvoice, getInvoice, listClientInvoices, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 
 async function clientBySlug(slug: string) {
@@ -123,6 +123,57 @@ export async function setInvoiceArchivedAction(formData: FormData) {
   await setInvoiceArchived(id, archived);
   revalidatePath("/admin/invoices");
   redirect(`/admin/invoices${archived ? "" : "?archived=1"}`);
+}
+
+// Turn the client's payment history (the portal's informal cycle/amount/status
+// rows, often synced from Notion) into real numbered invoices. Paid entries
+// are created fully paid; overdue ones get yesterday's due date so they read
+// as overdue everywhere. Re-running skips entries already invoiced (matched by
+// line label), so it's safe to click again after new cycles sync in.
+export async function invoicePaymentHistoryAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const c = await clientBySlug(slug);
+  if (!c) redirect("/admin/clients");
+
+  const history = (c.data.invoices || []).filter((h) => h.cycle || h.desc || h.amount);
+  let existing: { items: InvoiceItem[] }[] = [];
+  try {
+    existing = await listClientInvoices(c.id);
+  } catch {
+    existing = [];
+  }
+  const have = new Set(existing.map((inv) => (inv.items?.[0]?.label || "").trim().toLowerCase()).filter(Boolean));
+
+  let created = 0;
+  let skipped = 0;
+  for (const h of history) {
+    const label = [h.cycle, h.desc].filter(Boolean).join(" — ").trim() || "Payment";
+    if (have.has(label.toLowerCase())) {
+      skipped++;
+      continue;
+    }
+    const amountNum = parseFloat((h.amount || "").replace(/[^0-9.]/g, "")) || 0;
+    const paid = h.status === "paid" ? amountNum : 0;
+    const dueDate =
+      h.status === "overdue" ? new Date(Date.now() - 24 * 3600 * 1000).toISOString().slice(0, 10) : undefined;
+    await createInvoice({
+      clientId: c.id,
+      clientSlug: c.slug,
+      items: [{ label, amount: h.amount || "" }],
+      source: "custom",
+      paidAmount: paid,
+      status: h.status === "paid" ? "paid" : "due",
+      dueDate,
+    });
+    have.add(label.toLowerCase());
+    created++;
+  }
+
+  revalidatePath(`/portal/${slug}`);
+  revalidatePath("/admin/invoices");
+  revalidatePath("/admin");
+  redirect(`/admin/clients/${slug}/edit?ok=history-invoiced-${created}-${skipped}`);
 }
 
 // Record a payment against an invoice — adds to what's already been paid and
