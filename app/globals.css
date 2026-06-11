@@ -174,36 +174,45 @@ a { color: inherit; text-decoration: none; }
 
 .ms-container { max-width: 1280px; margin: 0 auto; padding: 0 32px; }
 
-/* ---- Header ---- */
+/* ---- Header — one floating liquid-glass capsule, web and mobile ---- */
 .ms-header {
-  position: sticky; top: 0; z-index: 50;
-  background: linear-gradient(180deg, rgba(250, 248, 244, 0.92), rgba(250, 248, 244, 0.76));
-  backdrop-filter: blur(20px) saturate(1.7);
-  -webkit-backdrop-filter: blur(20px) saturate(1.7);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.7);
-  box-shadow: 0 1px 0 rgba(48, 48, 48, 0.05), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
-  transition: background 240ms var(--ease-out), box-shadow 240ms var(--ease-out);
+  position: sticky; top: 12px; z-index: 50;
+  max-width: 1216px;
+  margin: 0 auto;
+  width: calc(100% - 24px);
+  border-radius: 999px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.72), rgba(250, 248, 244, 0.5));
+  backdrop-filter: blur(22px) saturate(1.8);
+  -webkit-backdrop-filter: blur(22px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 32px rgba(48, 48, 48, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  transition: box-shadow 240ms var(--ease-out), background 240ms var(--ease-out);
 }
-.ms-header__inner { display: flex; align-items: center; justify-content: space-between; padding: 18px 0; gap: 24px; transition: padding 240ms var(--ease-out); }
-.ms-logo { display: flex; align-items: center; gap: 10px; }
-.ms-logo img { height: 36px; width: auto; transition: height 240ms var(--ease-out); }
-/* Compact state once the page scrolls */
-.ms-header.is-scrolled { background: linear-gradient(180deg, rgba(250, 248, 244, 0.96), rgba(250, 248, 244, 0.84)); box-shadow: 0 10px 30px rgba(48, 48, 48, 0.1), inset 0 -1px 0 rgba(255, 255, 255, 0.55); }
-.ms-header.is-scrolled .ms-header__inner { padding: 10px 0; }
-.ms-header.is-scrolled .ms-logo img { height: 30px; }
-.ms-nav { display: flex; gap: 28px; align-items: center; }
-.ms-nav a { font: 500 14px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; padding: 8px 0; position: relative; }
-.ms-nav a:hover { color: var(--marker-orange); }
-/* Marker underline — draws in on hover and stays under the active section */
-.ms-nav a::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 3px;
-  border-radius: 2px; background: var(--marker-orange);
-  transform: scaleX(0); transform-origin: left;
-  transition: transform 220ms var(--ease-out);
+.ms-header__inner { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; gap: 18px; }
+.ms-header .ms-container { padding: 0 14px; width: 100%; }
+.ms-logo { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 999px; transition: background 160ms, transform 200ms var(--ease-out); }
+.ms-logo:hover { background: rgba(255, 145, 0, 0.1); transform: rotate(-6deg) scale(1.05); }
+.ms-logo svg { display: block; }
+/* Scrolled: the glass deepens instead of the header jumping size */
+.ms-header.is-scrolled {
+  background: linear-gradient(150deg, rgba(255, 255, 255, 0.82), rgba(250, 248, 244, 0.62));
+  box-shadow: 0 16px 44px rgba(48, 48, 48, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-body.ar .ms-nav a::after { transform-origin: right; }
-.ms-nav a:hover::after, .ms-nav a.active::after { transform: scaleX(1); }
-.ms-nav a.active { color: var(--marker-orange); }
+.ms-nav { display: flex; gap: 4px; align-items: center; }
+.ms-nav a {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 600 13.5px/1 var(--font-display); color: var(--marker-charcoal);
+  padding: 10px 14px; border-radius: 999px;
+  transition: background 160ms var(--ease-out), color 160ms, box-shadow 160ms;
+}
+.ms-nav a:hover { background: rgba(48, 48, 48, 0.06); color: var(--marker-ink); }
+.ms-nav a.active {
+  background: linear-gradient(180deg, #ffa226, var(--marker-orange));
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(255, 145, 0, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.ms-nav__ic { display: none; }
+.ms-nav__foot { display: none; }
 
 /* ---- Scroll progress — orange marker line across the viewport top ---- */
 .ms-progress {
@@ -218,22 +227,37 @@ body.ar .ms-progress { transform-origin: right; border-radius: 3px 0 0 3px; }
 /* ---- Magnetic CTA wrapper ---- */
 .ms-magnetic { display: inline-flex; will-change: transform; }
 .ms-actions { display: flex; align-items: center; gap: 12px; }
-.ms-login { display: inline-flex; align-items: center; gap: 7px; font: 600 13px/1 var(--font-display); color: var(--marker-charcoal); transition: color 140ms; white-space: nowrap; }
-.ms-login:hover { color: var(--marker-orange); }
+/* Round glass icon button — account / login */
+.ms-login {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; border-radius: 999px; flex: none;
+  background: rgba(48, 48, 48, 0.06); color: var(--marker-charcoal);
+  transition: background 160ms, color 160ms, transform 160ms var(--ease-out);
+}
+.ms-login:hover { background: var(--marker-orange); color: #fff; transform: translateY(-1px); }
 .ms-login svg { width: 17px; height: 17px; }
-body.ar .ms-login { font-family: var(--font-arabic); }
-@media (max-width: 480px) { .ms-login span { display: none; } }
-.ms-nav__login { display: none; } /* desktop uses the header button; this is the mobile-menu row */
 
-/* ---- Hamburger (mobile only) ---- */
-.ms-burger { display: none; flex-direction: column; justify-content: center; gap: 5px; width: 42px; height: 42px; padding: 0 9px; background: transparent; border: 1px solid var(--border-strong); border-radius: 4px; cursor: pointer; }
-.ms-burger span { display: block; height: 2px; width: 100%; background: var(--marker-charcoal); border-radius: 2px; transition: transform 220ms var(--ease-out), opacity 160ms; }
-.ms-burger.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
-.ms-burger.is-open span:nth-child(2) { opacity: 0; }
-.ms-burger.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-.ms-lang { display: flex; gap: 0; border: 1px solid var(--border-strong); border-radius: 4px; overflow: hidden; }
-.ms-lang button { font: 600 11px/1 var(--font-display); padding: 7px 12px; border: none; background: transparent; cursor: pointer; color: var(--fg-muted); letter-spacing: 0.06em; text-transform: uppercase; }
-.ms-lang button.on { background: var(--marker-charcoal); color: #fff; }
+/* ---- Hamburger — two lines morphing into an X (mobile only) ---- */
+.ms-burger {
+  display: none; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  width: 38px; height: 38px; flex: none;
+  background: rgba(48, 48, 48, 0.06); border: 0; border-radius: 999px; cursor: pointer;
+  transition: background 160ms;
+}
+.ms-burger:active { background: rgba(48, 48, 48, 0.12); }
+.ms-burger span { display: block; height: 2px; width: 16px; background: var(--marker-ink); border-radius: 2px; transition: transform 240ms var(--ease-out); }
+.ms-burger.is-open span:nth-child(1) { transform: translateY(3.5px) rotate(45deg); }
+.ms-burger.is-open span:nth-child(2) { transform: translateY(-3.5px) rotate(-45deg); }
+
+/* ---- Language — segmented sliding pill ---- */
+.ms-lang { display: flex; gap: 2px; padding: 3px; border: 0; border-radius: 999px; background: rgba(48, 48, 48, 0.06); }
+.ms-lang button {
+  font: 700 11px/1 var(--font-display); padding: 6px 11px; min-width: 36px;
+  border: none; border-radius: 999px; background: transparent; cursor: pointer;
+  color: var(--fg-muted); letter-spacing: 0.06em; text-transform: uppercase;
+  transition: background 180ms var(--ease-out), color 180ms, box-shadow 180ms;
+}
+.ms-lang button.on { background: #fff; color: var(--marker-ink); box-shadow: 0 2px 8px rgba(48, 48, 48, 0.14); }
 
 /* ---- Buttons ---- */
 .ms-btn {
@@ -620,49 +644,44 @@ body.ar .ms-service:hover .ms-service__link svg { transform: scaleX(-1) translat
 }
 @media (max-width: 768px) {
   .ms-container { padding: 0 20px; }
-  /* The header floats as a liquid-glass capsule, inset from every edge.
-     (The portal resets this further down — it keeps its full-width glass bar
-     because the dock already floats at the bottom.) */
-  .ms-header {
-    top: 10px;
-    margin: 0 12px;
-    border-radius: 999px;
-    background: linear-gradient(150deg, rgba(255, 255, 255, 0.72), rgba(250, 248, 244, 0.52));
-    border: 1px solid rgba(255, 255, 255, 0.78);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.78);
-    box-shadow: 0 12px 34px rgba(48, 48, 48, 0.14), inset 0 1px 0 rgba(255, 255, 255, 0.85);
-    backdrop-filter: blur(22px) saturate(1.8);
-    -webkit-backdrop-filter: blur(22px) saturate(1.8);
-  }
-  .ms-header .ms-container { padding: 0 16px; }
-  .ms-header__inner { padding: 8px 0; gap: 12px; }
-  .ms-header.is-scrolled .ms-header__inner { padding: 8px 0; }
-  .ms-header .ms-logo img, .ms-header.is-scrolled .ms-logo img { height: 25px; }
-  .ms-header .ms-actions { gap: 8px; }
-  .ms-burger { display: flex; width: 34px; height: 34px; padding: 0 8px; gap: 4px; border-radius: 999px; }
-  .ms-burger.is-open span:nth-child(1) { transform: translateY(6px) rotate(45deg); }
-  .ms-burger.is-open span:nth-child(3) { transform: translateY(-6px) rotate(-45deg); }
-  .ms-login span { display: none; }
-  .ms-lang { border-radius: 999px; }
-  .ms-lang button { padding: 7px 10px; }
+  .ms-header { top: 10px; }
+  .ms-header .ms-container { padding: 0 10px; }
+  .ms-header__inner { padding: 7px 0; gap: 10px; }
+  .ms-logo { width: 38px; height: 38px; }
+  .ms-logo svg { width: 27px; height: 27px; }
+  .ms-header .ms-actions { gap: 7px; }
+  .ms-login { display: none; } /* login lives inside the menu on phones */
+  .ms-burger { display: flex; }
   .ms-cta-desktop { display: none; }
+
+  /* The menu — a liquid-glass panel of icon tiles */
   .ms-nav {
-    position: absolute; top: calc(100% + 10px); left: 6px; right: 6px;
-    flex-direction: column; align-items: stretch; gap: 0;
-    background: linear-gradient(165deg, rgba(255, 255, 255, 0.88), rgba(250, 248, 244, 0.72));
-    backdrop-filter: blur(24px) saturate(1.8);
-    -webkit-backdrop-filter: blur(24px) saturate(1.8);
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    border-radius: 24px;
-    box-shadow: 0 18px 48px rgba(48, 48, 48, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-    padding: 8px 20px 16px;
-    opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.985);
-    transition: opacity 200ms var(--ease-out), transform 220ms var(--ease-out), visibility 200ms;
+    position: absolute; top: calc(100% + 10px); left: 4px; right: 4px;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch;
+    background: linear-gradient(165deg, rgba(255, 255, 255, 0.9), rgba(250, 248, 244, 0.74));
+    backdrop-filter: blur(26px) saturate(1.8);
+    -webkit-backdrop-filter: blur(26px) saturate(1.8);
+    border: 1px solid rgba(255, 255, 255, 0.82);
+    border-radius: 26px;
+    box-shadow: 0 22px 56px rgba(48, 48, 48, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    padding: 10px;
+    opacity: 0; visibility: hidden; transform: translateY(-8px) scale(0.98);
+    transition: opacity 200ms var(--ease-out), transform 240ms var(--ease-out), visibility 200ms;
   }
   .ms-nav.is-open { opacity: 1; visibility: visible; transform: none; }
-  .ms-nav a { padding: 14px 4px; font-size: 16px; border-bottom: 1px solid var(--border); }
-  .ms-nav a:last-child { border-bottom: none; }
-  .ms-nav__login { display: block; color: var(--marker-orange); }
+  .ms-nav a {
+    display: flex; align-items: center; gap: 11px;
+    padding: 14px; font-size: 14.5px; border-radius: 18px;
+    background: rgba(255, 255, 255, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.75);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+  }
+  .ms-nav a:active { transform: scale(0.97); }
+  .ms-nav .ms-nav__ic { display: inline-flex; width: 19px; height: 19px; color: var(--marker-orange); flex: none; }
+  .ms-nav .ms-nav__ic svg { width: 100%; height: 100%; }
+  .ms-nav a.active .ms-nav__ic { color: #fff; }
+  .ms-nav__foot { display: flex; grid-column: 1 / -1; margin-top: 2px; }
+  .ms-nav__loginbtn { flex: 1; justify-content: center; border-radius: 18px; padding: 15px; font-size: 14.5px; }
   .ms-hero { padding: 56px 0 64px; }
   .ms-hero__title { font-size: 48px; }
   body.ar .ms-hero__title { font-size: 44px; }
@@ -1088,12 +1107,22 @@ body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
   position: sticky;
   top: 0;
   z-index: 120;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  border-radius: 0;
+  border: 0;
   background: linear-gradient(180deg, rgba(250, 248, 244, 0.92), rgba(250, 248, 244, 0.78));
   -webkit-backdrop-filter: blur(20px) saturate(1.7);
   backdrop-filter: blur(20px) saturate(1.7);
   border-bottom: 1px solid rgba(255, 255, 255, 0.7);
   box-shadow: 0 1px 0 rgba(48, 48, 48, 0.06), inset 0 -1px 0 rgba(255, 255, 255, 0.5);
 }
+
+/* Portal logo is the full wordmark image — undo the round mark-button sizing */
+.ms-portal .ms-logo { width: auto; height: auto; border-radius: 0; }
+.ms-portal .ms-logo:hover { background: none; transform: none; }
+.ms-portal .ms-logo img { height: 30px; width: auto; }
 
 .ms-portal-hero { position: relative; overflow: hidden; }
 .ms-portal-hero::before {
@@ -1197,6 +1226,7 @@ body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
   .ms-portal .ms-header { top: 0; margin: 0; border-radius: 0; border: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.7); }
   .ms-portal .ms-header .ms-container { padding: 0 22px; }
   .ms-portal .ms-header__inner { gap: 10px; padding: 10px 0; }
+  .ms-portal .ms-logo { width: auto; height: auto; }
   .ms-portal .ms-logo { flex: 0 0 auto; }
   .ms-portal .ms-logo img { height: 24px; width: auto; }
   .ms-portal .ms-actions { margin-inline-start: auto; gap: 8px; flex: 0 0 auto; }
