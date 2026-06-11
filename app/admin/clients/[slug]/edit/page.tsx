@@ -10,7 +10,9 @@ import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-a
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
+import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
+import UndoBanner from "@/components/admin/UndoBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -110,7 +112,7 @@ export default async function EditClientPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { ok?: string; error?: string };
+  searchParams: { ok?: string; error?: string; undo?: string; restored?: string; undoError?: string };
 }) {
   const client = await getClient(params.slug);
   if (!client) notFound();
@@ -178,6 +180,8 @@ export default async function EditClientPage({
           {msg.text}
         </p>
       )}
+
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
 
       {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
         <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 max-w-2xl space-y-1">
@@ -287,7 +291,12 @@ export default async function EditClientPage({
                     <form action={deleteInvoiceAction}>
                       <input type="hidden" name="slug" value={client.slug} />
                       <input type="hidden" name="id" value={inv.id} />
-                      <button className="text-xs font-medium text-neutral-300 hover:text-red-600">Delete</button>
+                      <ConfirmButton
+                        message={`Delete invoice ${inv.number}? You'll get a chance to undo right after.`}
+                        className="text-xs font-medium text-neutral-300 hover:text-red-600"
+                      >
+                        Delete
+                      </ConfirmButton>
                     </form>
                   </div>
                 );
@@ -410,6 +419,22 @@ export default async function EditClientPage({
             <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull calendar</button>
           </form>
         </div>
+      </div>
+
+      <div className="bg-white border border-red-200 rounded-xl p-6 mt-6 max-w-2xl">
+        <h2 className="font-bold mb-1 text-red-700">Danger zone</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.
+        </p>
+        <form action={deleteClient}>
+          <input type="hidden" name="slug" value={client.slug} />
+          <ConfirmButton
+            message={`Delete ${client.name || client.slug} and their portal, including all client logins? You'll get an Undo option right after.`}
+            className="border border-red-300 text-red-600 font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-red-600 hover:border-red-600 hover:text-white transition-colors"
+          >
+            Delete this client…
+          </ConfirmButton>
+        </form>
       </div>
     </div>
   );

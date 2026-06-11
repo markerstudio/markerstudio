@@ -2,6 +2,8 @@ import Link from "next/link";
 import { isDbEnabled } from "@/lib/db";
 import { ensureInquiriesTable, listInquiries, type Inquiry } from "@/lib/inquiries";
 import { markInquiryRead, markAllInquiriesRead, deleteInquiry } from "../actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
+import UndoBanner from "@/components/admin/UndoBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +18,11 @@ function when(iso: string): string {
   });
 }
 
-export default async function InquiriesPage({ searchParams }: { searchParams: { ok?: string } }) {
+export default async function InquiriesPage({
+  searchParams,
+}: {
+  searchParams: { ok?: string; undo?: string; restored?: string; undoError?: string };
+}) {
   const dbOff = !isDbEnabled();
   let rows: Inquiry[] = [];
   let failed = false;
@@ -52,11 +58,7 @@ export default async function InquiriesPage({ searchParams }: { searchParams: { 
         )}
       </div>
 
-      {searchParams.ok === "removed" && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">
-          Inquiry deleted.
-        </p>
-      )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/inquiries" />
 
       {dbOff && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
@@ -129,7 +131,12 @@ export default async function InquiriesPage({ searchParams }: { searchParams: { 
               </a>
               <form action={deleteInquiry} className="ml-auto">
                 <input type="hidden" name="id" value={r.id} />
-                <button className="font-medium text-neutral-400 hover:text-red-600">Delete</button>
+                <ConfirmButton
+                  message={`Delete the inquiry from ${r.name}? You'll get a chance to undo right after.`}
+                  className="font-medium text-neutral-400 hover:text-red-600"
+                >
+                  Delete
+                </ConfirmButton>
               </form>
             </div>
           </div>

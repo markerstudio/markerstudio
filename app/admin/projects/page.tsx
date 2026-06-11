@@ -2,10 +2,16 @@ import Link from "next/link";
 import { getProjects, SEED_PROJECTS } from "@/lib/projects";
 import { isDbEnabled, getSql } from "@/lib/db";
 import { deleteProject, importSeedProjects } from "../actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
+import UndoBanner from "@/components/admin/UndoBanner";
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectsAdmin({ searchParams }: { searchParams: { imported?: string } }) {
+export default async function ProjectsAdmin({
+  searchParams,
+}: {
+  searchParams: { imported?: string; undo?: string; restored?: string; undoError?: string };
+}) {
   const dbOff = !isDbEnabled();
   let needsSetup = false;
   let projects: Awaited<ReturnType<typeof getProjects>> = [];
@@ -35,6 +41,7 @@ export default async function ProjectsAdmin({ searchParams }: { searchParams: { 
           Imported {searchParams.imported} project{searchParams.imported === "1" ? "" : "s"} from seed. The public site is updated.
         </p>
       )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/projects" />
 
       {!dbOff && !needsSetup && missingSeed.length > 0 && (
         <div className="flex items-center justify-between gap-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
@@ -79,7 +86,12 @@ export default async function ProjectsAdmin({ searchParams }: { searchParams: { 
             </Link>
             <form action={deleteProject}>
               <input type="hidden" name="slug" value={p.slug} />
-              <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Delete</button>
+              <ConfirmButton
+                message={`Delete ${p.name.en}? It disappears from the public site — you'll get a chance to undo right after.`}
+                className="text-sm font-medium text-neutral-400 hover:text-red-600"
+              >
+                Delete
+              </ConfirmButton>
             </form>
           </div>
         ))}

@@ -3,6 +3,7 @@ import { getClients, type Client } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
 import { getFinance, fmtILS } from "@/lib/finance";
 import ClientsGrid, { type ClientCardData } from "@/components/admin/ClientsGrid";
+import UndoBanner from "@/components/admin/UndoBanner";
 import { quickCreateClient, quickCreateFromNotion, importAllNotionClients } from "../actions";
 import { autofillPortals } from "../fill-actions";
 
@@ -70,7 +71,11 @@ function toCard(c: Client): ClientCardData {
   };
 }
 
-export default async function ClientsHome({ searchParams }: { searchParams: { error?: string; bulk?: string; filled?: string } }) {
+export default async function ClientsHome({
+  searchParams,
+}: {
+  searchParams: { error?: string; bulk?: string; filled?: string; undo?: string; restored?: string; undoError?: string };
+}) {
   const dbOff = !isDbEnabled();
   const [clients, notionClients, debt] = await Promise.all([
     dbOff ? Promise.resolve([] as Client[]) : getClients(),
@@ -147,6 +152,7 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
       {searchParams.error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-5">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/clients" />
       {bulkMsg && (
         <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-5">Notion import finished — {bulkMsg}.</p>
       )}

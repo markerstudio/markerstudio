@@ -5,10 +5,11 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
-import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
+import { createSession, destroySession, getSession, isSuperAdmin, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients } from "@/lib/notion";
+import { snapshotForUndo } from "@/lib/undo";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -191,10 +192,15 @@ export async function deleteProject(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const slug = String(formData.get("slug") || "").trim();
   const sql = getSql();
+  const rows = (await sql`
+    SELECT id, slug, color, logo, year, data, sort_order, created_at, updated_at FROM projects WHERE slug = ${slug} LIMIT 1
+  `) as unknown as { data?: { name?: { en?: string } } }[];
+  if (!rows[0]) redirect("/admin/projects");
+  const undoId = await snapshotForUndo("project", rows[0].data?.name?.en || slug, { project: rows[0] });
   await sql`DELETE FROM projects WHERE slug = ${slug}`;
   revalidatePath("/");
   revalidatePath(`/work/${slug}`);
-  redirect("/admin/projects");
+  redirect(`/admin/projects?undo=${undoId}`);
 }
 
 // --- Onboarding: connect a draft portal to an existing one -----------------
@@ -413,9 +419,15 @@ export async function markAllInquiriesRead() {
 export async function deleteInquiry(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
-  await getSql()`DELETE FROM inquiries WHERE id = ${id}`;
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, name, email, phone, brand, service, message, lang, created_at, read_at FROM inquiries WHERE id = ${id} LIMIT 1
+  `) as unknown as { name: string; email: string }[];
+  if (!rows[0]) redirect("/admin/inquiries");
+  const undoId = await snapshotForUndo("inquiry", `inquiry from ${rows[0].name || rows[0].email}`, { inquiry: rows[0] });
+  await sql`DELETE FROM inquiries WHERE id = ${id}`;
   revalidatePath("/admin/inquiries");
-  redirect("/admin/inquiries?ok=removed");
+  redirect(`/admin/inquiries?undo=${undoId}`);
 }
 
 // --- Applications (careers / "work with us" submissions) -------------------
@@ -438,15 +450,25 @@ export async function markAllApplicationsRead() {
 export async function deleteApplication(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
-  await getSql()`DELETE FROM applications WHERE id = ${id}`;
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, first_name, last_name, gender, email, phone, address, talent, rate_session, rate, instagram, work_url, lang, created_at, read_at
+    FROM applications WHERE id = ${id} LIMIT 1
+  `) as unknown as { first_name: string; last_name: string; email: string }[];
+  if (!rows[0]) redirect("/admin/applications");
+  const name = `${rows[0].first_name} ${rows[0].last_name}`.trim() || rows[0].email;
+  const undoId = await snapshotForUndo("application", `application from ${name}`, { application: rows[0] });
+  await sql`DELETE FROM applications WHERE id = ${id}`;
   revalidatePath("/admin/applications");
-  redirect("/admin/applications?ok=removed");
+  redirect(`/admin/applications?undo=${undoId}`);
 }
 
 // --- User management -------------------------------------------------------
 
 export async function createUser(formData: FormData) {
-  if (!(await getSession())) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!isSuperAdmin(session)) redirect("/admin/users?error=superadmin"); // only the owner manages users
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const name = String(formData.get("name") || "").trim() || "Admin";
   const password = String(formData.get("password") || "");
@@ -464,13 +486,21 @@ export async function createUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
-  if (!(await getSession())) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!isSuperAdmin(session)) redirect("/admin/users?error=superadmin"); // only the owner manages users
   const id = Number(formData.get("id") || 0);
   const sql = getSql();
   const count = (await sql`SELECT count(*)::int AS n FROM users WHERE role = 'admin' OR role IS NULL`) as unknown as { n: number }[];
   if (count[0].n <= 1) redirect("/admin/users?error=last"); // never remove the last admin
+  const rows = (await sql`
+    SELECT id, email, name, password_hash, role, client_id, created_at FROM users WHERE id = ${id} LIMIT 1
+  `) as unknown as { email: string }[];
+  if (!rows[0]) redirect("/admin/users");
+  if (isSuperAdmin(rows[0])) redirect("/admin/users?error=protected"); // the superadmin can never be removed
+  const undoId = await snapshotForUndo("user", rows[0].email, { user: rows[0] });
   await sql`DELETE FROM users WHERE id = ${id}`;
-  redirect("/admin/users?ok=removed");
+  redirect(`/admin/users?undo=${undoId}`);
 }
 
 // --- Client portals --------------------------------------------------------
@@ -512,12 +542,17 @@ export async function deleteClient(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const slug = String(formData.get("slug") || "").trim();
   const sql = getSql();
-  const rows = (await sql`SELECT id FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number }[];
-  if (rows[0]) await sql`DELETE FROM users WHERE client_id = ${rows[0].id}`;
+  const rows = (await sql`
+    SELECT id, slug, name, logo, color, data, created_at, updated_at FROM clients WHERE slug = ${slug} LIMIT 1
+  `) as unknown as { id: number; name: string }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const users = await sql`SELECT id, email, name, password_hash, role, client_id, created_at FROM users WHERE client_id = ${rows[0].id}`;
+  const undoId = await snapshotForUndo("client", rows[0].name || slug, { client: rows[0], users });
+  await sql`DELETE FROM users WHERE client_id = ${rows[0].id}`;
   await sql`DELETE FROM clients WHERE slug = ${slug}`;
   revalidatePath(`/portal/${slug}`);
   revalidatePath("/admin/clients");
-  redirect("/admin/clients");
+  redirect(`/admin/clients?undo=${undoId}`);
 }
 
 export async function createClientUser(formData: FormData) {
@@ -548,9 +583,15 @@ export async function deleteClientUser(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
-  await getSql()`DELETE FROM users WHERE id = ${id} AND role = 'client'`;
+  const sql = getSql();
+  const rows = (await sql`
+    SELECT id, email, name, password_hash, role, client_id, created_at FROM users WHERE id = ${id} AND role = 'client' LIMIT 1
+  `) as unknown as { email: string }[];
+  if (!rows[0]) redirect(`/admin/clients/${slug}/edit`);
+  const undoId = await snapshotForUndo("user", `login ${rows[0].email}`, { user: rows[0] });
+  await sql`DELETE FROM users WHERE id = ${id} AND role = 'client'`;
   revalidatePath(`/portal/${slug}`);
-  redirect(`/admin/clients/${slug}/edit?ok=removed`);
+  redirect(`/admin/clients/${slug}/edit?undo=${undoId}`);
 }
 
 // One-step create: just a name. Generates a unique slug, blank content, and

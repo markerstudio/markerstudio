@@ -1,6 +1,8 @@
 import { getSql, isDbEnabled } from "@/lib/db";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin, SUPERADMIN_EMAIL } from "@/lib/auth";
 import { createUser, deleteUser } from "../actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
+import UndoBanner from "@/components/admin/UndoBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -13,12 +15,19 @@ const MESSAGES: Record<string, { text: string; ok?: boolean }> = {
   invalid: { text: "Enter a valid email and a password of at least 8 characters." },
   exists: { text: "A user with that email already exists." },
   last: { text: "You can't remove the last remaining admin." },
+  superadmin: { text: "Only the superadmin can add or remove users." },
+  protected: { text: "The superadmin account can't be removed." },
   added: { text: "User added.", ok: true },
   removed: { text: "User removed.", ok: true },
 };
 
-export default async function UsersPage({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; ok?: string; undo?: string; restored?: string; undoError?: string };
+}) {
   const me = await getSession();
+  const amSuper = isSuperAdmin(me);
   let users: U[] = [];
   if (isDbEnabled()) {
     try {
@@ -47,6 +56,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
           {msg.text}
         </p>
       )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/users" />
 
       <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100 mb-8">
         {users.map((u) => (
@@ -54,16 +64,24 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">
                 {u.name}
+                {isSuperAdmin(u) && (
+                  <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wider bg-charcoal text-white rounded-full px-2 py-0.5">superadmin</span>
+                )}
                 {me?.email === u.email && (
                   <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-orange">you</span>
                 )}
               </div>
               <div className="text-xs text-neutral-500 truncate">{u.email}</div>
             </div>
-            {me?.email !== u.email && (
+            {amSuper && me?.email !== u.email && !isSuperAdmin(u) && (
               <form action={deleteUser}>
                 <input type="hidden" name="id" value={u.id} />
-                <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Remove</button>
+                <ConfirmButton
+                  message={`Remove ${u.name} (${u.email})? They won't be able to sign in — you'll get a chance to undo right after.`}
+                  className="text-sm font-medium text-neutral-400 hover:text-red-600"
+                >
+                  Remove
+                </ConfirmButton>
               </form>
             )}
           </div>
@@ -73,6 +91,13 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
         )}
       </div>
 
+      {!amSuper && (
+        <p className="text-sm text-neutral-500 bg-white border border-neutral-200 rounded-xl px-4 py-3 max-w-lg">
+          Only the superadmin ({SUPERADMIN_EMAIL}) can add or remove users.
+        </p>
+      )}
+
+      {amSuper && (
       <div className="bg-white border border-neutral-200 rounded-xl p-6 max-w-lg">
         <h2 className="font-bold mb-4">Add a user</h2>
         <form action={createUser} className="space-y-4">
@@ -94,6 +119,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
           </button>
         </form>
       </div>
+      )}
     </div>
   );
 }
