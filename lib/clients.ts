@@ -13,7 +13,10 @@ export type SocialContentType = "post" | "story" | "reel";
 // `brief` is the type-aware long copy: post details / reel script / stories direction.
 export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted"; type?: SocialContentType; brief?: string };
 export type TimelinePhase = { phase: string; duration?: string; detail?: string };
-export type MetricRow = { label: string; before: string; after: string; note: string };
+// One analytics stat: the number, an optional change badge, and what it means
+// in plain words. (`before`/`after` are the deprecated old shape — when
+// `value` is empty the portal falls back to `after`.)
+export type MetricRow = { label: string; value?: string; delta?: string; note: string; before?: string; after?: string };
 export type Campaign = {
   name: string; period: string; type: string; spend: string;
   reach: string; impressions: string; freq: string; cpm: string; desc: string;

@@ -17,16 +17,33 @@ function analyticsPrompt(data: ClientData): string {
   const full = toCSV(data).replace(/^﻿/, "");
   const lines = full.split("\r\n");
   const csv = [lines[0], ...lines.filter((l) => l.startsWith("analysis."))].join("\n");
-  return `You are filling the ANALYTICS section of a bilingual (English + Arabic) marketing report for Marker Studio, from a Meta Ads Manager / Instagram Insights export.
+  return `You are a senior social media analyst at Marker Studio® writing the ANALYTICS section of a bilingual (English + Arabic) client report, from the raw Meta Ads Manager / Instagram Insights export pasted below.
+
+Your job is NOT to dump numbers — it's to choose the numbers that matter and say what each one MEANS for the client, in warm plain language they actually understand.
 
 Below is a CSV with columns: field,en,ar,value. Fill ONLY these analysis rows:
-- analysis.organic.* = Instagram organic results. metrics[n] are before/after numbers (e.g. Views, Reach, Accounts engaged, Profile visits, Followers, Link clicks): put the prior-period number in "value" of *.before and the current number in *.after, a short label in *.label, and a one-line insight in *.note.
-- analysis.paid.* = the Meta ad campaigns. One campaigns[n] per campaign with name, period, type (Awareness/Traffic/Engagement/…), spend, reach, impressions, freq, cpm, and a one-line desc. Put total ad spend in analysis.paid.spend.
-- For headline/reading/note rows fill BOTH "en" and "ar" (natural Arabic, not literal).
-- Add more rows by copying a line and changing the [n] index. Keep the "field" column EXACTLY. Use real numbers; leave blank if unknown.
+
+ORGANIC — analysis.organic.*
+- analysis.organic.headline: one short line that captures the month's story (fill BOTH en and ar — natural Arabic, never literal translation).
+- analysis.organic.metrics[n]: pick the 4–8 numbers that actually tell the story (Views, Reach, Profile visits, Follows, Link clicks, Interactions, Watch time…). For each:
+  - .label = the metric name, short ("Views")
+  - .value = the headline number exactly as in the export, formatted ("301,274")
+  - .delta = the change vs the previous period when the export shows one ("+312%", "×4", "−12%") — leave blank if unknown, NEVER invent it
+  - .note  = ONE sentence in plain words: what this number means and why the client should care ("More people are discovering you without paid push" — not "impressions increased")
+- analysis.organic.reading: 2–3 sentences (en + ar): the overall story — what worked, what didn't, and what the numbers say should happen next.
+
+PAID — analysis.paid.*
+- analysis.paid.spend: total ad spend as shown ("$292.22").
+- analysis.paid.note: one bilingual line on how the campaigns worked together as a sequence.
+- analysis.paid.campaigns[n]: one per campaign — name, period, type (Awareness/Traffic/Engagement/Followers…), spend, reach, impressions, freq, cpm, and .desc = one line on what this campaign achieved in the bigger picture.
+
+Rules:
+- Numbers come from the export EXACTLY — never invent or estimate a number.
+- Every en/ar pair gets BOTH languages, written like a human strategist, not a dashboard.
+- Add rows by copying a line and increasing the [n] index; keep the "field" column EXACTLY as-is.
 - Output ONLY the CSV (header + rows). No commentary, no code fences.
 
-=== PASTE YOUR META / INSTAGRAM REPORT BELOW THIS LINE ===
+=== PASTE YOUR META / INSTAGRAM EXPORT BELOW THIS LINE ===
 [paste the analytics export here]
 
 === ANALYTICS CSV TO FILL ===
@@ -309,14 +326,14 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
       <Group title="Analysis — Organic">
         <Bi label="Headline" value={data.analysis.organic.headline} onChange={(headline) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, headline } } })} />
         <Bi label="Reading (optional)" value={data.analysis.organic.reading} onChange={(reading) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, reading } } })} area />
-        <label className={lbl}>Before / after metrics</label>
-        <Rows<MetricRow> items={data.analysis.organic.metrics} onChange={(metrics) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, metrics } } })} blank={{ label: "", before: "", after: "", note: "" }} addLabel="Add metric"
+        <label className={lbl}>Metrics — the number + what it means</label>
+        <Rows<MetricRow> items={data.analysis.organic.metrics} onChange={(metrics) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, metrics } } })} blank={{ label: "", value: "", delta: "", note: "" }} addLabel="Add metric"
           render={(m, set) => (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pr-16">
-              <Text label="Metric" value={m.label} onChange={(label) => set({ label })} />
-              <Text label="Before" value={m.before} onChange={(before) => set({ before })} />
-              <Text label="After" value={m.after} onChange={(after) => set({ after })} />
-              <Text label="Note" value={m.note} onChange={(note) => set({ note })} />
+              <Text label="Metric" value={m.label} onChange={(label) => set({ label })} placeholder="Views" />
+              <Text label="Number" value={m.value ?? m.after ?? ""} onChange={(value) => set({ value })} placeholder="301,274" />
+              <Text label="Change (optional)" value={m.delta ?? ""} onChange={(delta) => set({ delta })} placeholder="+312%" />
+              <Text label="What it means" value={m.note} onChange={(note) => set({ note })} placeholder="More people are discovering you" />
             </div>
           )} />
       </Group>

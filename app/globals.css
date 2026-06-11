@@ -1423,3 +1423,36 @@ body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
   .ms-hero::before, .ms-hero::after { animation: none; }
   .ms-plan::after, .ms-quote::after { display: none; }
 }
+
+/* ---- Analytics stat cards — the number front and centre, the meaning under
+   it, an optional change badge. Replaces the old before/after rows. ---- */
+.ms-metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 980px) { .ms-metric-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .ms-metric-grid { grid-template-columns: 1fr; } }
+.ms-metric-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: 22px 20px 20px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.ms-metric-card::before { content: ""; position: absolute; top: 0; inset-inline-start: 0; width: 34px; height: 3px; background: var(--marker-orange); }
+.ms-metric-card:hover { box-shadow: 0 16px 38px rgba(48, 48, 48, 0.09); transform: translateY(-2px); }
+.ms-metric-value { font: 800 36px/1 var(--font-display); letter-spacing: -0.03em; color: var(--marker-ink); overflow-wrap: anywhere; }
+body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
+.ms-metric-label { margin-top: 7px; font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-muted); }
+.ms-metric-note { margin: 10px 0 0; font: 400 13px/1.55 var(--font-body); color: var(--fg-muted); }
+.ms-metric-delta {
+  position: absolute;
+  top: 14px;
+  inset-inline-end: 14px;
+  font: 800 11px/1 var(--font-display);
+  padding: 5px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+.ms-metric-delta.up { background: rgba(43, 182, 115, 0.14); color: #1f9d63; }
+.ms-metric-delta.down { background: rgba(215, 38, 61, 0.12); color: #c94b4b; }
