@@ -40,7 +40,8 @@ export function briefText(name: string, brief?: OnboardingBrief): string {
 
 const SHARED_RULES = `Rules:
 - Output ONLY the JSON document — no commentary, no markdown fences, nothing before or after it.
-- Keep the exact same structure and keys. Keep "v": 1. Keep "theme" and "docId" unchanged.
+- Keep the same structure and key names. Keep "theme" and "docId" unchanged.
+- If the full document would make your reply too long, you may return a PARTIAL document containing only the keys you changed — omitted keys keep their current value. Never stop in the middle of the JSON; close every bracket.
 - Every { "en": …, "ar": … } pair must have BOTH languages filled — natural, fluent Arabic (not a literal translation).
 - In any text you may wrap one key phrase in *single stars* for the brand accent colour, and **double stars** for bold. Use them sparingly, like a designer would.
 - In multi-line title fields, a \\n splits display lines.
@@ -90,21 +91,80 @@ ${brief}
 ${JSON.stringify(doc, null, 1)}`;
 }
 
-// Parse the AI reply — tolerant of code fences and stray prose around the JSON.
-export function parseAiDoc<T extends { v: number }>(raw: string): T | null {
+// Parse the AI reply — very tolerant. Strips code fences and prose around the
+// JSON, removes trailing commas, repairs truncated replies (unterminated
+// strings / unclosed brackets), and falls back to progressively cutting the
+// tail until something parses. A partial document is fine — mergeAiDoc
+// overlays it on the current one, so omitted keys keep their value.
+export function parseAiDoc<T>(raw: string): T | null {
   let s = (raw || "").trim();
-  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/);
-  if (fence) s = fence[1].trim();
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
+  if (fence && fence[1].trim().length > s.length * 0.5) s = fence[1].trim();
   const a = s.indexOf("{");
+  if (a < 0) return null;
+  s = s.slice(a);
   const b = s.lastIndexOf("}");
-  if (a < 0 || b <= a) return null;
-  s = s.slice(a, b + 1);
-  try {
-    const d = JSON.parse(s) as T;
-    return d && d.v === 1 ? d : null;
-  } catch {
-    return null;
+  const full = b > 0 ? s.slice(0, b + 1) : s;
+
+  const noTrailingCommas = (x: string) => x.replace(/,\s*([}\]])/g, "$1");
+  const attempt = (x: string): T | null => {
+    try {
+      const d = JSON.parse(x);
+      return d && typeof d === "object" && !Array.isArray(d) ? (d as T) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  // 1) as-is, then with trailing commas stripped, then bracket-repaired.
+  for (const c of [full, noTrailingCommas(full), noTrailingCommas(repairJson(s))]) {
+    const d = attempt(c);
+    if (d) return d;
   }
+  // 2) progressively drop the (likely truncated) tail back to the previous
+  //    complete value, repairing and retrying each time.
+  let cur = s;
+  for (let i = 0; i < 60 && cur.length > 2; i++) {
+    const cutAt = Math.max(
+      cur.lastIndexOf("}", cur.length - 2),
+      cur.lastIndexOf("]", cur.length - 2),
+      cur.lastIndexOf('"', cur.length - 2)
+    );
+    if (cutAt <= 0) break;
+    cur = cur.slice(0, cutAt + 1);
+    const d = attempt(noTrailingCommas(repairJson(cur)));
+    if (d) return d;
+  }
+  return null;
+}
+
+// Best-effort close of a truncated JSON string: terminate an open string,
+// finish a dangling `"key":` with an empty value, drop a dangling comma, then
+// close every bracket that's still open.
+function repairJson(s: string): string {
+  const stack: string[] = [];
+  let inStr = false;
+  let esc = false;
+  for (const ch of s) {
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === "\\") esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') inStr = true;
+    else if (ch === "{") stack.push("}");
+    else if (ch === "[") stack.push("]");
+    else if (ch === "}" || ch === "]") {
+      if (stack[stack.length - 1] === ch) stack.pop();
+    }
+  }
+  let out = s;
+  if (inStr) out += '"';
+  out = out.replace(/,\s*$/, "");
+  out = out.replace(/:\s*$/, ': ""');
+  while (stack.length) out += stack.pop();
+  return out;
 }
 
 // ---- normalization — AI replies can drop keys inside array items; fill them

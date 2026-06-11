@@ -34,7 +34,10 @@ export default function AiFill({
       setMsg({ ok: true, text: `Document filled ✓ — review the preview, then Save & Send.` });
       setPaste("");
     } else {
-      setMsg({ ok: false, text: "Couldn't read that — paste the full JSON the AI returned." });
+      setMsg({
+        ok: false,
+        text: "Couldn't read that. Make sure you pasted the JSON itself (it starts with { ). If the AI's reply was cut off, ask it to resend just the JSON — a partial document with only the changed keys also works.",
+      });
     }
   }
 
