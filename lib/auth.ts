@@ -6,6 +6,15 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "marker_session";
 
+// The studio owner's account. It can never be removed, and it's the only one
+// allowed to add or remove admin users. Override with SUPERADMIN_EMAIL if the
+// address ever changes.
+export const SUPERADMIN_EMAIL = (process.env.SUPERADMIN_EMAIL || "elias@marker.ps").toLowerCase();
+
+export function isSuperAdmin(user: { email?: string | null } | null | undefined): boolean {
+  return !!user?.email && user.email.toLowerCase() === SUPERADMIN_EMAIL;
+}
+
 export type Role = "admin" | "client";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 

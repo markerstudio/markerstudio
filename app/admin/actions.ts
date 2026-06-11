@@ -5,7 +5,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import bcrypt from "bcryptjs";
 import { randomBytes } from "crypto";
 import { getSql, isDbEnabled } from "@/lib/db";
-import { createSession, destroySession, getSession, type Role } from "@/lib/auth";
+import { createSession, destroySession, getSession, isSuperAdmin, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients } from "@/lib/notion";
@@ -466,7 +466,9 @@ export async function deleteApplication(formData: FormData) {
 // --- User management -------------------------------------------------------
 
 export async function createUser(formData: FormData) {
-  if (!(await getSession())) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!isSuperAdmin(session)) redirect("/admin/users?error=superadmin"); // only the owner manages users
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const name = String(formData.get("name") || "").trim() || "Admin";
   const password = String(formData.get("password") || "");
@@ -484,7 +486,9 @@ export async function createUser(formData: FormData) {
 }
 
 export async function deleteUser(formData: FormData) {
-  if (!(await getSession())) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
+  if (!isSuperAdmin(session)) redirect("/admin/users?error=superadmin"); // only the owner manages users
   const id = Number(formData.get("id") || 0);
   const sql = getSql();
   const count = (await sql`SELECT count(*)::int AS n FROM users WHERE role = 'admin' OR role IS NULL`) as unknown as { n: number }[];
@@ -493,6 +497,7 @@ export async function deleteUser(formData: FormData) {
     SELECT id, email, name, password_hash, role, client_id, created_at FROM users WHERE id = ${id} LIMIT 1
   `) as unknown as { email: string }[];
   if (!rows[0]) redirect("/admin/users");
+  if (isSuperAdmin(rows[0])) redirect("/admin/users?error=protected"); // the superadmin can never be removed
   const undoId = await snapshotForUndo("user", rows[0].email, { user: rows[0] });
   await sql`DELETE FROM users WHERE id = ${id}`;
   redirect(`/admin/users?undo=${undoId}`);
