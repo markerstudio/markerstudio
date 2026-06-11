@@ -223,10 +223,11 @@ const NAV_HREFS = ["#work", "#services", "#studio", "#faq", "#contact"];
 /* The Marker V — the mark alone, crisp at any size (inline SVG, brand orange). */
 function MarkerMark({ size = 30 }: { size?: number }) {
   return (
-    <svg width={Math.round(size * 0.66)} height={size} viewBox="27 25 38 58" aria-hidden focusable="false">
-      <path d="M30 28 L46 72 L52 60 L40 28 Z" fill="#FF9100" />
-      <path d="M52 40 L62 28 L56 46 Z" fill="#FF9100" />
-      <path d="M40 72 L46 72 L43 80 Z" fill="#FF9100" />
+    <svg width={Math.round(size * (516 / 613))} height={size} viewBox="0 0 516.1 613.64" aria-hidden focusable="false">
+      <path
+        fill="#FF9100"
+        d="M172.3,466.08l55.16,146.24c33.35-48.73,65.82-97.46,97.54-146.24h-152.7ZM310.85,354.75L172.89,0H0l164.41,435.83h176.65c60.58-94.11,118.46-188.47,174.94-283.54l-205.14,202.46Z"
+      />
     </svg>
   );
 }
