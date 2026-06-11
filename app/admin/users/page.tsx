@@ -1,6 +1,8 @@
 import { getSql, isDbEnabled } from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { createUser, deleteUser } from "../actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
+import UndoBanner from "@/components/admin/UndoBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -17,7 +19,11 @@ const MESSAGES: Record<string, { text: string; ok?: boolean }> = {
   removed: { text: "User removed.", ok: true },
 };
 
-export default async function UsersPage({ searchParams }: { searchParams: { error?: string; ok?: string } }) {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams: { error?: string; ok?: string; undo?: string; restored?: string; undoError?: string };
+}) {
   const me = await getSession();
   let users: U[] = [];
   if (isDbEnabled()) {
@@ -47,6 +53,7 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
           {msg.text}
         </p>
       )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/users" />
 
       <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100 mb-8">
         {users.map((u) => (
@@ -63,7 +70,12 @@ export default async function UsersPage({ searchParams }: { searchParams: { erro
             {me?.email !== u.email && (
               <form action={deleteUser}>
                 <input type="hidden" name="id" value={u.id} />
-                <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Remove</button>
+                <ConfirmButton
+                  message={`Remove ${u.name} (${u.email})? They won't be able to sign in — you'll get a chance to undo right after.`}
+                  className="text-sm font-medium text-neutral-400 hover:text-red-600"
+                >
+                  Remove
+                </ConfirmButton>
               </form>
             )}
           </div>

@@ -6,6 +6,7 @@ import InvoiceCreateFromTab from "@/components/admin/InvoiceCreateFromTab";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import RecordPayment from "@/components/admin/RecordPayment";
+import UndoBanner from "@/components/admin/UndoBanner";
 import { setInvoiceArchivedAction, deleteInvoiceAction, duplicateInvoiceAction } from "../invoice-actions";
 
 export const dynamic = "force-dynamic";
@@ -21,7 +22,7 @@ type Filter = (typeof FILTERS)[number];
 export default async function InvoicesAdmin({
   searchParams,
 }: {
-  searchParams: { ok?: string; error?: string; archived?: string; f?: string };
+  searchParams: { ok?: string; error?: string; archived?: string; f?: string; undo?: string; restored?: string; undoError?: string };
 }) {
   const dbOff = !isDbEnabled();
   const showArchived = searchParams.archived === "1";
@@ -114,6 +115,7 @@ export default async function InvoicesAdmin({
       {searchParams.error && (
         <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
+      <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={backHref || "/admin/invoices"} />
       {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>}
       {failed && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">Database connected, but not initialised yet.</p>}
 
@@ -225,7 +227,7 @@ export default async function InvoicesAdmin({
                 <input type="hidden" name="slug" value={inv.client_slug} />
                 <input type="hidden" name="back" value={backHref || "/admin/invoices"} />
                 <ConfirmButton
-                  message={`Delete invoice ${inv.number}? This can't be undone — archiving keeps it for your records instead.`}
+                  message={`Delete invoice ${inv.number}? You'll get a chance to undo right after — archiving keeps it for your records instead.`}
                   className="text-sm font-medium text-neutral-400 hover:text-red-600"
                 >
                   Delete

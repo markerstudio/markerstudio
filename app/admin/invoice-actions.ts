@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
+import { snapshotForUndo, withParam } from "@/lib/undo";
 
 async function clientBySlug(slug: string) {
   const sql = getSql();
@@ -167,9 +168,12 @@ export async function deleteInvoiceAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
-  const back = String(formData.get("back") || "").trim();
+  const back = String(formData.get("back") || "").trim() || `/admin/clients/${slug}/edit`;
+  const inv = await getInvoice(id);
+  if (!inv) redirect(back);
+  const undoId = await snapshotForUndo("invoice", `invoice ${inv.number}`, { invoice: inv });
   await deleteInvoice(id);
   revalidatePath(`/portal/${slug}`);
   revalidatePath("/admin/invoices");
-  redirect(back || `/admin/clients/${slug}/edit?ok=invoice-deleted`);
+  redirect(withParam(back, "undo", String(undoId)));
 }

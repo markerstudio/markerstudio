@@ -33,6 +33,17 @@ CREATE TABLE IF NOT EXISTS consent_forms (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Undo snapshots for destructive admin actions (see lib/undo.ts; created
+-- automatically by ensureUndoTable). Deleted rows are stowed here as JSON so
+-- the admin can undo right after; pruned after 24 hours.
+CREATE TABLE IF NOT EXISTS undo_snapshots (
+  id          SERIAL PRIMARY KEY,
+  kind        TEXT NOT NULL,                       -- client | invoice | project | user | inquiry | application
+  label       TEXT NOT NULL DEFAULT '',            -- human-readable, shown in the undo banner
+  payload     JSONB NOT NULL DEFAULT '{}'::jsonb,  -- the deleted row(s)
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS consent_signatures (
   id          SERIAL PRIMARY KEY,
   form_id     INTEGER NOT NULL,

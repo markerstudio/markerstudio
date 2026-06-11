@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { deleteClient } from "@/app/admin/actions";
 
 export type SectionState = "done" | "sent" | "draft" | "empty";
 
@@ -38,8 +37,9 @@ const DOT: Record<SectionState, string> = {
 
 /* Clients as a classified card grid: filter chips with live counts, name
    search, and the fill matrix on every card. Pending sign-ups float to the
-   top. Clicking the card opens the portal editor (the daily task); settings,
-   portal preview and delete are explicit actions on the card. */
+   top. Clicking the card opens the portal editor (the daily task); settings
+   and portal preview are explicit actions on the card. Deleting a client
+   lives at the bottom of its settings page — too destructive for a card. */
 export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
@@ -173,17 +173,6 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                     <Link href={`/portal/${c.slug}`} target="_blank" className="text-xs font-semibold text-neutral-500 hover:text-orange">
                       Portal ↗
                     </Link>
-                    <form
-                      action={deleteClient}
-                      onSubmit={(e) => {
-                        if (!confirm(`Delete ${c.name} and their portal? This can't be undone.`)) e.preventDefault();
-                      }}
-                    >
-                      <input type="hidden" name="slug" value={c.slug} />
-                      <button className="text-xs font-semibold text-neutral-400 hover:text-red-600" aria-label={`Delete ${c.name}`}>
-                        Delete
-                      </button>
-                    </form>
                   </span>
                 </div>
               </div>
