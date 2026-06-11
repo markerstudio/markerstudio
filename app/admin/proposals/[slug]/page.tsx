@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getClient } from "@/lib/clients";
 import { resolveProposalDoc } from "@/lib/docs";
 import ProposalBuilder from "@/components/admin/docbuilder/ProposalBuilder";
+import { briefText } from "@/components/admin/docbuilder/ai";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Proposal builder · Admin" };
@@ -25,6 +26,7 @@ export default async function ProposalBuilderPage({ params }: { params: { slug: 
       status={status}
       accepted={accepted}
       sentAt={p?.sentAt}
+      briefText={briefText(client.name || client.slug, client.data.onboarding)}
     />
   );
 }
