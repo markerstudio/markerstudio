@@ -416,9 +416,14 @@ export default function PortalView({
                 <span className="ms-section__eyebrow">{ui("Finance", "المالية")}</span>
                 <h2 className="ms-section__title">{ui("Payments & balance.", "المدفوعات والرصيد.")}</h2>
               </div>
-              <a className="ms-btn ms-btn-outline" href={`/portal/${client.slug}/invoices`}>
-                {ui("All invoices", "كل الفواتير")} <span>→</span>
-              </a>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <a className="ms-btn ms-btn-primary" href={`/portal/${client.slug}/statement`}>
+                  {ui("Download statement", "تنزيل كشف حساب")} <span>↓</span>
+                </a>
+                <a className="ms-btn ms-btn-outline" href={`/portal/${client.slug}/invoices`}>
+                  {ui("All invoices", "كل الفواتير")} <span>→</span>
+                </a>
+              </div>
             </div>
 
             <div className="ms-portal-grid">
