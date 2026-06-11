@@ -73,6 +73,18 @@ export type MonthFin = {
   expected: number; // unpaid income rows due this month (open money)
 };
 
+// One received payment (an Income row with a Pay Date), for the payments feed.
+export type PaymentRow = {
+  name: string;
+  sourceName: string;
+  ils: number;
+  amountLabel: string;
+  payDate: string; // ISO date
+  daysLate: number; // pay − due (0 when no due date or paid early)
+  notionUrl: string;
+  clientSlug: string | null;
+};
+
 export type FinanceData = {
   available: boolean; // NOTION_TOKEN present and the tracker reachable
   error?: string;
@@ -85,6 +97,7 @@ export type FinanceData = {
   diag?: string; // surfaced when the debt source list looks incomplete
   overdue: OverduePayment[]; // unpaid rows past their due date, most overdue first
   overdueTotal: number;
+  payments: PaymentRow[]; // every received payment, newest first
   monthly: MonthFin[]; // every month with activity, oldest first
   collectedThisMonthILS: number;
   expectedThisMonthILS: number; // unpaid rows due this month
@@ -102,6 +115,7 @@ const EMPTY: FinanceData = {
   debtSourceCount: 0,
   overdue: [],
   overdueTotal: 0,
+  payments: [],
   monthly: [],
   collectedThisMonthILS: 0,
   expectedThisMonthILS: 0,
@@ -289,6 +303,7 @@ async function fetchFinance(): Promise<FinanceData> {
   type Beh = { onTime: number; late: number; delaySum: number; lastPay: string };
   const behavior = new Map<string, Beh>();
   const overdue: OverduePayment[] = [];
+  const payments: PaymentRow[] = [];
   let collectedThisMonthILS = 0;
   let expectedThisMonthILS = 0;
 
@@ -323,6 +338,21 @@ async function fetchFinance(): Promise<FinanceData> {
 
     if (pay) bump(pay, "income", ils);
     else if (due) bump(due, "expected", ils);
+
+    if (pay) {
+      const cid = clientIds[0];
+      const match = clients.find((c) => c.pageId && c.pageId === cid);
+      payments.push({
+        name: title(p, "Name") || "Payment",
+        sourceName: srcIds[0] ? sourceMeta.get(srcIds[0])?.name || "" : "",
+        ils,
+        amountLabel: ils ? `${ils.toLocaleString()} ILS` : usd ? `$${usd.toLocaleString()}` : "—",
+        payDate: pay,
+        daysLate: due ? Math.max(0, daysBetween(pay, due)) : 0,
+        notionUrl: r.url || "",
+        clientSlug: match?.slug ?? null,
+      });
+    }
 
     if (pay && pay >= monthStart && pay <= today) collectedThisMonthILS += ils;
     if (!pay && due && due >= monthStart && due <= `${today.slice(0, 8)}31`) expectedThisMonthILS += ils;
@@ -364,6 +394,7 @@ async function fetchFinance(): Promise<FinanceData> {
     }
   }
   overdue.sort((a, b) => b.daysOverdue - a.daysOverdue);
+  payments.sort((a, b) => (a.payDate > b.payDate ? -1 : 1));
 
   // ---- Debt leaderboard — only sources in the tracker's client-debt set ----
   const debtors: Debtor[] = [];
@@ -453,6 +484,7 @@ async function fetchFinance(): Promise<FinanceData> {
     diag,
     overdue,
     overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
+    payments,
     monthly,
     collectedThisMonthILS,
     expectedThisMonthILS,

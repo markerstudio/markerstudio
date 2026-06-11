@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { isDbEnabled } from "@/lib/db";
 import { getClients, type Client } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
 import { getFinance, fmtILS } from "@/lib/finance";
+import ClientsGrid, { type ClientCardData } from "@/components/admin/ClientsGrid";
 import { quickCreateClient, quickCreateFromNotion, importAllNotionClients } from "../actions";
 import { autofillPortals } from "../fill-actions";
 
@@ -39,13 +39,6 @@ function portalSections(c: Client) {
   ] as const;
 }
 
-const DOT: Record<string, string> = {
-  done: "bg-green-500",
-  sent: "bg-orange",
-  draft: "bg-neutral-300",
-  empty: "bg-neutral-200 border border-dashed border-neutral-300",
-};
-
 // Live combined client debt from the Budget Tracker (the source of truth) —
 // raced against a timeout so a cold Notion fetch can't stall the page.
 async function trackerDebt(): Promise<number | null> {
@@ -58,65 +51,23 @@ async function trackerDebt(): Promise<number | null> {
   }
 }
 
-function ClientTable({ clients, emptyText }: { clients: Client[]; emptyText: string }) {
-  if (clients.length === 0) return <p className="px-4 py-6 text-sm text-neutral-400">{emptyText}</p>;
-  return (
-    <table className="w-full text-sm min-w-[820px]">
-      <thead>
-        <tr className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 border-b border-neutral-100">
-          <th className="text-left px-4 py-2 font-bold">Client</th>
-          <th className="text-left px-2 py-2 font-bold">Plan</th>
-          <th className="text-right px-2 py-2 font-bold">Money left</th>
-          {portalSections(clients[0]).map((s) => (
-            <th key={s.key} className="px-1.5 py-2 text-center font-bold">{s.key}</th>
-          ))}
-          <th className="px-3 py-2 text-right font-bold">Filled</th>
-          <th className="px-4 py-2" />
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-neutral-50">
-        {clients.map((c) => {
-          const secs = portalSections(c);
-          const filled = secs.filter((s) => s.state === "done" || s.state === "sent").length;
-          const pct = Math.round((filled / secs.length) * 100);
-          return (
-            <tr key={c.slug} className="hover:bg-neutral-50/60">
-              <td className="px-4 py-2.5">
-                <Link href={`/portal/${c.slug}?edit=1`} className="font-semibold text-neutral-800 hover:text-orange inline-flex items-center gap-2.5">
-                  {c.logo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={c.logo} alt="" className="w-6 h-6 rounded-full object-contain bg-neutral-900 shrink-0" />
-                  ) : (
-                    <span className="w-6 h-6 rounded-full inline-block shrink-0" style={{ background: c.color || "#303030" }} />
-                  )}
-                  <span className="truncate max-w-[180px]">{c.name || c.slug}</span>
-                </Link>
-                {c.data?.notionPageId && <span className="ml-2 text-[10px] text-neutral-300 align-middle" title="Linked to Notion">◆</span>}
-              </td>
-              <td className="px-2 py-2.5 text-xs text-neutral-500 truncate max-w-[150px]">{c.data?.plan?.name || "—"}</td>
-              <td className="px-2 py-2.5 text-right tabular-nums text-xs font-semibold text-neutral-700 whitespace-nowrap">
-                {c.data?.plan?.balance || "—"}
-              </td>
-              {secs.map((s) => (
-                <td key={s.key} className="px-1.5 py-2.5 text-center">
-                  <Link href={s.href} title={`${s.key}: ${s.state}`} className="inline-block group">
-                    <span className={`inline-block w-3.5 h-3.5 rounded-full transition-transform group-hover:scale-125 ${DOT[s.state]}`} />
-                  </Link>
-                </td>
-              ))}
-              <td className="px-3 py-2.5 text-right">
-                <span className={`tabular-nums text-xs font-bold ${pct === 100 ? "text-green-700" : pct >= 50 ? "text-neutral-700" : "text-orange-deep"}`}>{pct}%</span>
-              </td>
-              <td className="px-4 py-2.5 text-right whitespace-nowrap">
-                <Link href={`/portal/${c.slug}?edit=1`} className="text-xs font-semibold text-neutral-500 hover:text-orange">Fill ✎</Link>
-                <Link href={`/admin/clients/${c.slug}/edit`} className="ml-3 text-xs font-semibold text-neutral-500 hover:text-orange">Settings</Link>
-              </td>
-            </tr>
-          );
-        })}
-      </tbody>
-    </table>
-  );
+// Shape a client for the card grid (must stay serialisable — it crosses to a
+// client component).
+function toCard(c: Client): ClientCardData {
+  const secs = portalSections(c);
+  const filled = secs.filter((s) => s.state === "done" || s.state === "sent").length;
+  return {
+    slug: c.slug,
+    name: c.name || c.slug,
+    color: c.color || "#303030",
+    logo: c.logo || "",
+    planName: c.data?.plan?.name || "",
+    balance: c.data?.plan?.balance || "",
+    status: c.data?.status === "pending" ? "pending" : c.data?.plan?.active ? "active" : "inactive",
+    notion: !!c.data?.notionPageId,
+    sections: secs.map((s) => ({ key: s.key, state: s.state, href: s.href })),
+    pct: Math.round((filled / secs.length) * 100),
+  };
 }
 
 export default async function ClientsHome({ searchParams }: { searchParams: { error?: string; bulk?: string; filled?: string } }) {
@@ -131,10 +82,10 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
   const linkedPages = new Set(clients.map((c) => norm(c.data?.notionPageId || "")).filter(Boolean));
   const notYetImported = notionClients.filter((n) => !linkedPages.has(norm(n.id)));
 
-  const byName = (a: Client, b: Client) => (a.name || a.slug).localeCompare(b.name || b.slug);
-  const pending = clients.filter((c) => c.data?.status === "pending").sort(byName);
-  const active = clients.filter((c) => c.data?.status !== "pending" && c.data?.plan?.active).sort(byName);
-  const inactive = clients.filter((c) => c.data?.status !== "pending" && !c.data?.plan?.active).sort(byName);
+  const cards = clients.map(toCard);
+  const pending = cards.filter((c) => c.status === "pending");
+  const active = cards.filter((c) => c.status === "active");
+  const inactive = cards.filter((c) => c.status === "inactive");
 
   // Fallback when the tracker is unreachable: sum of saved money-left figures
   // (can be stale — the tracker number is preferred and labelled accordingly).
@@ -170,7 +121,7 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
       <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Client portals</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Grouped by status — what&apos;s filled, what&apos;s empty, and one click to fix it.</p>
+          <p className="text-sm text-neutral-500 mt-0.5">Search or filter to find anyone — what&apos;s filled, what&apos;s empty, and one click to fix it.</p>
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
           {!dbOff && clients.length > 0 && (
@@ -255,35 +206,8 @@ export default async function ClientsHome({ searchParams }: { searchParams: { er
         </form>
       </div>
 
-      {/* ---- Grouped portals: Active → Pending → Inactive ---- */}
-      {!dbOff &&
-        (
-          [
-            { title: "Active", tone: "text-green-700", dot: "bg-green-500", list: active, empty: "No active clients yet." },
-            { title: "Pending review", tone: "text-amber-700", dot: "bg-amber-400", list: pending, empty: "" },
-            { title: "Inactive", tone: "text-neutral-500", dot: "bg-neutral-300", list: inactive, empty: "" },
-          ] as const
-        )
-          .filter((g) => g.list.length > 0 || g.title === "Active")
-          .map((g) => (
-            <div key={g.title} className="adm-rise bg-white border border-neutral-200 rounded-xl mb-5 overflow-x-auto">
-              <div className="px-4 pt-4 pb-2 flex items-center justify-between gap-3 flex-wrap">
-                <h2 className="font-bold tracking-tight flex items-center gap-2">
-                  <span className={`w-2.5 h-2.5 rounded-full inline-block ${g.dot}`} />
-                  {g.title} <span className={`tabular-nums text-sm font-bold ${g.tone}`}>{g.list.length}</span>
-                </h2>
-                {g.title === "Active" && (
-                  <div className="flex items-center gap-3 text-[11px] text-neutral-500">
-                    <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-green-500 inline-block" /> filled</span>
-                    <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-orange inline-block" /> sent</span>
-                    <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-neutral-300 inline-block" /> draft</span>
-                    <span className="inline-flex items-center gap-1"><i className="w-2.5 h-2.5 rounded-full bg-neutral-200 border border-dashed border-neutral-300 inline-block" /> empty</span>
-                  </div>
-                )}
-              </div>
-              <ClientTable clients={[...g.list]} emptyText={g.empty || "None."} />
-            </div>
-          ))}
+      {/* ---- Client cards: searchable, filterable grid ---- */}
+      {!dbOff && <ClientsGrid clients={cards} />}
     </div>
   );
 }
