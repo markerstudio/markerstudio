@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import type { AgreementDoc } from "@/lib/docs";
 import { saveAgreementDoc, setAgreementSent, resetAgreementSignature } from "@/app/admin/doc-actions";
 import AgreementDocument from "@/components/docs/AgreementDocument";
+import AiFill from "./AiFill";
+import { agreementAiPrompt, mergeAiDoc, normalizeAgreementDoc, parseAiDoc } from "./ai";
 import { Acc, AddBtn, ItemCard, ItemTools, LInput, Lbl, TextInput, ThemePicker, Toggle } from "./ui";
 
 const blankL = { en: "", ar: "" };
@@ -21,6 +23,7 @@ export default function AgreementBuilder({
   status,
   signed,
   sentAt,
+  briefText = "",
 }: {
   slug: string;
   clientName: string;
@@ -28,6 +31,7 @@ export default function AgreementBuilder({
   status: "draft" | "sent" | "signed";
   signed: { at: string; by: string } | null;
   sentAt?: string;
+  briefText?: string;
 }) {
   const [doc, setDoc] = useState<AgreementDoc>(initialDoc);
   const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
@@ -132,6 +136,18 @@ export default function AgreementBuilder({
 
       <div className="grid lg:grid-cols-[440px_1fr]">
         <div className="p-4 sm:p-5 space-y-3 lg:h-[calc(100vh-130px)] lg:overflow-y-auto bg-neutral-50/60 border-r border-neutral-200">
+          <AiFill
+            label="agreement"
+            buildPrompt={() => agreementAiPrompt(doc, clientName, briefText)}
+            onApply={(raw) => {
+              const parsed = parseAiDoc<AgreementDoc>(raw);
+              if (!parsed) return false;
+              setDoc((prev) => normalizeAgreementDoc(mergeAiDoc(prev, parsed)));
+              setDirty(true);
+              setSaving("");
+              return true;
+            }}
+          />
           <Acc title="Theme & cover" defaultOpen>
             <ThemePicker theme={doc.theme} onChange={(t) => up((d) => (d.theme = t))} />
             <TextInput label="Document ID" value={doc.docId} onChange={(v) => up((d) => (d.docId = v))} />

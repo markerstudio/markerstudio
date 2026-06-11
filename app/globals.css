@@ -1155,3 +1155,30 @@ body.ar .ms-portal-watermark { font-family: var(--font-arabic-display); }
 body.ar .ms-doc-card h3 { font-family: var(--font-arabic-display); }
 .ms-doc-card p { margin: 0; font: 400 13.5px/1.55 var(--font-body); color: rgba(255, 255, 255, 0.7); }
 .ms-doc-card .ms-doc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* ---- Portal header, mobile: two rows. Row 1 = logo + language + sign out,
+   row 2 = full-width scrollable tabs. Stops the logo being crushed and the
+   sign-out button wrapping when everything fought for one row. ---- */
+@media (max-width: 760px) {
+  .ms-portal .ms-header__inner { flex-wrap: wrap; gap: 8px 10px; padding: 10px 0; }
+  .ms-portal .ms-logo { flex: 0 0 auto; }
+  .ms-portal .ms-logo img { height: 24px; width: auto; }
+  .ms-portal .ms-actions { margin-inline-start: auto; gap: 8px; flex: 0 0 auto; }
+  .ms-portal .ms-lang { flex-direction: row; flex-wrap: nowrap; }
+  .ms-portal .ms-lang button { padding: 8px 0; min-width: 38px; text-align: center; }
+  .ms-portal .ms-portal-signout { padding: 8px 11px; font-size: 12px; white-space: nowrap; }
+  .ms-portal .ms-portal-tabs {
+    order: 5;
+    flex: 1 1 100%;
+    margin-inline-start: 0;
+    gap: 2px;
+    /* fade the trailing edge so it's obvious there's more to scroll */
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  }
+  [dir="rtl"] .ms-portal .ms-portal-tabs {
+    -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+    mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
+  }
+  .ms-portal .ms-portal-tab { padding: 8px 11px; font-size: 12.5px; }
+}

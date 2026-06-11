@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getClient } from "@/lib/clients";
 import { resolveAgreementDoc } from "@/lib/docs";
 import AgreementBuilder from "@/components/admin/docbuilder/AgreementBuilder";
+import { briefText } from "@/components/admin/docbuilder/ai";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Agreement builder · Admin" };
@@ -23,6 +24,7 @@ export default async function AgreementBuilderPage({ params }: { params: { slug:
       status={status}
       signed={signed}
       sentAt={a?.sentAt}
+      briefText={briefText(client.name || client.slug, client.data.onboarding)}
     />
   );
 }

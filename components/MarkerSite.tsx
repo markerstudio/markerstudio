@@ -233,9 +233,11 @@ function SiteHeader({
   const [scrolled, setScrolled] = useState(false);
   const [active, setActive] = useState("");
 
-  // Compact the header once the page starts scrolling.
+  // Compact the header once the page starts scrolling. Hysteresis (engage at
+  // 64px, release under 8px): compacting shrinks the sticky header, which
+  // shifts scrollY — a single threshold flickers right at the boundary.
   useEffect(() => {
-    const onScroll = () => setScrolled(window.scrollY > 12);
+    const onScroll = () => setScrolled((prev) => (prev ? window.scrollY > 8 : window.scrollY > 64));
     onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);

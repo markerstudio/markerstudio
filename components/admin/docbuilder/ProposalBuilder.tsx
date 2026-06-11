@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import type { GanttPhase, ProposalDoc } from "@/lib/docs";
 import { saveProposalDoc, setProposalSent, resetProposalAcceptance } from "@/app/admin/doc-actions";
 import ProposalDocument, { type ProposalAcceptedInfo } from "@/components/docs/ProposalDocument";
+import AiFill from "./AiFill";
+import { mergeAiDoc, normalizeProposalDoc, parseAiDoc, proposalAiPrompt } from "./ai";
 import { Acc, AddBtn, ItemCard, ItemTools, LInput, Lbl, NumInput, TextInput, ThemePicker, Toggle } from "./ui";
 
 const blankL = { en: "", ar: "" };
@@ -21,6 +23,7 @@ export default function ProposalBuilder({
   status,
   accepted,
   sentAt,
+  briefText = "",
 }: {
   slug: string;
   clientName: string;
@@ -28,6 +31,7 @@ export default function ProposalBuilder({
   status: "draft" | "sent" | "accepted";
   accepted: ProposalAcceptedInfo | null;
   sentAt?: string;
+  briefText?: string;
 }) {
   const [doc, setDoc] = useState<ProposalDoc>(initialDoc);
   const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
@@ -135,6 +139,18 @@ export default function ProposalBuilder({
       <div className="grid lg:grid-cols-[440px_1fr]">
         {/* ---- editor panel ---- */}
         <div className="p-4 sm:p-5 space-y-3 lg:h-[calc(100vh-130px)] lg:overflow-y-auto bg-neutral-50/60 border-r border-neutral-200">
+          <AiFill
+            label="proposal"
+            buildPrompt={() => proposalAiPrompt(doc, clientName, briefText)}
+            onApply={(raw) => {
+              const parsed = parseAiDoc<ProposalDoc>(raw);
+              if (!parsed) return false;
+              setDoc((prev) => normalizeProposalDoc(mergeAiDoc(prev, parsed)));
+              setDirty(true);
+              setSaving("");
+              return true;
+            }}
+          />
           <Acc title="Theme & cover" hint="look, colours, title" defaultOpen>
             <ThemePicker theme={doc.theme} onChange={(t) => up((d) => (d.theme = t))} />
             <TextInput label="Document ID" value={doc.docId} onChange={(v) => up((d) => (d.docId = v))} />
