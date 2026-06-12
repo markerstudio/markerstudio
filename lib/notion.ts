@@ -72,6 +72,39 @@ function incomeRowToInvoice(ip: any): (Invoice & { _d: string }) {
   };
 }
 
+// Write a payment back to the Notion Income database, mirroring an admin-recorded
+// payment so the studio's books stay in sync both ways. Creates one Income row
+// linked to the client via the "Clients Database" relation (the same relation we
+// read payments from). Best-effort: returns the new page id, or null when Notion
+// isn't configured or the call fails — the local invoice is always the source of
+// truth, so we never block on Notion.
+export async function createIncomePayment(input: {
+  clientPageId: string;
+  amount: number;
+  currency: "ILS" | "USD";
+  payDate?: string; // ISO yyyy-mm-dd; defaults to today
+  name?: string;
+}): Promise<string | null> {
+  if (!process.env.NOTION_TOKEN) return null;
+  if (!input.clientPageId || !(input.amount > 0)) return null;
+  try {
+    const payDate = (input.payDate || new Date().toISOString().slice(0, 10)).slice(0, 10);
+    const properties: Record<string, any> = {
+      Name: { title: [{ text: { content: input.name || `Payment ${payDate}` } }] },
+      "Pay Date": { date: { start: payDate } },
+      "Clients Database": { relation: [{ id: input.clientPageId }] },
+      [input.currency]: { number: input.amount },
+    };
+    const res = await notionPost(`/v1/pages`, {
+      parent: { database_id: INCOME_DB },
+      properties,
+    });
+    return (res?.id as string) || null;
+  } catch {
+    return null;
+  }
+}
+
 // List clients from the Notion Clients Database (for the import dropdown).
 export async function listNotionClients(): Promise<{ id: string; name: string }[]> {
   if (!process.env.NOTION_TOKEN) return [];
