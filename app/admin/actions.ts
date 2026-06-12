@@ -8,7 +8,7 @@ import { getSql, isDbEnabled } from "@/lib/db";
 import { createSession, destroySession, getSession, isSuperAdmin, type Role } from "@/lib/auth";
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
-import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients } from "@/lib/notion";
+import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients, createNotionClientWithSource } from "@/lib/notion";
 import { snapshotForUndo } from "@/lib/undo";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
@@ -529,8 +529,23 @@ export async function saveClient(formData: FormData) {
       WHERE slug = ${original}
     `;
   } else {
+    // New client from the editor — auto-create it in Notion (with its source
+    // attached to All Time Clients Debt) unless it's already linked. Best-effort.
+    const d = data as ClientData;
+    let outJson = json;
+    if (!d.notionPageId) {
+      const made = await createNotionClientWithSource({
+        name,
+        monthlyFee: d.finance?.monthlyFee,
+        brandingFee: d.finance?.brandingFee,
+      });
+      if (made?.clientPageId) {
+        d.notionPageId = made.clientPageId;
+        outJson = JSON.stringify(d);
+      }
+    }
     await sql`
-      INSERT INTO clients (slug, name, logo, color, data) VALUES (${slug}, ${name}, ${logo}, ${color}, ${json}::jsonb)
+      INSERT INTO clients (slug, name, logo, color, data) VALUES (${slug}, ${name}, ${logo}, ${color}, ${outJson}::jsonb)
     `;
   }
   revalidatePath(`/portal/${slug}`);
@@ -613,7 +628,12 @@ export async function quickCreateClient(formData: FormData) {
     if (rows.length === 0) break;
     slug = `${base}-${n++}`;
   }
-  await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(blankClientData())}::jsonb)`;
+  // Auto-create the client + source in Notion and attach it to All Time Clients
+  // Debt, then save the link back so payments and finance sync to it. Best-effort.
+  const data = blankClientData();
+  const made = await createNotionClientWithSource({ name });
+  if (made?.clientPageId) data.notionPageId = made.clientPageId;
+  await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
   redirect(`/admin/clients/${slug}/edit`);
 }
 
