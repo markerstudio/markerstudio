@@ -143,6 +143,14 @@ export function invoiceTotal(items: InvoiceItem[]): number {
   }, 0);
 }
 
+// Guess an invoice's currency from its line amounts — "$"/"USD" → USD, else ILS
+// (the studio's default). Used when mirroring a payment back to Notion's Income
+// database, which has separate ILS and USD number columns.
+export function invoiceCurrency(items: InvoiceItem[]): "ILS" | "USD" {
+  const joined = (items || []).map((i) => i.amount || "").join(" ");
+  return /\$|usd/i.test(joined) ? "USD" : "ILS";
+}
+
 export function invoiceVat(items: InvoiceItem[], rate: number): number {
   return invoiceTotal(items) * (Number(rate) || 0) / 100;
 }

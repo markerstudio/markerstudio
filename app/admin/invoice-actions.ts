@@ -4,14 +4,30 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
-import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
+import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, invoiceCurrency, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
+import { createIncomePayment } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
 async function clientBySlug(slug: string) {
   const sql = getSql();
   const rows = (await sql`SELECT id, slug, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; slug: string; data: ClientData }[];
   return rows[0];
+}
+
+// Mirror an admin-recorded payment into the client's Notion Income database so
+// the books stay in sync both ways. Best-effort — only runs when the client is
+// linked to a Notion page, and a Notion failure never blocks the local record.
+async function syncPaymentToNotion(slug: string, amount: number, items: InvoiceItem[], label: string) {
+  if (!(amount > 0)) return;
+  try {
+    const c = await clientBySlug(slug);
+    const pageId = c?.data?.notionPageId;
+    if (!pageId) return;
+    await createIncomePayment({ clientPageId: pageId, amount, currency: invoiceCurrency(items), name: label });
+  } catch {
+    /* never block the local record on a Notion write */
+  }
 }
 
 function parseItems(raw: FormDataEntryValue | null): InvoiceItem[] {
@@ -41,7 +57,8 @@ export async function createInvoiceAction(formData: FormData) {
   if (!c) redirect("/admin/clients");
   if (items.length === 0) redirect(`/admin/clients/${slug}/edit?error=invoice-empty`);
 
-  await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate, paidAmount });
+  const { number } = await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate, paidAmount });
+  await syncPaymentToNotion(slug, paidAmount, items, `${number} deposit`);
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }
@@ -99,6 +116,7 @@ export async function createInvoiceFromTab(formData: FormData) {
     vatRate,
     paidAmount,
   });
+  await syncPaymentToNotion(target.slug, paidAmount, items, `${number} deposit`);
   revalidatePath(`/portal/${target.slug}`);
   revalidatePath("/admin/invoices");
   redirect(`/admin/invoices?ok=${encodeURIComponent(number)}`);
@@ -137,6 +155,7 @@ export async function recordPaymentAction(formData: FormData) {
   const inv = await getInvoice(id);
   if (inv && amount > 0) {
     await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
+    await syncPaymentToNotion(slug, amount, inv.items, `${inv.number} payment`);
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
     revalidatePath("/admin");
