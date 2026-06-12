@@ -60,6 +60,18 @@ const INCOME_DB = process.env.NOTION_INCOME_DB || "1822487b8e7e81d4821bede793d64
 const ARAB_BANK_ILS = process.env.NOTION_ARAB_BANK_ILS || "1cb2487b8e7e80a0a743f56fdbe7bcdf";
 const ARAB_BANK_USD = process.env.NOTION_ARAB_BANK_USD || "2232487b8e7e80048fbeebb5663894c6";
 
+// The "All Time Clients Debt" row ("Clients Debts") that curates which sources
+// count as client debt. A new client's source is attached to it via the Source's
+// "All Time Clients Debt" relation so the client shows up in the debt leaderboard.
+const DEBT_ROW = process.env.NOTION_DEBT_ROW || "1fd2487b8e7e80909d90f69244dbf83c";
+
+// Parse a money string like "5,000 ILS" / "$1,200" into a number (0 if unparseable).
+function moneyToNumber(s?: string): number {
+  if (!s) return 0;
+  const n = parseFloat(String(s).replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
 // Map one Income row's properties to an invoice line.
 function incomeRowToInvoice(ip: any): (Invoice & { _d: string }) {
   const ils = ip["ILS"]?.number;
@@ -143,6 +155,57 @@ export async function createIncomePayment(input: {
       properties,
     });
     return (res?.id as string) || null;
+  } catch {
+    return null;
+  }
+}
+
+// Create a client in Notion's Clients Database plus a matching Source row in the
+// Budget Tracker, and attach that source to the "All Time Clients Debt" table so
+// the client appears in the debt leaderboard. Mirrors how clients are set up by
+// hand in Notion. Returns the new client + source page ids, or null when Notion
+// isn't configured or the call fails — best-effort, so a Notion hiccup never
+// blocks creating the local client (which is the source of truth).
+export async function createNotionClientWithSource(input: {
+  name: string;
+  monthlyFee?: string; // e.g. "5,000 ILS" — becomes the Source's Monthly Income
+  brandingFee?: string; // becomes the Source's Branding Cost
+}): Promise<{ clientPageId: string; sourcePageId: string | null } | null> {
+  if (!process.env.NOTION_TOKEN) return null;
+  const name = (input.name || "").trim();
+  if (!name) return null;
+  try {
+    // 1) Clients Database page.
+    const client = await notionPost(`/v1/pages`, {
+      parent: { database_id: CLIENTS_DB },
+      properties: { Name: { title: [{ text: { content: name } }] } },
+    });
+    const clientPageId = client?.id as string;
+    if (!clientPageId) return null;
+
+    // 2) Source row, linked to the client and the All Time Clients Debt table.
+    const sourceProps: Record<string, any> = {
+      Name: { title: [{ text: { content: name } }] },
+      "Clients Database": { relation: [{ id: clientPageId }] },
+      "All Time Clients Debt": { relation: [{ id: DEBT_ROW }] },
+    };
+    const monthly = moneyToNumber(input.monthlyFee);
+    const branding = moneyToNumber(input.brandingFee);
+    if (monthly > 0) sourceProps["Monthly Income"] = { number: monthly };
+    if (branding > 0) sourceProps["Branding Cost"] = { number: branding };
+
+    let sourcePageId: string | null = null;
+    try {
+      const source = await notionPost(`/v1/pages`, {
+        parent: { database_id: SOURCES_DB },
+        properties: sourceProps,
+      });
+      sourcePageId = (source?.id as string) || null;
+    } catch {
+      /* client created, but the source failed — keep the client link */
+    }
+
+    return { clientPageId, sourcePageId };
   } catch {
     return null;
   }

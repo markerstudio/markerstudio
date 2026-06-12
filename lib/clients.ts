@@ -5,6 +5,7 @@
 // missing table (pre-migration) by returning empty/undefined.
 import { getSql, isDbEnabled } from "@/lib/db";
 import type { AgreementDoc, ProposalDoc, ProposalSelection } from "@/lib/docs";
+import { createNotionClientWithSource } from "@/lib/notion";
 
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
@@ -221,9 +222,18 @@ export async function resolveOrCreateClientByName(name: string): Promise<{ id: n
     if (r.length === 0) break;
     slug = `${base}-${n++}`;
   }
+  // Auto-create the client + source in Notion (attached to All Time Clients Debt)
+  // and save the link, so a client first seen on an invoice still syncs. Best-effort.
+  const data = blankClientData();
+  try {
+    const made = await createNotionClientWithSource({ name: trimmed });
+    if (made?.clientPageId) data.notionPageId = made.clientPageId;
+  } catch {
+    /* never block client creation on a Notion write */
+  }
   const ins = (await sql`
     INSERT INTO clients (slug, name, color, data)
-    VALUES (${slug}, ${trimmed}, '#303030', ${JSON.stringify(blankClientData())}::jsonb)
+    VALUES (${slug}, ${trimmed}, '#303030', ${JSON.stringify(data)}::jsonb)
     RETURNING id, slug
   `) as unknown as { id: number; slug: string }[];
   return ins[0] ?? null;
