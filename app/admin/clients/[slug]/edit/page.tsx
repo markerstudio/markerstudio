@@ -239,10 +239,25 @@ export default async function EditClientPage({
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-white/10 hover:bg-white/20 px-3 py-1.5 text-sm font-medium transition-colors">View portal ↗</Link>
-              <Link href={`/portal/${client.slug}?edit=1`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content ↗</Link>
+              <Link href={`/admin/clients/${client.slug}/portal-editor`} className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content →</Link>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* At-a-glance tracking — the numbers you care about, up top. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Money left", value: client.data.plan?.balance || "—" },
+          { label: "Paid", value: `${client.data.finance?.progress ?? 0}%` },
+          { label: "Invoices", value: String(clientInvoices.length) },
+          { label: "Planned posts", value: String(client.data.social?.posts?.length ?? 0) },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl bg-white border border-neutral-200 p-4 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{s.label}</div>
+            <div className="text-xl font-bold tracking-tight mt-1 truncate">{s.value}</div>
+          </div>
+        ))}
       </div>
 
       {msg && (
@@ -498,17 +513,19 @@ export default async function EditClientPage({
         </div>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <h2 className="font-bold">Meta — Facebook &amp; Instagram (live data)</h2>
-          {metaInfo?.hasToken && (
+      <details className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm" {...(metaInfo?.hasToken ? { open: true } : {})}>
+        <summary className="flex items-center justify-between gap-3 cursor-pointer select-none">
+          <span className="font-bold">Live data · Facebook &amp; Instagram</span>
+          {metaInfo?.hasToken ? (
             <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Connected</span>
+          ) : (
+            <span className="text-xs font-medium text-neutral-400">Optional</span>
           )}
-        </div>
-        <p className="text-sm text-neutral-500 mb-5">
+        </summary>
+        <p className="text-sm text-neutral-500 mt-3 mb-5">
           Connect the client&apos;s Facebook Page + Instagram so the portal&apos;s Analysis tab shows live reach, views,
           followers, and ad-campaign performance — refreshed automatically. The token is stored securely and never shown
-          to the client.
+          to the client. Until you connect this, the Analysis tab uses the numbers you type in.
         </p>
 
         {metaAppConfigured() ? (
@@ -551,7 +568,7 @@ export default async function EditClientPage({
             {metaManualForm}
           </>
         )}
-      </div>
+      </details>
       </div>
 
       <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
