@@ -239,7 +239,7 @@ export default async function EditClientPage({
             </div>
             <div className="flex items-center gap-2">
               <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-white/10 hover:bg-white/20 px-3 py-1.5 text-sm font-medium transition-colors">View portal ↗</Link>
-              <Link href={`/portal/${client.slug}?edit=1`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content ↗</Link>
+              <Link href={`/admin/clients/${client.slug}/portal-editor`} className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content →</Link>
             </div>
           </div>
         </div>
