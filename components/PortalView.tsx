@@ -159,13 +159,6 @@ export default function PortalView({
                 {ui(t.en, t.ar)}
               </button>
             ))}
-            {(canEdit || !!client.data.proposal?.published) && (
-              <a className="ms-portal-tab" href={`/portal/${client.slug}/proposal`}>{ui("Proposal", "العرض")}</a>
-            )}
-            {(canEdit || !!client.data.agreement?.published) && (
-              <a className="ms-portal-tab" href={`/portal/${client.slug}/agreement`}>{ui("Agreement", "الاتفاقية")}</a>
-            )}
-            <a className="ms-portal-tab" href={`/portal/${client.slug}/invoices`}>{ui("Invoices", "الفواتير")}</a>
           </nav>
           <div className="ms-actions">
             <div className="ms-lang" role="group" aria-label="Language">

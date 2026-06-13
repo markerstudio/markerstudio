@@ -270,6 +270,7 @@ export default async function EditClientPage({
 
       {brief && <OnboardingBriefActions brief={brief} />}
 
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; finance</h2>
       {client && (
         <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
@@ -405,6 +406,7 @@ export default async function EditClientPage({
         </div>
       )}
 
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Brand &amp; portal content</h2>
       <ClientForm client={client} projectLogos={projectLogos} />
 
       <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
