@@ -99,7 +99,7 @@ function OnboardingBriefPanel({ brief }: { brief: OnboardingBrief }) {
   const submitted = brief.submittedAt ? new Date(brief.submittedAt).toLocaleString("en-GB") : "";
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+    <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3 mb-1">
         <h2 className="font-bold">Onboarding brief</h2>
         {submitted && <span className="text-xs text-neutral-400">{submitted}</span>}
@@ -208,22 +208,45 @@ export default async function EditClientPage({
     : null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Edit · {client.name}
-          {pending && (
-            <span className="ml-2 align-middle text-xs font-semibold bg-orange text-white rounded-full px-2 py-0.5">New · onboarding</span>
-          )}
-        </h1>
-        <div className="flex items-center gap-3">
-          <Link href={`/portal/${client.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View portal ↗</Link>
-          <Link href="/admin/clients" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
+    <div className="max-w-5xl space-y-6">
+      <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">← All clients</Link>
+
+      {/* Identity header — brand-tinted, with status and quick actions. */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-800 text-white p-6 shadow-sm">
+        <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full opacity-30 blur-2xl" style={{ background: client.color }} aria-hidden />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="h-14 w-14 rounded-xl bg-white/10 ring-1 ring-white/15 flex items-center justify-center shrink-0 overflow-hidden">
+              {client.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={client.logo} alt="" className="max-h-10 max-w-10 object-contain" />
+              ) : (
+                <span className="text-lg font-bold">{(client.name || "?").slice(0, 1).toUpperCase()}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-white/50">Client portal</div>
+              <h1 className="text-2xl font-bold tracking-tight truncate">{client.name || client.slug}</h1>
+              <div className="text-sm text-white/50 truncate">/portal/{client.slug}</div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {pending && <span className="text-xs font-semibold bg-orange text-white rounded-full px-2.5 py-0.5">New · onboarding</span>}
+              {client.data.proposal?.acceptedAt && <span className="text-xs font-semibold bg-green-500/20 text-green-200 rounded-full px-2.5 py-0.5">Proposal accepted</span>}
+              {client.data.agreement?.acceptedAt && <span className="text-xs font-semibold bg-green-500/20 text-green-200 rounded-full px-2.5 py-0.5">Agreement signed</span>}
+              {metaInfo?.hasToken && <span className="text-xs font-semibold bg-sky-500/20 text-sky-200 rounded-full px-2.5 py-0.5">Meta connected</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-white/10 hover:bg-white/20 px-3 py-1.5 text-sm font-medium transition-colors">View portal ↗</Link>
+              <Link href={`/portal/${client.slug}?edit=1`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content ↗</Link>
+            </div>
+          </div>
         </div>
       </div>
 
       {msg && (
-        <p className={`text-sm rounded-md px-4 py-2.5 mb-6 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
+        <p className={`text-sm rounded-md px-4 py-2.5 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
           {msg.text}
         </p>
       )}
@@ -231,7 +254,7 @@ export default async function EditClientPage({
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
 
       {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
-        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 max-w-2xl space-y-1">
+        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 space-y-1">
           {client.data.proposal?.acceptedAt && (
             <div>✓ Proposal accepted on {new Date(client.data.proposal.acceptedAt).toLocaleString("en-GB")}.</div>
           )}
@@ -248,7 +271,7 @@ export default async function EditClientPage({
       {brief && <OnboardingBriefActions brief={brief} />}
 
       {client && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
           <p className="text-sm text-neutral-500 mb-5">
             Both are paged, bilingual documents prepared in their builders. They only appear on the client&apos;s portal once sent.
@@ -299,7 +322,7 @@ export default async function EditClientPage({
       )}
 
       {client && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Invoices</h2>
           <p className="text-sm text-neutral-500 mb-4">Auto-numbered (INV-{new Date().getFullYear()}-NNN). They appear in the client&apos;s portal under Invoices.</p>
 
@@ -356,7 +379,7 @@ export default async function EditClientPage({
       )}
 
       {brief && others.length > 0 && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-8 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Connect to an existing portal</h2>
           <p className="text-sm text-neutral-500 mb-4">
             Already manage this brand? Move this onboarding&apos;s login and brief onto an existing portal — this draft is then removed.
@@ -384,7 +407,9 @@ export default async function EditClientPage({
 
       <ClientForm client={client} projectLogos={projectLogos} />
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-8 max-w-2xl">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Client logins</h2>
         <p className="text-sm text-neutral-500 mb-4">People who can sign in and see only this portal.</p>
 
@@ -425,7 +450,7 @@ export default async function EditClientPage({
         </form>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3 mb-1">
           <h2 className="font-bold">Invite links</h2>
           <form action={createInvite}>
@@ -436,8 +461,11 @@ export default async function EditClientPage({
         <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
         <InviteList invites={invites} slug={client.slug} />
       </div>
+      </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Integrations</h2>
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Notion sync</h2>
         <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
 
@@ -468,7 +496,7 @@ export default async function EditClientPage({
         </div>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3 mb-1">
           <h2 className="font-bold">Meta — Facebook &amp; Instagram (live data)</h2>
           {metaInfo?.hasToken && (
@@ -522,8 +550,9 @@ export default async function EditClientPage({
           </>
         )}
       </div>
+      </div>
 
-      <div className="bg-white border border-red-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1 text-red-700">Danger zone</h2>
         <p className="text-sm text-neutral-500 mb-4">
           Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.
