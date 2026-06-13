@@ -8,9 +8,11 @@ import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
 import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
+import { getMetaConnectionInfo } from "@/lib/meta";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
+import { connectMeta, syncMetaNow, disconnectMeta } from "@/app/meta-actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
 
@@ -45,6 +47,10 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "notion-token": { text: "NOTION_TOKEN is not set. Add it in Vercel → Environment Variables and redeploy." },
   "notion-id": { text: "Couldn't read a Notion database ID from that — paste the database URL or 32-char ID." },
   "notion-fetch": { text: "Couldn't reach that Notion database. Check the ID and that it's shared with your integration." },
+  "meta-saved": { text: "Meta connection saved. Click “Pull from Meta” to load live numbers.", ok: true },
+  "meta-removed": { text: "Meta connection removed.", ok: true },
+  "meta-none": { text: "No Meta connection yet — save the IDs and a Page token first." },
+  "meta-fetch": { text: "Couldn't reach the Meta Graph API. Check the IDs, token, and its permissions." },
 };
 
 type ClientUser = { id: number; email: string; name: string };
@@ -149,11 +155,15 @@ export default async function EditClientPage({
     logins = [];
   }
 
+  const metaInfo = await getMetaConnectionInfo(client.id);
+
   const okKey = searchParams.ok;
   const msg = okKey?.startsWith("synced-")
     ? { text: `Synced ${okKey.slice(7)} posts from Notion into the Social calendar.`, ok: true }
     : okKey?.startsWith("client-synced-")
     ? { text: `Pulled the client record from Notion (plan, dates, status + ${okKey.slice(14)} invoices). Review below.`, ok: true }
+    : okKey?.startsWith("meta-synced-")
+    ? { text: `Pulled ${okKey.slice(12)} live metrics & campaigns from Meta into the Analysis tab.`, ok: true }
     : okKey
     ? MSG[okKey]
     : searchParams.error
@@ -419,6 +429,57 @@ export default async function EditClientPage({
             <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull calendar</button>
           </form>
         </div>
+      </div>
+
+      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+        <div className="flex items-center justify-between gap-3 mb-1">
+          <h2 className="font-bold">Meta — Facebook &amp; Instagram (live data)</h2>
+          {metaInfo?.hasToken && (
+            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Connected</span>
+          )}
+        </div>
+        <p className="text-sm text-neutral-500 mb-5">
+          Paste this client&apos;s IDs and a long-lived Page access token (you&apos;re an admin of their Page). The portal&apos;s
+          Analysis tab then shows live reach, views, followers, and ad-campaign performance — refreshed automatically and
+          on “Pull from Meta”. The token is stored securely and never shown to the client.
+        </p>
+
+        <form action={connectMeta} className="space-y-3">
+          <input type="hidden" name="slug" value={client.slug} />
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Facebook Page ID</label>
+              <input name="fbPageId" defaultValue={metaInfo?.fbPageId || ""} className={inputCls} placeholder="1234567890" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Instagram Business ID</label>
+              <input name="igUserId" defaultValue={metaInfo?.igUserId || ""} className={inputCls} placeholder="17841400000000000" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Ad Account ID</label>
+              <input name="adAccountId" defaultValue={metaInfo?.adAccountId || ""} className={inputCls} placeholder="act_1234567890" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">
+                Page access token {metaInfo?.hasToken && <span className="text-neutral-400 normal-case">· leave blank to keep</span>}
+              </label>
+              <input name="pageToken" type="password" autoComplete="off" className={inputCls} placeholder={metaInfo?.hasToken ? "•••••••• (saved)" : "Long-lived token"} />
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Save connection</button>
+            {metaInfo?.hasToken && (
+              <>
+                <button formAction={syncMetaNow} className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Pull from Meta</button>
+                <button formAction={disconnectMeta} className="text-sm font-medium text-neutral-400 hover:text-red-600">Disconnect</button>
+              </>
+            )}
+          </div>
+        </form>
+        <p className="text-xs text-neutral-400 mt-3">
+          Needs a token with <code>read_insights</code>, <code>instagram_basic</code>, <code>instagram_manage_insights</code>,
+          <code> pages_read_engagement</code>, and <code>ads_read</code>. Metric names can vary by Graph API version.
+        </p>
       </div>
 
       <div className="bg-white border border-red-200 rounded-xl p-6 mt-6 max-w-2xl">

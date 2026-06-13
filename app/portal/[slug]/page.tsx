@@ -4,6 +4,8 @@ import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { getLiveNotionClient } from "@/lib/notion";
+import { getLiveMetaAnalysis } from "@/lib/meta";
+import { isDbEnabled } from "@/lib/db";
 import PortalView from "@/components/PortalView";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +55,20 @@ export default async function PortalPage({
         brandingFee: live.brandingFee || d.finance?.brandingFee || "",
       };
       if (live.invoices.length) d.invoices = live.invoices;
+    }
+  }
+
+  // Live Meta (Facebook + Instagram) insights — fetched server-side (the access
+  // token stays here, never reaching the client component) and merged into the
+  // Analysis tab. Cached ~15 min; falls back silently to the saved metrics.
+  if (!editing && isDbEnabled() && client.data.analysis) {
+    const meta = await getLiveMetaAnalysis(client.id);
+    if (meta) {
+      if (meta.organic.length) client.data.analysis.organic.metrics = meta.organic;
+      if (meta.campaigns.length) {
+        client.data.analysis.paid.campaigns = meta.campaigns;
+        if (meta.spend) client.data.analysis.paid.spend = meta.spend;
+      }
     }
   }
 

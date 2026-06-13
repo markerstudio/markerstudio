@@ -54,3 +54,27 @@ The first user is created by `/api/setup`. To add more, either insert into the
 - I can't connect to a live database from the build sandbox, so the DB/auth
   flow above was implemented and type-checked but verified against Postgres only
   in your environment. Ping me if anything errors on first setup.
+
+## Meta (Facebook + Instagram) live data
+
+Each client's portal Analysis tab can show **live** Instagram + Facebook
+insights and ad-campaign performance, pulled from the Meta Graph API.
+
+Per client, on **Admin → Clients → (client) → Meta**:
+
+1. Paste the **Facebook Page ID**, **Instagram Business account ID**, and
+   **Ad Account ID** (`act_…`).
+2. Paste a **long-lived Page access token** (you're an admin of the client's
+   Page, so no Meta App Review is needed for your own Pages). The token is
+   stored server-side in the `client_meta` table and **never sent to the
+   client's browser** — only the derived numbers are.
+3. Click **Pull from Meta** to load a snapshot; after that the portal also
+   refreshes live on view (cached ~15 min).
+
+The token needs `read_insights`, `instagram_basic`,
+`instagram_manage_insights`, `pages_read_engagement`, and `ads_read`. Metric
+names/periods vary by Graph API version — the mapping is defensive (a missing
+metric is skipped, never fatal) and falls back to the manually-entered metrics.
+Set `META_GRAPH_VERSION` to override the API version. Implemented and
+type-checked here, but verify against your live Pages — tell me which metrics
+you want surfaced and I'll tune the mapping.
