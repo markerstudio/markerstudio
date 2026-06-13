@@ -1005,6 +1005,55 @@ textarea.ms-edit { resize: vertical; }
 .ms-cal-type-pill { background: var(--marker-charcoal-10); color: var(--marker-charcoal-80); }
 .ms-cal-type-pill--story { background: rgba(255,145,0,.16); color: var(--marker-orange); }
 .ms-cal-type-pill--reel { background: rgba(122,63,242,.14); color: var(--reel); }
+
+/* Post approvals + comment thread (client/studio feedback in view mode) */
+.ms-btn-sm { padding: 7px 14px; font-size: 13px; }
+.ms-btn-sm:disabled { opacity: .45; cursor: default; transform: none; box-shadow: none; }
+.ms-cal-approve { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.ms-cal-approve__row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.ms-cal-thread { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--border); }
+.ms-cal-comment { margin-top: 8px; padding: 9px 12px; border-radius: 10px; background: var(--marker-charcoal-10); }
+.ms-cal-comment--client { background: rgba(255,145,0,.12); }
+.ms-cal-comment b { display: block; font: 700 12px/1 var(--font-display); color: var(--marker-charcoal-80); margin-bottom: 3px; }
+.ms-cal-comment p { white-space: pre-wrap; font: 400 14px/1.55 var(--font-body); color: var(--marker-charcoal-80); margin: 0; }
+.ms-cal-comment-form { display: flex; gap: 8px; align-items: flex-end; margin-top: 10px; }
+.ms-cal-comment-form textarea { flex: 1; }
+
+/* Portal activity feed */
+.ms-feed { display: flex; flex-direction: column; gap: 10px; max-width: 760px; }
+.ms-feed-item { display: flex; gap: 16px; padding: 14px 16px; border-radius: 12px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); border-inline-start: 3px solid var(--marker-charcoal-10); }
+.ms-feed-item--approval { border-inline-start-color: #2bb673; }
+.ms-feed-item--doc { border-inline-start-color: #2f6fed; }
+.ms-feed-item--post { border-inline-start-color: var(--marker-orange); }
+.ms-feed-item--finance { border-inline-start-color: #e0a800; }
+.ms-feed-when { flex: 0 0 auto; font: 700 12px/1.6 var(--font-display); color: var(--fg-muted); white-space: nowrap; }
+.ms-feed-body { flex: 1; }
+.ms-feed-body b { display: block; font: 600 15px/1.4 var(--font-body); color: var(--marker-ink); }
+.ms-feed-body p { margin: 3px 0 0; font-size: 14px; }
+
+/* Floating WhatsApp quick-contact CTA (marketing site) */
+.ms-wa-float {
+  position: fixed;
+  bottom: calc(22px + env(safe-area-inset-bottom));
+  inset-inline-end: 22px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #fff;
+  box-shadow: 0 10px 30px rgba(37,211,102,.4), 0 2px 8px rgba(0,0,0,.18);
+  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
+  animation: ms-wa-in 480ms var(--ease-out) both 600ms;
+}
+.ms-wa-float:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 14px 38px rgba(37,211,102,.5); }
+.ms-wa-float:active { transform: scale(.96); }
+.ms-wa-float svg { width: 30px; height: 30px; }
+@keyframes ms-wa-in { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
+@media print { .ms-wa-float { display: none; } }
 @media (max-width: 640px) {
   .ms-cal-day { min-height: 62px; }
   .ms-cal-post { font-size: 0; padding: 4px; gap: 0; }

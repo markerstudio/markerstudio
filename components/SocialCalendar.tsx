@@ -23,16 +23,25 @@ const typeMeta = (t?: string) => TYPES.find((x) => x.id === t) ?? TYPES[0];
 const pad = (n: number) => String(n).padStart(2, "0");
 const fmt = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}`;
 
+export type CalendarFeedback = {
+  role: "studio" | "client";
+  onApprove: (idx: number, approval: "approved" | "changes") => void;
+  onComment: (idx: number, text: string) => void;
+  busy?: number | null; // index currently saving
+};
+
 export default function SocialCalendar({
   posts,
   onChange,
   editable = false,
   lang = "en",
+  feedback,
 }: {
   posts: SocialPost[];
   onChange?: (posts: SocialPost[]) => void;
   editable?: boolean;
   lang?: "en" | "ar";
+  feedback?: CalendarFeedback;
 }) {
   const ui = (en: string, ar: string) => (lang === "ar" ? ar : en);
   const tLabel = (t?: string) => ui(typeMeta(t).en, typeMeta(t).ar);
@@ -52,6 +61,11 @@ export default function SocialCalendar({
   const [m, setM] = useState(init.getMonth());
   const [sel, setSel] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null); // expanded entry (view mode)
+  const [draft, setDraft] = useState(""); // comment composer for the open entry
+
+  const APPROVAL_PILL: Record<string, string> = { approved: "ms-portal-pill--green", changes: "ms-portal-pill--red", pending: "" };
+  const approvalLabel = (a?: string) =>
+    a === "approved" ? ui("Approved", "موافَق") : a === "changes" ? ui("Changes requested", "تعديلات مطلوبة") : ui("Awaiting approval", "بانتظار الموافقة");
 
   const now = new Date();
   const todayStr = fmt(now.getFullYear(), now.getMonth(), now.getDate());
@@ -173,21 +187,93 @@ export default function SocialCalendar({
                 );
               }
               const isOpen = open === idx;
+              const comments = p.comments ?? [];
+              const expandable = !!p.brief || !!feedback || comments.length > 0;
+              const toggle = () => {
+                const nextOpen = isOpen ? null : idx;
+                setOpen(nextOpen);
+                if (nextOpen !== idx) setDraft("");
+              };
               return (
                 <div key={idx} className={`ms-cal-entry ms-cal-entry--${type} ${isOpen ? "is-open" : ""}`}>
-                  <button type="button" className="ms-cal-entry__row" onClick={() => setOpen(isOpen ? null : idx)}>
+                  <button type="button" className="ms-cal-entry__row" onClick={toggle}>
                     <span className={`ms-portal-pill ms-cal-type-pill ms-cal-type-pill--${type}`}>{typeMeta(type).icon} {tLabel(type)}</span>
                     {p.platform && <span className="ms-cal-entry__plat">{p.platform}</span>}
                     <span className="ms-cal-entry__ttl">{p.title || briefLabel(type)}</span>
+                    {p.approval && p.approval !== "pending" && (
+                      <span className={`ms-portal-pill ${APPROVAL_PILL[p.approval] || ""}`}>{approvalLabel(p.approval)}</span>
+                    )}
                     <span className={`ms-portal-pill ${p.status === "posted" ? "ms-portal-pill--green" : p.status === "scheduled" ? "ms-portal-pill--blue" : ""}`}>
                       {p.status === "posted" ? ui("Posted", "نُشر") : p.status === "scheduled" ? ui("Scheduled", "مجدول") : ui("Planned", "مخطّط")}
                     </span>
-                    {p.brief && <span className="ms-cal-entry__chev" aria-hidden>{isOpen ? "−" : "+"}</span>}
+                    {expandable && <span className="ms-cal-entry__chev" aria-hidden>{isOpen ? "−" : "+"}</span>}
                   </button>
-                  {isOpen && p.brief && (
+                  {isOpen && (
                     <div className="ms-cal-entry__brief">
-                      <span className="ms-cal-brief__label">{briefLabel(type)}</span>
-                      <p dir="auto">{p.brief}</p>
+                      {p.brief && (
+                        <>
+                          <span className="ms-cal-brief__label">{briefLabel(type)}</span>
+                          <p dir="auto">{p.brief}</p>
+                        </>
+                      )}
+
+                      {feedback && (
+                        <div className="ms-cal-approve">
+                          <span className="ms-cal-brief__label">{ui("Your sign-off", "موافقتك")}</span>
+                          <div className="ms-cal-approve__row">
+                            <span className={`ms-portal-pill ${APPROVAL_PILL[p.approval || "pending"] || ""}`}>{approvalLabel(p.approval)}</span>
+                            <button
+                              type="button"
+                              className="ms-btn ms-btn-primary ms-btn-sm"
+                              disabled={feedback.busy === idx || p.approval === "approved"}
+                              onClick={() => feedback.onApprove(idx, "approved")}
+                            >
+                              {ui("Approve", "موافقة")}
+                            </button>
+                            <button
+                              type="button"
+                              className="ms-btn ms-btn-outline ms-btn-sm"
+                              disabled={feedback.busy === idx || p.approval === "changes"}
+                              onClick={() => feedback.onApprove(idx, "changes")}
+                            >
+                              {ui("Request changes", "طلب تعديل")}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {(comments.length > 0 || feedback) && (
+                        <div className="ms-cal-thread">
+                          <span className="ms-cal-brief__label">{ui("Comments", "التعليقات")}</span>
+                          {comments.map((c, ci) => (
+                            <div key={ci} className={`ms-cal-comment ms-cal-comment--${c.role}`}>
+                              <b>{c.by}</b>
+                              <p dir="auto">{c.text}</p>
+                            </div>
+                          ))}
+                          {comments.length === 0 && <p className="ms-pmuted" style={{ fontSize: 13 }}>{ui("No comments yet.", "لا تعليقات بعد.")}</p>}
+                          {feedback && (
+                            <div className="ms-cal-comment-form">
+                              <textarea
+                                className="ms-edit"
+                                rows={2}
+                                value={draft}
+                                placeholder={ui("Add a comment…", "أضف تعليقاً…")}
+                                dir="auto"
+                                onChange={(e) => setDraft(e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className="ms-btn ms-btn-primary ms-btn-sm"
+                                disabled={feedback.busy === idx || !draft.trim()}
+                                onClick={() => { feedback.onComment(idx, draft.trim()); setDraft(""); }}
+                              >
+                                {ui("Send", "إرسال")}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

@@ -10,6 +10,17 @@ CREATE TABLE IF NOT EXISTS users (
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Short-lived client password-reset tokens (see lib/accounts.ts; created
+-- automatically by ensureResetsTable). Mirrors the invite-link pattern.
+CREATE TABLE IF NOT EXISTS password_resets (
+  id          SERIAL PRIMARY KEY,
+  token       TEXT UNIQUE NOT NULL,
+  user_id     INTEGER NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ
+);
+
 CREATE TABLE IF NOT EXISTS projects (
   id          SERIAL PRIMARY KEY,
   slug        TEXT UNIQUE NOT NULL,

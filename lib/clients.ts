@@ -11,8 +11,23 @@ export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
 export type SocialItem = { title: string; desc: string; tag?: string };
 export type SocialContentType = "post" | "story" | "reel";
+// A note left on a social post — by the studio or the client — so approvals
+// carry a short conversation instead of a bare status flip.
+export type SocialComment = { by: string; role: "studio" | "client"; text: string; at: string };
 // `brief` is the type-aware long copy: post details / reel script / stories direction.
-export type SocialPost = { date: string; platform: string; title: string; notes: string; status: "planned" | "scheduled" | "posted"; type?: SocialContentType; brief?: string };
+// `approval` is the client's sign-off on the planned post; `comments` is the
+// thread attached to it (feedback both ways).
+export type SocialPost = {
+  date: string;
+  platform: string;
+  title: string;
+  notes: string;
+  status: "planned" | "scheduled" | "posted";
+  type?: SocialContentType;
+  brief?: string;
+  approval?: "pending" | "approved" | "changes";
+  comments?: SocialComment[];
+};
 export type TimelinePhase = { phase: string; duration?: string; detail?: string };
 // One analytics stat: the number, an optional change badge, and what it means
 // in plain words. (`before`/`after` are the deprecated old shape — when
@@ -25,6 +40,13 @@ export type Campaign = {
 export type StoryCard = { tag: string; value: string; desc: string };
 export type Vital = { label: string; pct: number; note: string };
 export type DocItem = { title: string; type: string; url: string };
+// A downloadable brand deliverable (final logo, post export, guideline PDF…).
+// Lives alongside the proposal/agreement docs but is framed as a creative asset.
+export type AssetItem = { title: string; type: string; url: string; size?: string; at?: string };
+// One entry in the portal activity feed. `kind` drives the icon/accent; copy is
+// bilingual. Studio-authored notes and client actions (approvals, signatures)
+// both land here so the dashboard shows a live history.
+export type ActivityItem = { at: string; kind: "note" | "approval" | "doc" | "post" | "finance"; title: LocalizedText; body?: LocalizedText };
 
 // Captured by the public /onboarding flow (mirrors marker.ps/create). Stored on
 // the client's data so the studio can read the full brief in the admin.
@@ -95,6 +117,8 @@ export type ClientData = {
     brandingLeft?: string;
   };
   documents: DocItem[];
+  assets?: AssetItem[]; // downloadable brand deliverables (logos, exports, guidelines)
+  updates?: ActivityItem[]; // portal activity feed — studio notes + client actions
   status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
   onboarding?: OnboardingBrief; // the brief captured at signup
   // Proposal & agreement are prepared by the studio and only shown to the
@@ -185,6 +209,8 @@ export function blankClientData(): ClientData {
     invoices: [],
     finance: { monthlyFee: "", progress: 0, brandingFee: "" },
     documents: [],
+    assets: [],
+    updates: [],
     notionDbId: "",
   };
 }

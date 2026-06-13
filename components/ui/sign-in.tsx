@@ -103,11 +103,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 </GlassInputWrapper>
               </div>
 
-              <div className="animate-element animate-delay-600 flex items-center text-sm">
+              <div className="animate-element animate-delay-600 flex items-center justify-between text-sm">
                 <label className="flex items-center gap-3 cursor-pointer">
                   <input type="checkbox" name="rememberMe" defaultChecked className="custom-checkbox" />
                   <span className="text-ink/90">Keep me signed in</span>
                 </label>
+                <a href="/forgot" className="font-medium text-orange hover:text-orange-deep">Forgot password?</a>
               </div>
 
               <button type="submit" className="animate-element animate-delay-700 w-full rounded-xl bg-orange py-4 font-semibold text-white hover:bg-orange-deep transition-colors">

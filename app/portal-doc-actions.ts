@@ -52,14 +52,19 @@ export async function acceptProposalDoc(fd: FormData): Promise<void> {
   const data = (c.data || {}) as ClientData;
   if (s.role === "client" && !data.proposal?.published) return; // not sent yet
 
+  const acceptedBy = String(fd.get("name") || "").trim();
   data.proposal = {
     ...data.proposal,
     acceptedAt: new Date().toISOString(),
-    acceptedBy: String(fd.get("name") || "").trim(),
+    acceptedBy,
     acceptedTitle: String(fd.get("title") || "").trim(),
     acceptedNotes: String(fd.get("notes") || "").trim(),
     selection: parseSelection(fd.get("selection")),
   };
+  data.updates = [
+    { at: new Date().toISOString(), kind: "doc" as const, title: { en: "Proposal accepted", ar: "تم قبول العرض" }, body: acceptedBy ? { en: `by ${acceptedBy}`, ar: `بواسطة ${acceptedBy}` } : undefined },
+    ...(data.updates ?? []),
+  ].slice(0, 50);
   await getSql()`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${c.id}`;
   revalidatePath(`/portal/${slug}`);
   revalidatePath(`/portal/${slug}/proposal`);
@@ -82,6 +87,10 @@ export async function signAgreementDoc(fd: FormData): Promise<void> {
   if (s.role === "client" && !data.agreement?.published) return;
 
   data.agreement = { ...data.agreement, acceptedAt: new Date().toISOString(), signedName };
+  data.updates = [
+    { at: new Date().toISOString(), kind: "doc" as const, title: { en: "Agreement signed", ar: "تم توقيع الاتفاقية" }, body: { en: signedName, ar: signedName } },
+    ...(data.updates ?? []),
+  ].slice(0, 50);
   if (data.status === "pending") data.status = "active";
   await getSql()`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${c.id}`;
   revalidatePath(`/portal/${slug}`);
