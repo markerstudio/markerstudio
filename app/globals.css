@@ -1523,3 +1523,52 @@ body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
 }
 .ms-metric-delta.up { background: rgba(43, 182, 115, 0.14); color: #1f9d63; }
 .ms-metric-delta.down { background: rgba(215, 38, 61, 0.12); color: #c94b4b; }
+
+/* ============================================================
+   Client portal — visual refresh (scoped to .ms-portal so the
+   marketing site is unaffected). Softer depth, gradient accents,
+   bigger calmer numbers, chip-style hero figures.
+   ============================================================ */
+.ms-portal { --r-card: 18px; --card-shadow: 0 1px 2px rgba(48,48,48,.04), 0 10px 30px rgba(48,48,48,.06); --card-border: rgba(48,48,48,.08); }
+
+.ms-portal .ms-pcard,
+.ms-portal .ms-metric-card,
+.ms-portal .ms-story-card,
+.ms-portal .ms-portal-campaign,
+.ms-portal .ms-portal-invoice {
+  border-radius: var(--r-card);
+  border-color: var(--card-border);
+  box-shadow: var(--card-shadow);
+}
+.ms-portal .ms-pcard:hover,
+.ms-portal .ms-metric-card:hover,
+.ms-portal .ms-story-card:hover { box-shadow: 0 14px 44px rgba(48,48,48,.12); transform: translateY(-3px); }
+.ms-portal .ms-pcard--dark { box-shadow: 0 10px 30px rgba(0,0,0,.18); }
+
+/* Metric cards — full-width gradient cap, larger value */
+.ms-portal .ms-metric-card { padding: 26px 24px 22px; }
+.ms-portal .ms-metric-card::before { width: 100%; height: 4px; background: linear-gradient(90deg, var(--marker-orange), #ffc06b); }
+.ms-portal .ms-metric-value { font-size: clamp(40px, 5vw, 50px); }
+.ms-portal .ms-metric-label { margin-top: 10px; letter-spacing: 0.12em; }
+.ms-portal .ms-metric-delta { top: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.06); }
+
+/* Story cards — matching gradient cap, bigger value */
+.ms-portal .ms-story-card { padding: 22px; }
+.ms-portal .ms-story-card::before { width: 100%; height: 4px; background: linear-gradient(90deg, var(--marker-orange), #ffc06b); }
+.ms-portal .ms-story-card .value { font-size: 30px; }
+
+/* Dashboard hero figures → soft glass chips instead of dividers */
+.ms-portal .ms-ed-figures { gap: 12px; border-top: 0; margin-top: 30px; }
+.ms-portal .ms-ed-fig {
+  border: 1px solid rgba(255,255,255,.16);
+  background: rgba(255,255,255,.06);
+  border-radius: 14px;
+  padding: 16px 20px;
+  margin-inline-end: 0;
+}
+.ms-portal .ms-ed-fig b { font-size: 28px; }
+.ms-portal .ms-ed-fig span { margin-top: 6px; }
+
+/* Pills + section titles a touch more refined */
+.ms-portal .ms-portal-pill { border-radius: 999px; padding: 6px 12px; }
+.ms-portal .ms-section__title { letter-spacing: -0.035em; }
