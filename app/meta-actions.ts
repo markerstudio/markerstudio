@@ -5,6 +5,7 @@
 // table and never returned to the browser.
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
@@ -13,6 +14,8 @@ import {
   deleteMetaConnection,
   getMetaConnection,
   fetchMetaAnalysis,
+  verifyMetaState,
+  listManagedPages,
 } from "@/lib/meta";
 import type { ClientData } from "@/lib/clients";
 
@@ -71,6 +74,32 @@ export async function syncMetaNow(formData: FormData) {
   revalidatePath(`/portal/${slug}`);
   const n = analysis.organic.length + analysis.campaigns.length;
   redirect(`/admin/clients/${slug}/edit?ok=meta-synced-${n}`);
+}
+
+// Step 2 of "Continue with Facebook": save the picked Page. The Page token and
+// IG id are re-read from the user token in the cookie (never trusted from the
+// form), so a tampered submission can't inject a token.
+export async function finishMetaConnect(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const pageId = String(formData.get("pageId") || "").trim();
+  const adAccountId = String(formData.get("adAccountId") || "").trim();
+
+  const raw = cookies().get("meta_oauth")?.value;
+  const decoded = raw ? await verifyMetaState<{ slug: string; ut: string }>(raw) : null;
+  if (!decoded || decoded.slug !== slug) redirect(`/admin/clients/${slug}/edit?error=meta-oauth`);
+
+  const id = await clientIdForSlug(slug);
+  if (!id) redirect("/admin/clients");
+
+  const pages = await listManagedPages(decoded.ut);
+  const chosen = pages.find((p) => p.id === pageId);
+  if (!chosen || !chosen.token) redirect(`/admin/clients/${slug}/connect-meta`);
+
+  await saveMetaConnection(id, { fbPageId: chosen.id, igUserId: chosen.igId, adAccountId, pageToken: chosen.token });
+  cookies().delete("meta_oauth");
+  revalidateTag("meta-live");
+  redirect(`/admin/clients/${slug}/edit?ok=meta-connected`);
 }
 
 export async function disconnectMeta(formData: FormData) {

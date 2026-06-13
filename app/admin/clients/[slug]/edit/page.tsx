@@ -8,7 +8,7 @@ import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
 import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
-import { getMetaConnectionInfo } from "@/lib/meta";
+import { getMetaConnectionInfo, metaAppConfigured } from "@/lib/meta";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
@@ -48,9 +48,13 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "notion-id": { text: "Couldn't read a Notion database ID from that — paste the database URL or 32-char ID." },
   "notion-fetch": { text: "Couldn't reach that Notion database. Check the ID and that it's shared with your integration." },
   "meta-saved": { text: "Meta connection saved. Click “Pull from Meta” to load live numbers.", ok: true },
+  "meta-connected": { text: "Connected to Facebook & Instagram ✓ — click “Pull from Meta” to load live numbers.", ok: true },
   "meta-removed": { text: "Meta connection removed.", ok: true },
-  "meta-none": { text: "No Meta connection yet — save the IDs and a Page token first." },
-  "meta-fetch": { text: "Couldn't reach the Meta Graph API. Check the IDs, token, and its permissions." },
+  "meta-none": { text: "No Meta connection yet — connect with Facebook first." },
+  "meta-fetch": { text: "Couldn't reach the Meta Graph API. Check the connection and its permissions." },
+  "meta-app": { text: "Meta app isn't configured — set META_APP_ID and META_APP_SECRET to enable one-click connect." },
+  "meta-denied": { text: "Facebook connection was cancelled." },
+  "meta-oauth": { text: "That connection step expired — start “Continue with Facebook” again." },
 };
 
 type ClientUser = { id: number; email: string; name: string };
@@ -95,7 +99,7 @@ function OnboardingBriefPanel({ brief }: { brief: OnboardingBrief }) {
   const submitted = brief.submittedAt ? new Date(brief.submittedAt).toLocaleString("en-GB") : "";
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+    <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
       <div className="flex items-center justify-between gap-3 mb-1">
         <h2 className="font-bold">Onboarding brief</h2>
         {submitted && <span className="text-xs text-neutral-400">{submitted}</span>}
@@ -157,6 +161,39 @@ export default async function EditClientPage({
 
   const metaInfo = await getMetaConnectionInfo(client.id);
 
+  // Manual fallback (paste IDs + token) — shown collapsed when one-click connect
+  // is available, or as the only option when the Meta app isn't configured.
+  const metaManualForm = (
+    <form action={connectMeta} className="space-y-3">
+      <input type="hidden" name="slug" value={client.slug} />
+      <div className="grid sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Facebook Page ID</label>
+          <input name="fbPageId" defaultValue={metaInfo?.fbPageId || ""} className={inputCls} placeholder="1234567890" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Instagram Business ID</label>
+          <input name="igUserId" defaultValue={metaInfo?.igUserId || ""} className={inputCls} placeholder="17841400000000000" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Ad Account ID</label>
+          <input name="adAccountId" defaultValue={metaInfo?.adAccountId || ""} className={inputCls} placeholder="act_1234567890" />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">
+            Page access token {metaInfo?.hasToken && <span className="text-neutral-400 normal-case">· leave blank to keep</span>}
+          </label>
+          <input name="pageToken" type="password" autoComplete="off" className={inputCls} placeholder={metaInfo?.hasToken ? "•••••••• (saved)" : "Long-lived token"} />
+        </div>
+      </div>
+      <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Save connection</button>
+      <p className="text-xs text-neutral-400">
+        Needs <code>read_insights</code>, <code>instagram_basic</code>, <code>instagram_manage_insights</code>,
+        <code> pages_read_engagement</code>, <code>ads_read</code>. Metric names can vary by Graph API version.
+      </p>
+    </form>
+  );
+
   const okKey = searchParams.ok;
   const msg = okKey?.startsWith("synced-")
     ? { text: `Synced ${okKey.slice(7)} posts from Notion into the Social calendar.`, ok: true }
@@ -171,22 +208,45 @@ export default async function EditClientPage({
     : null;
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold tracking-tight">
-          Edit · {client.name}
-          {pending && (
-            <span className="ml-2 align-middle text-xs font-semibold bg-orange text-white rounded-full px-2 py-0.5">New · onboarding</span>
-          )}
-        </h1>
-        <div className="flex items-center gap-3">
-          <Link href={`/portal/${client.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View portal ↗</Link>
-          <Link href="/admin/clients" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
+    <div className="max-w-5xl space-y-6">
+      <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">← All clients</Link>
+
+      {/* Identity header — brand-tinted, with status and quick actions. */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-neutral-900 to-neutral-800 text-white p-6 shadow-sm">
+        <div className="absolute -right-12 -top-12 h-44 w-44 rounded-full opacity-30 blur-2xl" style={{ background: client.color }} aria-hidden />
+        <div className="relative flex items-start justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="h-14 w-14 rounded-xl bg-white/10 ring-1 ring-white/15 flex items-center justify-center shrink-0 overflow-hidden">
+              {client.logo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={client.logo} alt="" className="max-h-10 max-w-10 object-contain" />
+              ) : (
+                <span className="text-lg font-bold">{(client.name || "?").slice(0, 1).toUpperCase()}</span>
+              )}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-white/50">Client portal</div>
+              <h1 className="text-2xl font-bold tracking-tight truncate">{client.name || client.slug}</h1>
+              <div className="text-sm text-white/50 truncate">/portal/{client.slug}</div>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-3">
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {pending && <span className="text-xs font-semibold bg-orange text-white rounded-full px-2.5 py-0.5">New · onboarding</span>}
+              {client.data.proposal?.acceptedAt && <span className="text-xs font-semibold bg-green-500/20 text-green-200 rounded-full px-2.5 py-0.5">Proposal accepted</span>}
+              {client.data.agreement?.acceptedAt && <span className="text-xs font-semibold bg-green-500/20 text-green-200 rounded-full px-2.5 py-0.5">Agreement signed</span>}
+              {metaInfo?.hasToken && <span className="text-xs font-semibold bg-sky-500/20 text-sky-200 rounded-full px-2.5 py-0.5">Meta connected</span>}
+            </div>
+            <div className="flex items-center gap-2">
+              <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-white/10 hover:bg-white/20 px-3 py-1.5 text-sm font-medium transition-colors">View portal ↗</Link>
+              <Link href={`/portal/${client.slug}?edit=1`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit content ↗</Link>
+            </div>
+          </div>
         </div>
       </div>
 
       {msg && (
-        <p className={`text-sm rounded-md px-4 py-2.5 mb-6 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
+        <p className={`text-sm rounded-md px-4 py-2.5 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
           {msg.text}
         </p>
       )}
@@ -194,7 +254,7 @@ export default async function EditClientPage({
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
 
       {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
-        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 max-w-2xl space-y-1">
+        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 space-y-1">
           {client.data.proposal?.acceptedAt && (
             <div>✓ Proposal accepted on {new Date(client.data.proposal.acceptedAt).toLocaleString("en-GB")}.</div>
           )}
@@ -211,7 +271,7 @@ export default async function EditClientPage({
       {brief && <OnboardingBriefActions brief={brief} />}
 
       {client && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
           <p className="text-sm text-neutral-500 mb-5">
             Both are paged, bilingual documents prepared in their builders. They only appear on the client&apos;s portal once sent.
@@ -262,7 +322,7 @@ export default async function EditClientPage({
       )}
 
       {client && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Invoices</h2>
           <p className="text-sm text-neutral-500 mb-4">Auto-numbered (INV-{new Date().getFullYear()}-NNN). They appear in the client&apos;s portal under Invoices.</p>
 
@@ -319,7 +379,7 @@ export default async function EditClientPage({
       )}
 
       {brief && others.length > 0 && (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-8 max-w-2xl">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Connect to an existing portal</h2>
           <p className="text-sm text-neutral-500 mb-4">
             Already manage this brand? Move this onboarding&apos;s login and brief onto an existing portal — this draft is then removed.
@@ -347,7 +407,9 @@ export default async function EditClientPage({
 
       <ClientForm client={client} projectLogos={projectLogos} />
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-8 max-w-2xl">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Client logins</h2>
         <p className="text-sm text-neutral-500 mb-4">People who can sign in and see only this portal.</p>
 
@@ -388,7 +450,7 @@ export default async function EditClientPage({
         </form>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3 mb-1">
           <h2 className="font-bold">Invite links</h2>
           <form action={createInvite}>
@@ -399,8 +461,11 @@ export default async function EditClientPage({
         <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
         <InviteList invites={invites} slug={client.slug} />
       </div>
+      </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Integrations</h2>
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Notion sync</h2>
         <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
 
@@ -431,7 +496,7 @@ export default async function EditClientPage({
         </div>
       </div>
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <div className="flex items-center justify-between gap-3 mb-1">
           <h2 className="font-bold">Meta — Facebook &amp; Instagram (live data)</h2>
           {metaInfo?.hasToken && (
@@ -439,50 +504,55 @@ export default async function EditClientPage({
           )}
         </div>
         <p className="text-sm text-neutral-500 mb-5">
-          Paste this client&apos;s IDs and a long-lived Page access token (you&apos;re an admin of their Page). The portal&apos;s
-          Analysis tab then shows live reach, views, followers, and ad-campaign performance — refreshed automatically and
-          on “Pull from Meta”. The token is stored securely and never shown to the client.
+          Connect the client&apos;s Facebook Page + Instagram so the portal&apos;s Analysis tab shows live reach, views,
+          followers, and ad-campaign performance — refreshed automatically. The token is stored securely and never shown
+          to the client.
         </p>
 
-        <form action={connectMeta} className="space-y-3">
-          <input type="hidden" name="slug" value={client.slug} />
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Facebook Page ID</label>
-              <input name="fbPageId" defaultValue={metaInfo?.fbPageId || ""} className={inputCls} placeholder="1234567890" />
+        {metaAppConfigured() ? (
+          <>
+            <div className="flex items-center gap-3 flex-wrap">
+              <a href={`/api/meta/connect?slug=${client.slug}`} className="inline-flex items-center gap-2 bg-[#1877F2] text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-[#0f6ae0] transition-colors">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+                {metaInfo?.hasToken ? "Reconnect with Facebook" : "Continue with Facebook"}
+              </a>
+              {metaInfo?.hasToken && (
+                <form action={syncMetaNow}>
+                  <input type="hidden" name="slug" value={client.slug} />
+                  <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Pull from Meta</button>
+                </form>
+              )}
+              {metaInfo?.hasToken && (
+                <form action={disconnectMeta}>
+                  <input type="hidden" name="slug" value={client.slug} />
+                  <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Disconnect</button>
+                </form>
+              )}
             </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Instagram Business ID</label>
-              <input name="igUserId" defaultValue={metaInfo?.igUserId || ""} className={inputCls} placeholder="17841400000000000" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Ad Account ID</label>
-              <input name="adAccountId" defaultValue={metaInfo?.adAccountId || ""} className={inputCls} placeholder="act_1234567890" />
-            </div>
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">
-                Page access token {metaInfo?.hasToken && <span className="text-neutral-400 normal-case">· leave blank to keep</span>}
-              </label>
-              <input name="pageToken" type="password" autoComplete="off" className={inputCls} placeholder={metaInfo?.hasToken ? "•••••••• (saved)" : "Long-lived token"} />
-            </div>
-          </div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Save connection</button>
             {metaInfo?.hasToken && (
-              <>
-                <button formAction={syncMetaNow} className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Pull from Meta</button>
-                <button formAction={disconnectMeta} className="text-sm font-medium text-neutral-400 hover:text-red-600">Disconnect</button>
-              </>
+              <p className="text-xs text-neutral-500 mt-3">
+                Page <b>{metaInfo.fbPageId || "—"}</b>
+                {metaInfo.igUserId ? <> · Instagram <b>{metaInfo.igUserId}</b></> : null}
+                {metaInfo.adAccountId ? <> · Ads <b>act_{metaInfo.adAccountId}</b></> : null}
+              </p>
             )}
-          </div>
-        </form>
-        <p className="text-xs text-neutral-400 mt-3">
-          Needs a token with <code>read_insights</code>, <code>instagram_basic</code>, <code>instagram_manage_insights</code>,
-          <code> pages_read_engagement</code>, and <code>ads_read</code>. Metric names can vary by Graph API version.
-        </p>
+            <details className="mt-4">
+              <summary className="text-sm font-medium text-neutral-600 cursor-pointer hover:text-neutral-900">Enter IDs manually instead</summary>
+              <div className="mt-3">{metaManualForm}</div>
+            </details>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4">
+              Set <code>META_APP_ID</code> and <code>META_APP_SECRET</code> to enable one-click “Continue with Facebook”. Until then, connect by pasting IDs + a token:
+            </p>
+            {metaManualForm}
+          </>
+        )}
+      </div>
       </div>
 
-      <div className="bg-white border border-red-200 rounded-xl p-6 mt-6 max-w-2xl">
+      <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1 text-red-700">Danger zone</h2>
         <p className="text-sm text-neutral-500 mb-4">
           Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.

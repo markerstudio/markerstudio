@@ -60,16 +60,26 @@ The first user is created by `/api/setup`. To add more, either insert into the
 Each client's portal Analysis tab can show **live** Instagram + Facebook
 insights and ad-campaign performance, pulled from the Meta Graph API.
 
-Per client, on **Admin → Clients → (client) → Meta**:
+### One-click: Continue with Facebook (recommended)
 
-1. Paste the **Facebook Page ID**, **Instagram Business account ID**, and
-   **Ad Account ID** (`act_…`).
-2. Paste a **long-lived Page access token** (you're an admin of the client's
-   Page, so no Meta App Review is needed for your own Pages). The token is
-   stored server-side in the `client_meta` table and **never sent to the
-   client's browser** — only the derived numbers are.
-3. Click **Pull from Meta** to load a snapshot; after that the portal also
-   refreshes live on view (cached ~15 min).
+Set **`META_APP_ID`** and **`META_APP_SECRET`** (create an app at
+developers.facebook.com → add the **Facebook Login** product → register
+`https://YOUR-SITE/api/meta/callback` under **Valid OAuth Redirect URIs**).
+
+Then, per client, on **Admin → Clients → (client) → Meta**, click **Continue
+with Facebook**, authorize, and pick the Page (and optionally an ad account).
+The app captures a **long-lived Page token** and discovers the Instagram +
+ad-account IDs automatically — no copying tokens by hand. The token is stored
+server-side in `client_meta` and **never sent to the client's browser**.
+
+Finally click **Pull from Meta** to load a snapshot; after that the portal also
+refreshes live on view (cached ~15 min).
+
+### Manual fallback
+
+If you'd rather not set up the app, expand **Enter IDs manually instead** and
+paste the **Facebook Page ID**, **Instagram Business ID**, **Ad Account ID**
+(`act_…`), and a **long-lived Page access token**.
 
 The token needs `read_insights`, `instagram_basic`,
 `instagram_manage_insights`, `pages_read_engagement`, and `ads_read`. Metric
