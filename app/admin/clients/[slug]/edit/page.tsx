@@ -13,8 +13,6 @@ import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
 import { connectMeta, syncMetaNow, disconnectMeta } from "@/app/meta-actions";
-import PortalEditor from "@/components/admin/PortalEditor";
-import ClientAdminTabs from "@/components/admin/ClientAdminTabs";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
 
@@ -240,7 +238,8 @@ export default async function EditClientPage({
               {metaInfo?.hasToken && <span className="text-xs font-semibold bg-sky-500/20 text-sky-200 rounded-full px-2.5 py-0.5">Meta connected</span>}
             </div>
             <div className="flex items-center gap-2">
-              <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">View portal ↗</Link>
+              <Link href={`/portal/${client.slug}`} target="_blank" className="rounded-md bg-white/10 hover:bg-white/20 px-3 py-1.5 text-sm font-medium transition-colors">View portal ↗</Link>
+              <Link href={`/portal/${client.slug}?edit=1`} target="_blank" className="rounded-md bg-orange hover:bg-orange-deep px-3 py-1.5 text-sm font-semibold transition-colors">Edit portal ↗</Link>
             </div>
           </div>
         </div>
@@ -268,11 +267,6 @@ export default async function EditClientPage({
       )}
 
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
-
-      <ClientAdminTabs
-        content={<PortalEditor client={client} />}
-        manage={
-          <div className="space-y-6">
 
       {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
         <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 space-y-1">
@@ -592,9 +586,6 @@ export default async function EditClientPage({
           </ConfirmButton>
         </form>
       </div>
-          </div>
-        }
-      />
     </div>
   );
 }
