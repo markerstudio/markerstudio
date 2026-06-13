@@ -62,10 +62,12 @@ export default function PortalView({
   client,
   canEdit = false,
   initialEdit = false,
+  metaLive = false,
 }: {
   client: Client;
   canEdit?: boolean;
   initialEdit?: boolean;
+  metaLive?: boolean;
 }) {
   const [lang, setLang] = useLang();
   const [tab, setTab] = useState<string>("dashboard");
@@ -402,6 +404,11 @@ export default function PortalView({
                 <span className="ms-section__eyebrow">{ui("Organic content", "المحتوى العضوي")}</span>
                 <h2 className="ms-section__title">{f(tr(d.analysis?.organic?.headline), (v) => up((c) => (c.analysis.organic.headline[lang] = v)), false, ui("Headline…", "عنوان…"))}</h2>
               </div>
+              {metaLive && !edit && (
+                <span className="ms-portal-pill ms-portal-pill--green ms-live-pill" title={ui("Updated automatically from Facebook & Instagram", "يُحدَّث تلقائياً من فيسبوك وإنستغرام")}>
+                  {ui("Live from Meta", "مباشر من Meta")}
+                </span>
+              )}
             </div>
             <div className="ms-pcard" style={{ background: "transparent", border: 0, padding: 0, boxShadow: "none" }}>
               {!edit && (d.analysis?.organic?.metrics ?? []).length === 0 && <p className="ms-pmuted">{ui("No organic results yet.", "لا نتائج عضوية بعد.")}</p>}

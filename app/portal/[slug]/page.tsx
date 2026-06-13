@@ -61,9 +61,11 @@ export default async function PortalPage({
   // Live Meta (Facebook + Instagram) insights — fetched server-side (the access
   // token stays here, never reaching the client component) and merged into the
   // Analysis tab. Cached ~15 min; falls back silently to the saved metrics.
+  let metaLive = false;
   if (!editing && isDbEnabled() && client.data.analysis) {
     const meta = await getLiveMetaAnalysis(client.id);
-    if (meta) {
+    if (meta && (meta.organic.length || meta.campaigns.length)) {
+      metaLive = true;
       if (meta.organic.length) client.data.analysis.organic.metrics = meta.organic;
       if (meta.campaigns.length) {
         client.data.analysis.paid.campaigns = meta.campaigns;
@@ -106,7 +108,7 @@ export default async function PortalPage({
           </div>
         </div>
       )}
-      <PortalView client={client} canEdit={canEdit} initialEdit={editing} />
+      <PortalView client={client} canEdit={canEdit} initialEdit={editing} metaLive={metaLive} />
     </>
   );
 }
