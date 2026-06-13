@@ -1572,3 +1572,21 @@ body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
 /* Pills + section titles a touch more refined */
 .ms-portal .ms-portal-pill { border-radius: 999px; padding: 6px 12px; }
 .ms-portal .ms-section__title { letter-spacing: -0.035em; }
+
+/* ---- portal stage 2: nav, campaign tiles, vitals, finance ---- */
+/* Active tab gets a soft brand glow */
+.ms-portal .ms-portal-tab.is-active { box-shadow: 0 4px 14px rgba(255,145,0,.32); }
+
+/* Campaign metrics → discrete cream tiles inside the card */
+.ms-portal .ms-portal-stats { gap: 10px; border-top-color: var(--card-border); }
+.ms-portal .ms-portal-stat { background: var(--marker-cream); border: 1px solid var(--card-border); border-radius: 12px; padding: 12px 14px; }
+.ms-portal .ms-portal-stat strong { font-size: 18px; }
+.ms-portal .ms-portal-campaign { padding: 22px; }
+
+/* Account-health bars: thicker track + gradient fill */
+.ms-portal .ms-portal-bar i { height: 8px; }
+.ms-portal .ms-portal-bar i em { background: linear-gradient(90deg, var(--marker-orange), #ffc06b); }
+
+/* Finance numbers + invoice rows */
+.ms-portal .ms-portal-big { letter-spacing: -0.045em; }
+.ms-portal .ms-portal-invoice { padding: 18px 20px; }
