@@ -1031,6 +1031,11 @@ textarea.ms-edit { resize: vertical; }
 .ms-feed-body b { display: block; font: 600 15px/1.4 var(--font-body); color: var(--marker-ink); }
 .ms-feed-body p { margin: 3px 0 0; font-size: 14px; }
 
+/* "Live from Meta" badge — a small pulsing dot next to the Analysis header. */
+.ms-live-pill { display: inline-flex; align-items: center; gap: 7px; }
+.ms-live-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #1f9d63; box-shadow: 0 0 0 0 rgba(31,157,99,.55); animation: ms-live-pulse 1.8s ease-out infinite; }
+@keyframes ms-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,157,99,.55); } 70% { box-shadow: 0 0 0 6px rgba(31,157,99,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,99,0); } }
+
 /* Floating WhatsApp quick-contact CTA (marketing site) */
 .ms-wa-float {
   position: fixed;
