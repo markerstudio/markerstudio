@@ -245,6 +245,21 @@ export default async function EditClientPage({
         </div>
       </div>
 
+      {/* At-a-glance tracking — the numbers you care about, up top. */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {[
+          { label: "Money left", value: client.data.plan?.balance || "—" },
+          { label: "Paid", value: `${client.data.finance?.progress ?? 0}%` },
+          { label: "Invoices", value: String(clientInvoices.length) },
+          { label: "Planned posts", value: String(client.data.social?.posts?.length ?? 0) },
+        ].map((s) => (
+          <div key={s.label} className="rounded-2xl bg-white border border-neutral-200 p-4 shadow-sm">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{s.label}</div>
+            <div className="text-xl font-bold tracking-tight mt-1 truncate">{s.value}</div>
+          </div>
+        ))}
+      </div>
+
       {msg && (
         <p className={`text-sm rounded-md px-4 py-2.5 border ${msg.ok ? "text-green-700 bg-green-50 border-green-200" : "text-red-600 bg-red-50 border-red-200"}`}>
           {msg.text}

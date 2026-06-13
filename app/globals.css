@@ -925,8 +925,8 @@ body.ar .ms-portal-hero__title { font-family: var(--font-arabic-display); }
 .ms-pcard { position: relative; background: #fff; border: 1px solid var(--border); border-radius: var(--r-md); padding: 28px; }
 
 /* In-place editing */
-.ms-edit { font: inherit; color: inherit; background: rgba(255,145,0,0.08); border: 1px dashed rgba(255,145,0,0.6); border-radius: 4px; padding: 2px 6px; width: 100%; max-width: 100%; }
-.ms-edit:focus { outline: none; border-style: solid; background: rgba(255,145,0,0.14); }
+.ms-edit { font: inherit; color: inherit; background: rgba(255,145,0,0.07); border: 1px dashed rgba(255,145,0,0.55); border-radius: 7px; padding: 5px 9px; width: 100%; max-width: 100%; transition: background 140ms var(--ease-out), border-color 140ms var(--ease-out), box-shadow 140ms var(--ease-out); }
+.ms-edit:focus { outline: none; border-style: solid; border-color: var(--marker-orange); background: rgba(255,145,0,0.12); box-shadow: 0 0 0 3px rgba(255,145,0,0.16); }
 textarea.ms-edit { resize: vertical; }
 .ms-edit-del { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 6; width: 24px; height: 24px; border: 0; border-radius: 50%; background: var(--marker-danger); color: #fff; cursor: pointer; font-size: 11px; line-height: 1; }
 .ms-edit-add { display: inline-flex; align-items: center; border: 1px dashed var(--border-strong); background: transparent; color: var(--marker-charcoal); border-radius: var(--r-md); padding: 10px 14px; font: 600 13px/1 var(--font-display); cursor: pointer; }
