@@ -1035,30 +1035,6 @@ textarea.ms-edit { resize: vertical; }
 .ms-live-pill { display: inline-flex; align-items: center; gap: 7px; }
 .ms-live-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #1f9d63; box-shadow: 0 0 0 0 rgba(31,157,99,.55); animation: ms-live-pulse 1.8s ease-out infinite; }
 @keyframes ms-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,157,99,.55); } 70% { box-shadow: 0 0 0 6px rgba(31,157,99,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,99,0); } }
-
-/* Floating WhatsApp quick-contact CTA (marketing site) */
-.ms-wa-float {
-  position: fixed;
-  bottom: calc(22px + env(safe-area-inset-bottom));
-  inset-inline-end: 22px;
-  z-index: 200;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: #25d366;
-  color: #fff;
-  box-shadow: 0 10px 30px rgba(37,211,102,.4), 0 2px 8px rgba(0,0,0,.18);
-  transition: transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
-  animation: ms-wa-in 480ms var(--ease-out) both 600ms;
-}
-.ms-wa-float:hover { transform: translateY(-2px) scale(1.05); box-shadow: 0 14px 38px rgba(37,211,102,.5); }
-.ms-wa-float:active { transform: scale(.96); }
-.ms-wa-float svg { width: 30px; height: 30px; }
-@keyframes ms-wa-in { from { opacity: 0; transform: scale(.4); } to { opacity: 1; transform: scale(1); } }
-@media print { .ms-wa-float { display: none; } }
 @media (max-width: 640px) {
   .ms-cal-day { min-height: 62px; }
   .ms-cal-post { font-size: 0; padding: 4px; gap: 0; }
