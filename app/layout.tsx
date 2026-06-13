@@ -27,6 +27,40 @@ export const metadata: Metadata = {
   },
 };
 
+// Organization + WebSite structured data — helps search engines render a rich
+// brand result (name, logo, contact, social) and a sitelinks search box.
+const JSON_LD = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://marker.ps/#org",
+      name: "Marker Studio®",
+      url: "https://marker.ps",
+      logo: "https://marker.ps/assets/logo-primary-transparent.png",
+      description:
+        "Bilingual creative & marketing studio in Beit Sahour, Palestine — branding, social, and campaigns.",
+      email: "create@marker.ps",
+      telephone: "+970568081408",
+      address: {
+        "@type": "PostalAddress",
+        addressLocality: "Beit Sahour",
+        addressCountry: "PS",
+      },
+      areaServed: "Worldwide",
+      knowsLanguage: ["en", "ar"],
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://marker.ps/#website",
+      url: "https://marker.ps",
+      name: "Marker Studio®",
+      publisher: { "@id": "https://marker.ps/#org" },
+      inLanguage: ["en", "ar"],
+    },
+  ],
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -35,6 +69,10 @@ export default function RootLayout({
   return (
     <html lang="en" dir="ltr">
       <body>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
+        />
         {children}
         <SpeedInsights />
       </body>

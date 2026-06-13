@@ -47,7 +47,7 @@ export interface SiteContent {
   dir: "ltr" | "rtl";
   bodyClass: string;
   nav: string[];
-  cta: { primary: string; secondary: string; read: string; arrow: string; login: string };
+  cta: { primary: string; secondary: string; read: string; arrow: string; login: string; whatsapp: string; whatsappMsg: string };
   hero: { eyebrow: string; title: string[]; sub: string; meta: MetaItem[] };
   heroCine: {
     brandName: string;
@@ -126,7 +126,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     dir: "ltr",
     bodyClass: "",
     nav: ["Work", "Services", "Studio", "Notes", "Contact"],
-    cta: { primary: "Start a project", secondary: "View work", read: "Read brief", arrow: "→", login: "Client login" },
+    cta: { primary: "Start a project", secondary: "View work", read: "Read brief", arrow: "→", login: "Client login", whatsapp: "Chat on WhatsApp", whatsappMsg: "Hi Marker Studio — I'd like to talk about a project." },
     hero: {
       eyebrow: "Beit Sahour · Palestine — est. since the spark",
       title: ["We", "mark", "the brands", "that matter."],
@@ -384,7 +384,7 @@ export const MARKER_CONTENT: Record<Lang, SiteContent> = {
     dir: "rtl",
     bodyClass: "ar",
     nav: ["الأعمال", "الخدمات", "الاستديو", "المدونة", "تواصل"],
-    cta: { primary: "ابدأ مشروعاً", secondary: "اطّلع على أعمالنا", read: "اقرأ التفاصيل", arrow: "←", login: "دخول العملاء" },
+    cta: { primary: "ابدأ مشروعاً", secondary: "اطّلع على أعمالنا", read: "اقرأ التفاصيل", arrow: "←", login: "دخول العملاء", whatsapp: "تواصل عبر واتساب", whatsappMsg: "مرحباً ماركر استديو — أودّ التحدّث عن مشروع." },
     hero: {
       eyebrow: "بيت ساحور · فلسطين — منذ الشرارة",
       title: ["نحن", "نعلّم", "على العلامات", "التي تستحقّ."],

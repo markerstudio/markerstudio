@@ -1,7 +1,18 @@
 import CareersForm from "@/components/CareersForm";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Careers — Marker Studio®", description: "Join Marker Studio — models, designers, content creators, and photographers." };
+export const metadata = {
+  title: "Careers — Marker Studio®",
+  description:
+    "Join Marker Studio — we're always meeting models, designers, content creators, and photographers in Palestine and beyond.",
+  alternates: { canonical: "/careers" },
+  openGraph: {
+    title: "Careers — Marker Studio®",
+    description: "Work with a bilingual creative & marketing studio from Beit Sahour, Palestine.",
+    type: "website",
+    url: "/careers",
+  },
+};
 
 export default function CareersPage() {
   return (

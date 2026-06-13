@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLang } from "@/lib/useLang";
 import { useRouter } from "next/navigation";
 import { logout, updateClientData, resyncFromNotion } from "@/app/admin/actions";
+import { setPostApproval, addPostComment } from "@/app/portal-feedback-actions";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
@@ -73,6 +74,7 @@ export default function PortalView({
   const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
   const [sync, setSync] = useState<"" | "syncing" | "synced" | "error">("");
   const [syncMsg, setSyncMsg] = useState("");
+  const [postBusy, setPostBusy] = useState<number | null>(null);
   const router = useRouter();
   const linkedToNotion = !!(client.data.notionPageId || client.data.notionDbId);
 
@@ -120,6 +122,24 @@ export default function PortalView({
     const r = await updateClientData(client.slug, JSON.stringify(data));
     setSaving(r?.ok ? "saved" : "error");
     if (r?.ok) setTimeout(() => setSaving(""), 1600);
+  }
+
+  // Client/studio feedback on a planned post. Updates locally for instant
+  // feedback, then persists; the server is the source of truth on refresh.
+  const viewerRole: "studio" | "client" = canEdit ? "studio" : "client";
+  async function approvePost(idx: number, approval: "approved" | "changes") {
+    setPostBusy(idx);
+    up((c) => { c.social.posts[idx].approval = approval; });
+    await setPostApproval(client.slug, idx, approval);
+    setPostBusy(null);
+    router.refresh();
+  }
+  async function commentPost(idx: number, text: string) {
+    setPostBusy(idx);
+    up((c) => { (c.social.posts[idx].comments ||= []).push({ by: ui("You", "أنت"), role: viewerRole, text, at: new Date().toISOString() }); });
+    await addPostComment(client.slug, idx, text);
+    setPostBusy(null);
+    router.refresh();
   }
 
   return (
@@ -269,6 +289,31 @@ export default function PortalView({
               </div>
             </section>
           )}
+
+          {(edit || (d.updates ?? []).length > 0) && (
+            <section className="ms-section ms-rise" style={{ paddingTop: 0 }}>
+              <div className="ms-container">
+                <span className="ms-section__eyebrow">{ui("Latest activity", "آخر التحديثات")}</span>
+                <h2 className="ms-section__title" style={{ marginTop: 10 }}>{ui("What's moved recently.", "ما الذي تحرّك مؤخّراً.")}</h2>
+                <div className="ms-feed" style={{ marginTop: 18 }}>
+                  {(d.updates ?? []).map((u, i) => (
+                    <div key={i} className={`ms-feed-item ms-feed-item--${u.kind || "note"}`} style={{ position: "relative" }}>
+                      {del(() => up((c) => c.updates!.splice(i, 1)))}
+                      <span className="ms-feed-when">{(u.at || "").slice(0, 10)}</span>
+                      <div className="ms-feed-body">
+                        <b>{f(tr(u.title), (v) => up((c) => (c.updates![i].title[lang] = v)), false, ui("Update title…", "عنوان التحديث…"))}</b>
+                        {(edit || tr(u.body)) && (
+                          <p className="ms-pmuted">{f(tr(u.body), (v) => up((c) => { if (!c.updates![i].body) c.updates![i].body = { en: "", ar: "" }; c.updates![i].body![lang] = v; }), true, ui("Details…", "تفاصيل…"))}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {!edit && (d.updates ?? []).length === 0 && <p className="ms-pmuted">{ui("No activity yet.", "لا نشاط بعد.")}</p>}
+                </div>
+                {add(() => up((c) => { c.updates = [{ at: new Date().toISOString().slice(0, 10), kind: "note", title: { en: "", ar: "" }, body: { en: "", ar: "" } }, ...(c.updates ?? [])]; }), ui("Add update", "تحديث"))}
+              </div>
+            </section>
+          )}
         </>
       )}
 
@@ -332,8 +377,18 @@ export default function PortalView({
                 <h2 className="ms-section__title">{f(tr(d.social?.headline), (v) => up((c) => (c.social.headline[lang] = v)), false, ui("Headline…", "عنوان…"))}</h2>
               </div>
             </div>
-            <SocialCalendar posts={d.social?.posts ?? []} editable={edit} lang={lang} onChange={(posts) => up((c) => (c.social.posts = posts))} />
-            {edit && <p className="ms-pmuted" style={{ marginTop: 10, fontSize: 13 }}>{ui("Click a day to add or edit posts.", "اضغط على يوم لإضافة أو تعديل المنشورات.")}</p>}
+            <SocialCalendar
+              posts={d.social?.posts ?? []}
+              editable={edit}
+              lang={lang}
+              onChange={(posts) => up((c) => (c.social.posts = posts))}
+              feedback={edit ? undefined : { role: viewerRole, onApprove: approvePost, onComment: commentPost, busy: postBusy }}
+            />
+            {edit ? (
+              <p className="ms-pmuted" style={{ marginTop: 10, fontSize: 13 }}>{ui("Click a day to add or edit posts.", "اضغط على يوم لإضافة أو تعديل المنشورات.")}</p>
+            ) : (
+              <p className="ms-pmuted" style={{ marginTop: 10, fontSize: 13 }}>{ui("Open a post to approve it, request changes, or leave a comment.", "افتح المنشور للموافقة عليه أو طلب تعديل أو ترك تعليق.")}</p>
+            )}
           </div>
         </section>
       )}
@@ -614,6 +669,46 @@ export default function PortalView({
                 </div>
               ))}
               {edit && <div className="pc-4" style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => c.documents.push({ title: "", type: "PDF", url: "" })), ui("Add document", "مستند"))}</div>}
+            </div>
+
+            {/* Brand assets — final creative deliverables to download. */}
+            <div className="ms-section__header" style={{ marginTop: 44 }}>
+              <div>
+                <span className="ms-section__eyebrow">{ui("Brand assets", "أصول العلامة")}</span>
+                <h2 className="ms-section__title">{ui("Your deliverables.", "مُسلّماتك.")}</h2>
+              </div>
+            </div>
+            <div className="ms-portal-grid">
+              {!edit && (d.assets ?? []).length === 0 && (
+                <p className="ms-pmuted pc-12">{ui("Final files — logos, exports, guidelines — will appear here to download.", "ستظهر الملفات النهائية — الشعارات والتصاميم والأدلّة — هنا للتنزيل.")}</p>
+              )}
+              {(d.assets ?? []).map((a, i) => (
+                <div key={i} className="ms-pcard pc-4" style={{ display: "flex", flexDirection: "column", gap: 14, position: "relative" }}>
+                  {del(() => up((c) => c.assets!.splice(i, 1)))}
+                  <span className="ms-portal-pill ms-portal-pill--orange" style={{ alignSelf: "flex-start" }}>{f(a.type || "FILE", (v) => up((c) => (c.assets![i].type = v)), false, "PNG")}</span>
+                  <h3 className="ms-pcard__h" style={{ margin: 0 }}>{f(a.title, (v) => up((c) => (c.assets![i].title = v)), false, "Title")}</h3>
+                  {a.size && !edit && <span className="ms-pmuted" style={{ fontSize: 12 }}>{a.size}</span>}
+                  {edit ? (
+                    <>
+                      <input className="ms-edit" value={a.url} placeholder="https://…" onChange={(e) => up((c) => (c.assets![i].url = e.target.value))} />
+                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                        <FileUpload accept="image/*,application/pdf,application/zip" label={ui("Upload file", "رفع ملف")} compact
+                          onUploaded={({ url, name, contentType }) => up((c) => {
+                            c.assets![i].url = url;
+                            if (!c.assets![i].title) c.assets![i].title = name.replace(/\.[^.]+$/, "");
+                            c.assets![i].type = contentType.includes("pdf") ? "PDF" : contentType.includes("zip") ? "ZIP" : contentType.startsWith("image/") ? "IMG" : c.assets![i].type || "File";
+                          })} />
+                        {a.url && <a href={a.url} target="_blank" rel="noreferrer" className="ms-pmuted" style={{ fontSize: 12 }}>{ui("Open", "فتح")} ↗</a>}
+                      </div>
+                    </>
+                  ) : a.url ? (
+                    <a href={a.url} target="_blank" rel="noreferrer" download className="ms-btn ms-btn-outline" style={{ alignSelf: "flex-start" }}>{ui("Download", "تنزيل")} <span>↓</span></a>
+                  ) : (
+                    <span className="ms-pmuted">{ui("Shared soon.", "ستُشارك قريباً.")}</span>
+                  )}
+                </div>
+              ))}
+              {edit && <div className="pc-4" style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => { c.assets = [...(c.assets ?? []), { title: "", type: "PNG", url: "" }]; }), ui("Add asset", "أصل"))}</div>}
             </div>
           </div>
         </section>
