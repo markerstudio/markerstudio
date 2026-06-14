@@ -39,13 +39,11 @@ export type Campaign = {
 };
 export type StoryCard = { tag: string; value: string; desc: string };
 export type Vital = { label: string; pct: number; note: string };
-// AI-generated, bilingual strategic analysis of the client's performance —
-// produced by Claude from the portal's own data (see lib/ai.ts).
+// AI-generated, bilingual analysis for the Analysis tab. The AI designs the
+// whole thing as a self-contained HTML fragment (cards, inline SVG charts, …),
+// one per language; the portal renders it (sanitized). See lib/aiPrompt.ts.
 export type AiAnalysis = {
-  headline: LocalizedText;
-  summary: LocalizedText;
-  insights: { title: LocalizedText; detail: LocalizedText }[];
-  recommendations: LocalizedText[];
+  html: LocalizedText;
   generatedAt: string;
 };
 export type DocItem = { title: string; type: string; url: string };
