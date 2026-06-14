@@ -48,8 +48,9 @@ export default function AiAnalysisPanel({ client, apiEnabled }: { client: Client
   return (
     <div className="space-y-4">
       <p className="text-sm text-neutral-500">
-        A bilingual strategic reading of this client&apos;s numbers, shown on their portal&apos;s Analysis tab. Generate it
-        one-click with the API, or copy the prompt into any AI (Claude, ChatGPT…) and paste the result back.
+        The AI designs a bilingual analysis — its own cards, charts, and pie charts — from this client&apos;s numbers,
+        shown on their portal&apos;s Analysis tab. Generate it one-click with the API, or copy the prompt into any AI
+        (Claude, ChatGPT…) and paste the JSON result back. Pasted HTML is sanitized before it&apos;s shown.
       </p>
 
       {ai && (
