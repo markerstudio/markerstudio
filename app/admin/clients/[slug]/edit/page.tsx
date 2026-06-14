@@ -9,6 +9,8 @@ import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoi
 import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getMetaConnectionInfo, metaAppConfigured } from "@/lib/meta";
+import { isAiEnabled } from "@/lib/ai";
+import AiAnalysisPanel from "@/components/admin/AiAnalysisPanel";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
@@ -276,6 +278,7 @@ export default async function EditClientPage({
               ["sec-brand", "Brand & portal"],
               ["sec-access", "Access"],
               ["sec-integrations", "Integrations"],
+              ["sec-ai", "AI analysis"],
               ["sec-danger", "Danger zone"],
             ] as const
           ).map(([id, label]) => (
@@ -587,6 +590,12 @@ export default async function EditClientPage({
           </>
         )}
       </details>
+      </div>
+
+      <h2 id="sec-ai" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">AI analysis</h2>
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold mb-3">AI reading</h2>
+        <AiAnalysisPanel client={client} apiEnabled={isAiEnabled()} />
       </div>
 
       <div id="sec-danger" className="scroll-mt-24 bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
