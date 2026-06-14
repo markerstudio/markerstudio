@@ -102,7 +102,28 @@ export default function PortalView({
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (d.social?.posts ?? []).filter((p) => p.date && p.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
   const nextPost = upcoming[0];
-  const topMetric = (d.analysis?.organic?.metrics ?? []).find((m) => m.after);
+  const topMetric = (d.analysis?.organic?.metrics ?? []).find((m) => m.value || m.after);
+  // Auto stats — always populated from the client's (Notion-synced) data so the
+  // dashboard is informative even with zero hand-entered content.
+  const allPosts = d.social?.posts ?? [];
+  const monthPrefix = today.slice(0, 7);
+  const postsThisMonth = allPosts.filter((p) => p.date?.startsWith(monthPrefix)).length;
+  const invoiceList = d.invoices ?? [];
+  const paidInvoices = invoiceList.filter((i) => i.status === "paid").length;
+  const overdueInvoices = invoiceList.filter((i) => i.status === "overdue").length;
+  const autoStats: { label: string; value: string; sub?: string; tone?: "good" | "warn" }[] = [
+    { label: ui("Plan", "الخطة"), value: d.plan?.name || "—", sub: d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقّفة"), tone: d.plan?.active ? "good" : undefined },
+    { label: ui("Cycle", "الدورة"), value: d.plan?.end ? `${d.plan?.start || ""} → ${d.plan?.end}` : d.plan?.start || ui("Ongoing", "مستمرّة") },
+    { label: ui("Money left", "المبلغ المتبقّي"), value: d.plan?.balance || "—" },
+    { label: ui("Paid", "نسبة السداد"), value: `${d.finance?.progress ?? 0}%` },
+    { label: ui("Monthly fee", "الاشتراك الشهري"), value: d.finance?.monthlyFee || "—" },
+    { label: ui("Posts this month", "منشورات هذا الشهر"), value: String(postsThisMonth) },
+    { label: ui("Next post", "المنشور القادم"), value: nextPost ? nextPost.date : ui("None scheduled", "لا يوجد"), sub: nextPost?.platform || "" },
+    { label: ui("Invoices", "الفواتير"), value: String(invoiceList.length), sub: overdueInvoices ? `${overdueInvoices} ${ui("overdue", "متأخرة")}` : `${paidInvoices} ${ui("paid", "مدفوعة")}`, tone: overdueInvoices ? "warn" : undefined },
+  ];
+  if (topMetric) autoStats.push({ label: topMetric.label || ui("Top result", "أبرز نتيجة"), value: topMetric.value || topMetric.after || "—", sub: topMetric.delta || "" });
+  if (d.analysis?.paid?.spend) autoStats.push({ label: ui("Ad spend", "الإنفاق الإعلاني"), value: d.analysis.paid.spend });
+  if (d.finance?.brandingFee) autoStats.push({ label: ui("Branding fee", "رسوم الهوية"), value: d.finance.brandingFee });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const up = (fn: (c: any) => void) => setData((prev) => { const c = JSON.parse(JSON.stringify(prev)); fn(c); return c; });
 
@@ -214,29 +235,20 @@ export default function PortalView({
                   />
                 </div>
               )}
+            </div>
+          </section>
 
-              <div className="ms-ed-figures">
-                <div className="ms-ed-fig">
-                  <b>{d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}</b>
-                  <span>{d.plan?.end ? `${d.plan?.start} → ${d.plan?.end}` : d.plan?.start ? `${ui("Since", "منذ")} ${d.plan.start} · ${ui("Ongoing", "مستمرّة")}` : ui("Ongoing", "مستمرّة")}</span>
-                </div>
-                {(edit || d.plan?.balance) && (
-                  <div className="ms-ed-fig"><b>{d.plan?.balance || "—"}</b><span>{ui("Money left", "المبلغ المتبقّي")}</span></div>
-                )}
-                {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
-                  <div className="ms-ed-fig"><b>{d.finance?.progress ?? 0}%</b><span>{ui("Paid", "نسبة السداد")}</span></div>
-                )}
-                {topMetric && (
-                  <div className="ms-ed-fig"><b>{topMetric.after}</b><span>{topMetric.label}</span></div>
-                )}
-                {nextPost && (
-                  <div className="ms-ed-fig"><b>{nextPost.date}</b><span>{[ui("Next post", "المنشور القادم"), nextPost.platform].filter(Boolean).join(" · ")}</span></div>
-                )}
-              </div>
-
-              <div className="ms-ed-index">
-                {TABS.filter((t) => t.id !== "dashboard").map((t, i) => (
-                  <button key={t.id} onClick={() => setTab(t.id)}><i>{String(i + 1).padStart(2, "0")}</i> {ui(t.en, t.ar)}</button>
+          {/* Auto overview — always populated from the client's data. */}
+          <section className="ms-section ms-rise" style={{ paddingTop: 8 }}>
+            <div className="ms-container">
+              <span className="ms-section__eyebrow">{ui("At a glance", "نظرة سريعة")}</span>
+              <div className="ms-stat-grid" style={{ marginTop: 14 }}>
+                {autoStats.map((s, i) => (
+                  <div key={i} className="ms-stat">
+                    <span className="ms-stat__label">{s.label}</span>
+                    <span className="ms-stat__value">{s.value}</span>
+                    {s.sub && <span className={`ms-stat__sub ${s.tone === "good" ? "is-good" : s.tone === "warn" ? "is-warn" : ""}`}>{s.sub}</span>}
+                  </div>
                 ))}
               </div>
             </div>

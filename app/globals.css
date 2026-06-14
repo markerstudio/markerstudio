@@ -1661,3 +1661,24 @@ body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
 .ms-portal .ms-section { padding: 40px 0; }
 .ms-portal .ms-section__title { font-size: clamp(22px, 3vw, 32px); letter-spacing: -0.03em; }
 .ms-portal .ms-section__eyebrow { margin-bottom: 10px; }
+
+/* Fill the main column (was capped + centred → looked half-empty next to the
+   sidebar). Left-aligned, comfortable padding, wide cap. */
+.ms-portal .ms-container { max-width: 1500px; margin-inline: 0; padding: 0 36px; }
+@media (max-width: 760px) { .ms-portal .ms-container { padding: 0 18px; } }
+
+/* Auto "at a glance" stat grid — the always-on informative dashboard */
+.ms-portal .ms-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+.ms-portal .ms-stat {
+  background: #fff; border: 1px solid var(--card-border); border-radius: var(--r-card);
+  box-shadow: var(--card-shadow); padding: 18px 18px 16px;
+  display: flex; flex-direction: column; gap: 7px;
+  transition: box-shadow 200ms var(--ease-out), transform 200ms var(--ease-out);
+}
+.ms-portal .ms-stat:hover { box-shadow: 0 14px 44px rgba(48,48,48,.12); transform: translateY(-3px); }
+.ms-portal .ms-stat__label { font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--fg-muted); }
+.ms-portal .ms-stat__value { font: 800 26px/1.05 var(--font-display); letter-spacing: -0.025em; color: var(--marker-ink); overflow-wrap: anywhere; }
+body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
+.ms-portal .ms-stat__sub { font: 600 12px/1.2 var(--font-display); color: var(--fg-subtle); }
+.ms-portal .ms-stat__sub.is-good { color: #1f9d63; }
+.ms-portal .ms-stat__sub.is-warn { color: #c94b4b; }
