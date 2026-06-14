@@ -1639,3 +1639,25 @@ body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
   .ms-side__signout { border: 0; background: none; cursor: pointer; font: 600 12px/1 var(--font-display); color: var(--fg-muted); padding: 6px; }
   .ms-side__signout:hover { color: var(--marker-orange); }
 }
+
+/* ====== Portal content → light app aesthetic (match the sidebar) ====== */
+.ms-portal .ms-portal-hero { background: transparent; color: var(--marker-ink); padding: 40px 0 8px; }
+.ms-portal .ms-portal-hero::before, .ms-portal .ms-portal-hero::after { display: none; }
+.ms-portal .ms-portal-watermark { display: none; }
+.ms-portal .ms-portal-hero__eyebrow { margin-bottom: 12px; }
+.ms-portal .ms-portal-hero__title { font-size: clamp(28px, 4vw, 44px); color: var(--marker-ink); letter-spacing: -0.03em; margin-bottom: 10px; }
+.ms-portal .ms-portal-hero__sub { color: var(--fg-muted); font-size: 16px; }
+
+/* Hero figures → light stat tiles */
+.ms-portal .ms-ed-figures { border-top: 0; margin-top: 24px; }
+.ms-portal .ms-ed-fig { background: #fff; border: 1px solid var(--card-border); box-shadow: var(--card-shadow); }
+.ms-portal .ms-ed-fig b { color: var(--marker-ink); }
+.ms-portal .ms-ed-fig span { color: var(--fg-muted); }
+
+/* The numbered section jumper is redundant now the sidebar exists */
+.ms-portal .ms-ed-index { display: none; }
+
+/* Calmer, app-scale section headers + tighter density */
+.ms-portal .ms-section { padding: 40px 0; }
+.ms-portal .ms-section__title { font-size: clamp(22px, 3vw, 32px); letter-spacing: -0.03em; }
+.ms-portal .ms-section__eyebrow { margin-bottom: 10px; }
