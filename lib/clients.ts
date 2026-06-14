@@ -39,6 +39,15 @@ export type Campaign = {
 };
 export type StoryCard = { tag: string; value: string; desc: string };
 export type Vital = { label: string; pct: number; note: string };
+// AI-generated, bilingual strategic analysis of the client's performance —
+// produced by Claude from the portal's own data (see lib/ai.ts).
+export type AiAnalysis = {
+  headline: LocalizedText;
+  summary: LocalizedText;
+  insights: { title: LocalizedText; detail: LocalizedText }[];
+  recommendations: LocalizedText[];
+  generatedAt: string;
+};
 export type DocItem = { title: string; type: string; url: string };
 // A downloadable brand deliverable (final logo, post export, guideline PDF…).
 // Lives alongside the proposal/agreement docs but is framed as a creative asset.
@@ -105,6 +114,7 @@ export type ClientData = {
   analysis: {
     organic: { headline: LocalizedText; metrics: MetricRow[]; reading?: LocalizedText };
     paid: { spend: string; note: LocalizedText; campaigns: Campaign[] };
+    ai?: AiAnalysis; // Claude-generated reading of the numbers
   };
   invoices: Invoice[]; // payment history
   finance: {

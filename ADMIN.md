@@ -81,6 +81,16 @@ If you'd rather not set up the app, expand **Enter IDs manually instead** and
 paste the **Facebook Page ID**, **Instagram Business ID**, **Ad Account ID**
 (`act_…`), and a **long-lived Page access token**.
 
+## AI reading (Analysis tab)
+
+Set **`ANTHROPIC_API_KEY`** (from console.anthropic.com) and a **"Generate with
+AI"** button appears at the top of each client's **Analysis** tab. It sends the
+client's own numbers (organic metrics, paid campaigns, social cadence, plan,
+finance) to **Claude Opus 4.8**, which writes a sharp, bilingual (EN/AR)
+strategic reading — headline, summary, three insights, and next steps — stored
+on the portal and shown to the client. Click **Regenerate** to refresh it after
+new data lands. Without the key the button is inert and nothing AI shows.
+
 The token needs `read_insights`, `instagram_basic`,
 `instagram_manage_insights`, `pages_read_engagement`, and `ads_read`. Metric
 names/periods vary by Graph API version — the mapping is defensive (a missing

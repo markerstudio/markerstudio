@@ -1591,6 +1591,43 @@ body.ar .ms-metric-value { font-family: var(--font-arabic-display); }
 .ms-portal .ms-portal-big { letter-spacing: -0.045em; }
 .ms-portal .ms-portal-invoice { padding: 18px 20px; }
 
+/* AI strategic reading card */
+.ms-portal .ms-ai {
+  position: relative;
+  border-radius: var(--r-card);
+  padding: 26px 26px 24px;
+  color: #fff;
+  background: linear-gradient(135deg, #2a2620 0%, var(--marker-charcoal) 55%, #2c1d08 100%);
+  box-shadow: 0 14px 44px rgba(48,48,48,.18);
+  overflow: hidden;
+}
+.ms-portal .ms-ai::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(120% 80% at 100% 0%, rgba(255,145,0,.22), transparent 55%);
+}
+.ms-portal .ms-ai > * { position: relative; }
+.ms-portal .ms-ai__top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.ms-portal .ms-ai__badge { display: inline-flex; align-items: center; gap: 7px; font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.14em; color: #ffcf8f; }
+.ms-portal .ms-ai__badge::before { content: "✦"; color: var(--marker-orange); font-size: 13px; }
+.ms-portal .ms-ai__gen { border: 1px solid rgba(255,255,255,.28); background: rgba(255,255,255,.08); color: #fff; border-radius: 999px; padding: 8px 16px; font: 700 12px/1 var(--font-display); cursor: pointer; transition: background 140ms, border-color 140ms; }
+.ms-portal .ms-ai__gen:hover:not(:disabled) { background: var(--marker-orange); border-color: var(--marker-orange); }
+.ms-portal .ms-ai__gen:disabled { opacity: .6; cursor: default; }
+.ms-portal .ms-ai__err { color: #ffb4a8; font-size: 13px; margin: 0 0 10px; }
+.ms-portal .ms-ai__empty { color: rgba(255,255,255,.6); font-size: 14px; margin: 6px 0 0; }
+.ms-portal .ms-ai__headline { font: 800 clamp(22px,3vw,30px)/1.12 var(--font-display); letter-spacing: -0.03em; margin: 4px 0 10px; color: #fff; }
+body.ar .ms-portal .ms-ai__headline { font-family: var(--font-arabic-display); }
+.ms-portal .ms-ai__summary { font: 400 16px/1.6 var(--font-body); color: rgba(255,255,255,.82); margin: 0; max-width: 70ch; }
+.ms-portal .ms-ai__insights { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-top: 20px; }
+.ms-portal .ms-ai__insight { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 14px 16px; }
+.ms-portal .ms-ai__insight b { display: block; font: 700 14px/1.3 var(--font-display); color: #fff; margin-bottom: 5px; }
+.ms-portal .ms-ai__insight span { font: 400 13.5px/1.55 var(--font-body); color: rgba(255,255,255,.72); }
+.ms-portal .ms-ai__recs { margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.14); }
+.ms-portal .ms-ai__recs-label { display: block; font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.12em; color: #ffcf8f; margin-bottom: 10px; }
+.ms-portal .ms-ai__recs ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.ms-portal .ms-ai__recs li { position: relative; padding-inline-start: 22px; font: 400 14.5px/1.5 var(--font-body); color: rgba(255,255,255,.85); }
+.ms-portal .ms-ai__recs li::before { content: "→"; position: absolute; inset-inline-start: 0; color: var(--marker-orange); font-weight: 700; }
+[dir="rtl"] .ms-portal .ms-ai__recs li::before { content: "←"; }
+
 /* ============ Portal sidebar navigation ============ */
 .ms-portal--side { display: block; }
 .ms-side { display: none; }
