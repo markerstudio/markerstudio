@@ -145,21 +145,41 @@ export default function PortalView({
   }
 
   return (
-    <div className="ms-portal" dir={lang === "ar" ? "rtl" : "ltr"}>
-      <header className="ms-header">
-        <div className="ms-container ms-header__inner">
+    <div className="ms-portal ms-portal--side" dir={lang === "ar" ? "rtl" : "ltr"}>
+      <aside className="ms-side">
+        <button className="ms-side__logo" onClick={() => setTab("dashboard")} aria-label="Dashboard">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={MARKER_LOGO} alt="Marker Studio" />
+        </button>
+        <div className="ms-side__client">
+          <b>{client.name}</b>
+          <span className={`ms-side__status ${d.plan?.active ? "is-on" : "is-off"}`}>{d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}</span>
+        </div>
+        <nav className="ms-side__nav">
+          {TABS.map((t) => (
+            <button key={t.id} className={`ms-side__link ${tab === t.id ? "is-active" : ""}`} onClick={() => { setTab(t.id); window.scrollTo({ top: 0 }); }}>
+              <i className="ms-side__icon" aria-hidden>{TAB_ICONS[t.id]}</i>
+              <span>{ui(t.en, t.ar)}</span>
+            </button>
+          ))}
+        </nav>
+        <div className="ms-side__foot">
+          <div className="ms-lang" role="group" aria-label="Language">
+            <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
+            <button className={lang === "ar" ? "on" : ""} onClick={() => setLang("ar")}>ع</button>
+          </div>
+          <form action={logout}>
+            <button className="ms-side__signout">{ui("Sign out", "خروج")}</button>
+          </form>
+        </div>
+      </aside>
+
+      <div className="ms-portal-main">
+        <header className="ms-side-topbar">
           <button className="ms-logo" onClick={() => setTab("dashboard")} aria-label="Dashboard" style={{ border: 0, background: "none", cursor: "pointer" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={MARKER_LOGO} alt="Marker Studio" />
           </button>
-          <span className="ms-portal-name">{client.name} · {ui("Portal", "البوابة")}</span>
-          <nav className="ms-portal-tabs">
-            {TABS.map((t) => (
-              <button key={t.id} className={`ms-portal-tab ${tab === t.id ? "is-active" : ""}`} onClick={() => setTab(t.id)}>
-                {ui(t.en, t.ar)}
-              </button>
-            ))}
-          </nav>
           <div className="ms-actions">
             <div className="ms-lang" role="group" aria-label="Language">
               <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
@@ -169,8 +189,7 @@ export default function PortalView({
               <button className="ms-btn ms-btn-outline ms-portal-signout">{ui("Sign out", "خروج")}</button>
             </form>
           </div>
-        </div>
-      </header>
+        </header>
 
       {/* DASHBOARD */}
       {tab === "dashboard" && (
@@ -764,6 +783,7 @@ export default function PortalView({
           )}
         </div>
       )}
+      </div>
     </div>
   );
 }
