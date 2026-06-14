@@ -268,6 +268,24 @@ export default async function EditClientPage({
 
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
 
+      <div className="lg:grid lg:grid-cols-[190px_1fr] lg:gap-8 lg:items-start">
+        <nav className="hidden lg:flex lg:flex-col gap-1 lg:sticky lg:top-24">
+          {(
+            [
+              ["sec-docs", "Documents & finance"],
+              ["sec-brand", "Brand & portal"],
+              ["sec-access", "Access"],
+              ["sec-integrations", "Integrations"],
+              ["sec-danger", "Danger zone"],
+            ] as const
+          ).map(([id, label]) => (
+            <a key={id} href={`#${id}`} className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors">
+              {label}
+            </a>
+          ))}
+        </nav>
+        <div className="space-y-6 min-w-0">
+
       {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
         <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 space-y-1">
           {client.data.proposal?.acceptedAt && (
@@ -285,7 +303,7 @@ export default async function EditClientPage({
 
       {brief && <OnboardingBriefActions brief={brief} />}
 
-      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; finance</h2>
+      <h2 id="sec-docs" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; finance</h2>
       {client && (
         <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
@@ -421,10 +439,10 @@ export default async function EditClientPage({
         </div>
       )}
 
-      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Brand &amp; portal content</h2>
+      <h2 id="sec-brand" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Brand &amp; portal content</h2>
       <ClientForm client={client} projectLogos={projectLogos} />
 
-      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
+      <h2 id="sec-access" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
       <div className="grid lg:grid-cols-2 gap-6 items-start">
       <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Client logins</h2>
@@ -480,7 +498,7 @@ export default async function EditClientPage({
       </div>
       </div>
 
-      <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Integrations</h2>
+      <h2 id="sec-integrations" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Integrations</h2>
       <div className="grid lg:grid-cols-2 gap-6 items-start">
       <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Notion sync</h2>
@@ -571,7 +589,7 @@ export default async function EditClientPage({
       </details>
       </div>
 
-      <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
+      <div id="sec-danger" className="scroll-mt-24 bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1 text-red-700">Danger zone</h2>
         <p className="text-sm text-neutral-500 mb-4">
           Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.
@@ -585,6 +603,8 @@ export default async function EditClientPage({
             Delete this client…
           </ConfirmButton>
         </form>
+      </div>
+        </div>
       </div>
     </div>
   );
