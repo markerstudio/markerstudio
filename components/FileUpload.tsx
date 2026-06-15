@@ -31,8 +31,12 @@ export default function FileUpload({
         contentType: file.type || undefined,
       });
       onUploaded({ url: blob.url, name: file.name, contentType: file.type });
-    } catch {
-      setErr("Upload failed.");
+    } catch (e) {
+      // Surface the real reason (bad/missing blob token, unsupported type,
+      // too large, signed-out) instead of a blanket "failed" — otherwise the
+      // upload is impossible to debug from the UI.
+      const msg = e instanceof Error ? e.message : "";
+      setErr(msg ? `Upload failed — ${msg}` : "Upload failed.");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -49,7 +53,7 @@ export default function FileUpload({
         {busy ? "Uploading…" : label}
         <input type="file" accept={accept} className="hidden" onChange={onChange} disabled={busy} />
       </label>
-      {err && <span className="text-xs text-red-600">{err}</span>}
+      {err && <span className="text-xs text-red-600 max-w-[260px] break-words">{err}</span>}
     </span>
   );
 }
