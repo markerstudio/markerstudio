@@ -59,6 +59,7 @@ export type OverduePayment = {
   name: string;
   sourceName: string;
   amountLabel: string;
+  amountIls: number; // ILS-equivalent (USD converted at the due-day rate)
   dueDate: string;
   daysOverdue: number;
   notionUrl: string;
@@ -78,6 +79,8 @@ export type PaymentRow = {
   name: string;
   sourceName: string;
   ils: number;
+  usd: number; // a single payment can carry both currencies (e.g. 150 ILS + $50)
+  ilsTotal: number; // ils + USD converted to ILS at that day's rate
   amountLabel: string;
   payDate: string; // ISO date
   daysLate: number; // pay − due (0 when no due date or paid early)
@@ -212,6 +215,29 @@ function daysBetween(a: string, b: string): number {
   return Math.round((new Date(a).getTime() - new Date(b).getTime()) / 86400000);
 }
 
+// Historical USD→ILS rate so dollar income can be summed in shekels. Rates come
+// from Frankfurter (ECB reference rates), looked up per calendar day and cached
+// — a past day's rate never changes, so this is cheap and stable. Weekends fall
+// back to the nearest published day automatically. If a day can't be fetched we
+// use a recent average rather than dropping the dollars, so a network hiccup
+// never silently zeroes out USD income.
+const FALLBACK_USD_ILS = 3.7;
+const usdToIlsOn = unstable_cache(
+  async (date: string): Promise<number> => {
+    try {
+      const res = await fetch(`https://api.frankfurter.app/${date}?from=USD&to=ILS`);
+      if (!res.ok) return FALLBACK_USD_ILS;
+      const j = await res.json();
+      const r = j?.rates?.ILS;
+      return typeof r === "number" && r > 0 ? r : FALLBACK_USD_ILS;
+    } catch {
+      return FALLBACK_USD_ILS;
+    }
+  },
+  ["usd-ils-rate"],
+  { revalidate: 60 * 60 * 24, tags: ["finance"] }
+);
+
 // Our portal clients that are linked to Notion, for "create invoice" shortcuts.
 async function linkedClients(): Promise<{ slug: string; name: string; pageId: string }[]> {
   if (!isDbEnabled()) return [];
@@ -327,6 +353,31 @@ async function fetchFinance(): Promise<FinanceData> {
     monthlyMap.set(ym, m);
   };
 
+  // Pre-fetch the USD→ILS rate for every distinct day that carries dollars, so
+  // the loop below can convert without awaiting per row (rates are cached, so
+  // repeated days are free).
+  const usdDates = new Set<string>();
+  for (const r of incomes) {
+    const p = r.properties || {};
+    if (num(p, "USD") > 0) {
+      const d = dateOf(p, "Pay Date") || dateOf(p, "Due Date");
+      if (d) usdDates.add(d);
+    }
+  }
+  const usdRates = new Map<string, number>(
+    await Promise.all(Array.from(usdDates).map(async (d) => [d, await usdToIlsOn(d)] as [string, number]))
+  );
+  // ILS-equivalent of a row: its shekels plus any dollars converted at that
+  // day's rate. Both can be present — a client may pay part in each.
+  const toIls = (ilsAmt: number, usdAmt: number, date: string): number =>
+    Math.round(ilsAmt + (usdAmt > 0 ? usdAmt * (usdRates.get(date) ?? FALLBACK_USD_ILS) : 0));
+  const moneyLabel = (ilsAmt: number, usdAmt: number): string => {
+    const parts: string[] = [];
+    if (ilsAmt) parts.push(`${ilsAmt.toLocaleString()} ILS`);
+    if (usdAmt) parts.push(`$${usdAmt.toLocaleString()}`);
+    return parts.join(" + ") || "—";
+  };
+
   for (const r of incomes) {
     const p = r.properties || {};
     const pay = dateOf(p, "Pay Date");
@@ -336,8 +387,8 @@ async function fetchFinance(): Promise<FinanceData> {
     const srcIds = relIds(p, "Source");
     const clientIds = relIds(p, "Clients Database");
 
-    if (pay) bump(pay, "income", ils);
-    else if (due) bump(due, "expected", ils);
+    if (pay) bump(pay, "income", toIls(ils, usd, pay));
+    else if (due) bump(due, "expected", toIls(ils, usd, due));
 
     if (pay) {
       const cid = clientIds[0];
@@ -346,7 +397,9 @@ async function fetchFinance(): Promise<FinanceData> {
         name: title(p, "Name") || "Payment",
         sourceName: srcIds[0] ? sourceMeta.get(srcIds[0])?.name || "" : "",
         ils,
-        amountLabel: ils ? `${ils.toLocaleString()} ILS` : usd ? `$${usd.toLocaleString()}` : "—",
+        usd,
+        ilsTotal: toIls(ils, usd, pay),
+        amountLabel: moneyLabel(ils, usd),
         payDate: pay,
         daysLate: due ? Math.max(0, daysBetween(pay, due)) : 0,
         notionUrl: r.url || "",
@@ -354,8 +407,8 @@ async function fetchFinance(): Promise<FinanceData> {
       });
     }
 
-    if (pay && pay >= monthStart && pay <= today) collectedThisMonthILS += ils;
-    if (!pay && due && due >= monthStart && due <= `${today.slice(0, 8)}31`) expectedThisMonthILS += ils;
+    if (pay && pay >= monthStart && pay <= today) collectedThisMonthILS += toIls(ils, usd, pay);
+    if (!pay && due && due >= monthStart && due <= `${today.slice(0, 8)}31`) expectedThisMonthILS += toIls(ils, usd, due);
 
     if (pay && due) {
       const delay = daysBetween(pay, due);
@@ -385,7 +438,8 @@ async function fetchFinance(): Promise<FinanceData> {
       overdue.push({
         name: title(p, "Name") || "Payment",
         sourceName: meta?.name || "",
-        amountLabel: ils ? `${ils.toLocaleString()} ILS` : usd ? `$${usd.toLocaleString()}` : "—",
+        amountLabel: moneyLabel(ils, usd),
+        amountIls: toIls(ils, usd, due),
         dueDate: due,
         daysOverdue: daysBetween(today, due),
         notionUrl: r.url || "",
@@ -483,7 +537,7 @@ async function fetchFinance(): Promise<FinanceData> {
     debtSourceCount: debtSet.size,
     diag,
     overdue,
-    overdueTotal: overdue.reduce((s, o) => s + (parseFloat(o.amountLabel.replace(/[^0-9.]/g, "")) || 0), 0),
+    overdueTotal: overdue.reduce((s, o) => s + (o.amountIls || 0), 0),
     payments,
     monthly,
     collectedThisMonthILS,

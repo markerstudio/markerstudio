@@ -65,7 +65,7 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
       paymentMonths.push(g);
     }
     g.rows.push(p);
-    g.total += p.ils;
+    g.total += p.ilsTotal;
   }
 
   // Year-over-year overview rows.
@@ -357,7 +357,12 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
                               {p.daysLate}d late
                             </span>
                           )}
-                          <span className="tabular-nums text-sm font-bold text-neutral-900">{p.amountLabel}</span>
+                          <div className="text-right">
+                            <span className="tabular-nums text-sm font-bold text-neutral-900">{p.amountLabel}</span>
+                            {p.usd > 0 && p.ils > 0 && (
+                              <div className="text-[10px] text-neutral-400 tabular-nums">≈ {fmtILS(p.ilsTotal)} total</div>
+                            )}
+                          </div>
                           {p.clientSlug ? (
                             <Link href={`/admin/clients/${p.clientSlug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">→</Link>
                           ) : p.notionUrl ? (
