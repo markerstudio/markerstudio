@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getFinance, fmtILS, type MonthFin, type PaymentRow } from "@/lib/finance";
 import { timeAgo } from "@/lib/dashboard";
+import FinanceTabs from "@/components/admin/FinanceTabs";
 import { syncFinance } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -74,8 +75,13 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
   });
   const maxYearIncome = Math.max(1, ...yearRows.map((r) => r.income));
 
+  // Clients who still owe money — the studio's debt picture from the tracker,
+  // highest balance first. This is the "what's left to pay" view.
+  const owing = f.debtors.filter((d) => d.debt > 0);
+
   return (
     <div className="space-y-5">
+      <FinanceTabs />
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Finance</h1>
@@ -160,6 +166,71 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
               </div>
               <div className="mt-1 text-xs text-neutral-500">{open > 0 ? `+ ${fmtILS(open)} still open (unpaid dues)` : "everything due is collected"}</div>
             </div>
+          </div>
+
+          {/* ---- What clients still owe — the "money left" picture ---- */}
+          <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "210ms" }}>
+            <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
+              <h2 className="font-bold tracking-tight">What clients still owe</h2>
+              {owing.length > 0 && (
+                <span className="text-xs text-neutral-400 tabular-nums">
+                  {owing.length} client{owing.length === 1 ? "" : "s"} · {fmtILS(f.totalDebt)} left
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-neutral-500 mb-3">
+              Outstanding balance per client, largest first — what&apos;s paid and what&apos;s left, so you can see it here instead of in Notion.
+            </p>
+            {owing.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-6 text-center">
+                <span className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span>
+                <p className="text-sm text-neutral-500">Everyone&apos;s paid up — no outstanding balances.</p>
+              </div>
+            ) : (
+              <ul className="divide-y divide-neutral-100">
+                {owing.map((d) => {
+                  const behLabel =
+                    d.behavior === "on-time" ? "always on time"
+                    : d.behavior === "mostly-on-time" ? "mostly on time"
+                    : d.behavior === "often-late" ? `often late · ~${d.avgDelayDays}d` : "";
+                  const behClass =
+                    d.behavior === "on-time" ? "bg-green-100 text-green-800"
+                    : d.behavior === "mostly-on-time" ? "bg-amber-100 text-amber-800"
+                    : "bg-red-100 text-red-700";
+                  return (
+                    <li key={d.sourceId} className="py-3 flex items-center gap-4 flex-wrap">
+                      <div className="flex-1 min-w-[200px]">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-neutral-900 truncate">{d.name}</span>
+                          {behLabel && (
+                            <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap ${behClass}`}>{behLabel}</span>
+                          )}
+                        </div>
+                        <div className="mt-1.5 h-2 rounded-full bg-neutral-100 overflow-hidden max-w-xs">
+                          <div className="h-full rounded-full bg-orange" style={{ width: `${Math.max(2, d.paidPct)}%` }} />
+                        </div>
+                        <div className="mt-1 text-[11px] text-neutral-500 tabular-nums">
+                          {d.paidPct}% paid
+                          {d.lastPaymentDate ? ` · last paid ${new Date(d.lastPaymentDate).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="tabular-nums text-lg font-extrabold text-orange-deep">{fmtILS(d.debt)}</div>
+                        <div className="text-[11px] text-neutral-400">still to pay</div>
+                      </div>
+                      {d.clientSlug ? (
+                        <div className="flex items-center gap-2">
+                          <Link href={`/admin/invoices`} className="text-xs font-semibold text-neutral-500 hover:text-orange whitespace-nowrap">Invoice →</Link>
+                          <Link href={`/admin/clients/${d.clientSlug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">Client →</Link>
+                        </div>
+                      ) : d.notionUrl ? (
+                        <a href={d.notionUrl} target="_blank" rel="noreferrer" className="text-xs font-semibold text-neutral-300 hover:text-orange">Notion ↗</a>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </div>
 
           {/* ---- Monthly cashflow chart + overdue/banks ---- */}
