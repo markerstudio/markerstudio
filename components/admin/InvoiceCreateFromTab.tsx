@@ -15,7 +15,13 @@ const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm f
 
 /* "New invoice" form for the Invoices tab — pick or type the client, then the
    same line-items / VAT / deposit flow as the client-page editor. */
-export default function InvoiceCreateFromTab({ clients }: { clients: { slug: string; name: string }[] }) {
+export default function InvoiceCreateFromTab({
+  clients,
+  balances = {},
+}: {
+  clients: { slug: string; name: string }[];
+  balances?: Record<string, { open: number; count: number }>;
+}) {
   const [items, setItems] = useState<Item[]>([{ label: "", amount: "" }]);
   const [addVat, setAddVat] = useState(false);
   const [vatRate, setVatRate] = useState("16");
@@ -40,7 +46,7 @@ export default function InvoiceCreateFromTab({ clients }: { clients: { slug: str
 
       <div className="mb-4">
         <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">Client</label>
-        <ClientSelectOrType clients={clients} />
+        <ClientSelectOrType clients={clients} balances={balances} />
       </div>
 
       <div className="grid grid-cols-[1fr_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">

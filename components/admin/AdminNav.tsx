@@ -18,15 +18,18 @@ export default function AdminNav({ unreadInquiries, unreadApplications }: { unre
     { href: "/admin/proposals", label: "Proposals" },
     { href: "/admin/agreements", label: "Agreements" },
     { href: "/admin/consents", label: "Consents" },
-    { href: "/admin/invoices", label: "Invoices" },
     { href: "/admin/finance", label: "Finance" },
     { href: "/admin/inquiries", label: "Inquiries", badge: unreadInquiries },
     { href: "/admin/applications", label: "Applications", badge: unreadApplications },
     { href: "/admin/users", label: "Users" },
   ];
 
-  const isActive = (href: string) =>
-    href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = (href: string) => {
+    if (href === "/admin") return pathname === "/admin";
+    // Invoices now live inside the Finance section, so Finance stays lit there.
+    if (href === "/admin/finance" && pathname.startsWith("/admin/invoices")) return true;
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return (
     <nav className="flex items-center gap-1 text-sm overflow-x-auto scrollbar-none -mx-1 px-1">

@@ -3,6 +3,7 @@ import { isDbEnabled } from "@/lib/db";
 import { getClients } from "@/lib/clients";
 import { listInvoices, ensureInvoicesTable, invoiceGrandTotal, invoiceRemaining, type Invoice } from "@/lib/invoices";
 import InvoiceCreateFromTab from "@/components/admin/InvoiceCreateFromTab";
+import FinanceTabs from "@/components/admin/FinanceTabs";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import RecordPayment from "@/components/admin/RecordPayment";
@@ -51,12 +52,21 @@ export default async function InvoicesAdmin({
   let overdueTotal = 0;
   let overdueCount = 0;
   let collectedThisMonth = 0;
+  // Per-client open balance, shown while creating a new invoice so you can see
+  // what's already left to pay without checking elsewhere.
+  const clientBalances: Record<string, { open: number; count: number }> = {};
   for (const inv of live) {
     const vat = Number(inv.vat_rate) || 0;
     const paid = Number(inv.paid_amount) || 0;
     if (inv.status === "due" || inv.status === "partial") {
       const rem = invoiceRemaining(inv.items, vat, paid);
       outstanding += rem;
+      if (rem > 0) {
+        const b = clientBalances[inv.client_slug] || { open: 0, count: 0 };
+        b.open += rem;
+        b.count++;
+        clientBalances[inv.client_slug] = b;
+      }
       if (isOverdue(inv)) {
         overdueTotal += rem;
         overdueCount++;
@@ -86,6 +96,7 @@ export default async function InvoicesAdmin({
 
   return (
     <div>
+      <FinanceTabs />
       <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
@@ -145,7 +156,7 @@ export default async function InvoicesAdmin({
             New invoice
           </summary>
           <div className="px-4 pb-4 border-t border-neutral-100 pt-4">
-            <InvoiceCreateFromTab clients={clients} />
+            <InvoiceCreateFromTab clients={clients} balances={clientBalances} />
           </div>
         </details>
       )}
