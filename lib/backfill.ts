@@ -5,7 +5,7 @@
 // line label as a second guard. Paid entries are created paid in full on their
 // real pay date; open ones keep their due date.
 import { getSql, isDbEnabled } from "@/lib/db";
-import { createInvoice, listClientInvoices } from "@/lib/invoices";
+import { createInvoice, listClientInvoices, amountLabelToIls } from "@/lib/invoices";
 import type { ClientData } from "@/lib/clients";
 
 const FLAG = "payment-history-invoiced-v1";
@@ -53,7 +53,9 @@ export async function runPaymentHistoryBackfill(): Promise<void> {
       for (const h of history) {
         const label = [h.cycle, h.desc].filter(Boolean).join(" — ").trim() || "Payment";
         if (have.has(label.toLowerCase())) continue;
-        const amountNum = parseFloat((h.amount || "").replace(/[^0-9.]/g, "")) || 0;
+        // ILS-equivalent of the row (handles "150 ILS + $50" and pure-USD rows)
+        // so the generated invoice carries one clean, parseable shekel amount.
+        const amountNum = amountLabelToIls(h.amount || "");
         const paid = h.status === "paid" ? amountNum : 0;
         // Notion-synced entries carry their real dates in the text
         // ("Due 2026-03-01 · Paid 2026-03-14") — backdate the invoice to them.
@@ -63,7 +65,7 @@ export async function runPaymentHistoryBackfill(): Promise<void> {
         await createInvoice({
           clientId: c.id,
           clientSlug: c.slug,
-          items: [{ label, amount: h.amount || "" }],
+          items: [{ label, amount: amountNum ? `${amountNum} ILS` : h.amount || "" }],
           source: payDate || dueParsed ? "notion" : "custom",
           paidAmount: paid,
           status: h.status === "paid" ? "paid" : "due",

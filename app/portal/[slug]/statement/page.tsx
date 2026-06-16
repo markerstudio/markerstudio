@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { listClientInvoices, invoiceGrandTotal } from "@/lib/invoices";
+import { listClientInvoices, invoiceGrandTotal, amountLabelToIls } from "@/lib/invoices";
 import StatementDocument, { type StatementRow } from "@/components/docs/StatementDocument";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export default async function StatementPage({ params }: { params: { slug: string
       const text = `${h.cycle || ""} ${h.desc || ""}`;
       const payDate = text.match(/Paid\s+(\d{4}-\d{2}-\d{2})/i)?.[1];
       const dueDate = text.match(/Due\s+(\d{4}-\d{2}-\d{2})/i)?.[1];
-      const amount = parseFloat((h.amount || "").replace(/[^0-9.]/g, "")) || 0;
+      const amount = amountLabelToIls(h.amount || "");
       const paid = h.status === "paid" ? amount : 0;
       totalBilled += amount;
       totalPaid += paid;

@@ -8,6 +8,7 @@
 //   - a "Notes"/"Caption" prop → notes (rich text)
 import { unstable_cache } from "next/cache";
 import type { SocialPost, Invoice } from "@/lib/clients";
+import { amountLabelToIls } from "@/lib/invoices";
 
 // Accept a raw Notion id or a URL; return the 32-char id.
 export function extractNotionId(s: string): string | null {
@@ -76,7 +77,12 @@ function moneyToNumber(s?: string): number {
 function incomeRowToInvoice(ip: any): (Invoice & { _d: string }) {
   const ils = ip["ILS"]?.number;
   const usd = ip["USD"]?.number;
-  const amount = ils != null ? `${ils.toLocaleString()} ILS` : usd != null ? `$${usd.toLocaleString()}` : "";
+  // A single payment can carry both currencies (e.g. 150 ILS + $50). Show every
+  // amount present rather than keeping only the first, so dollars never vanish.
+  const amount = [
+    ils != null ? `${ils.toLocaleString()} ILS` : "",
+    usd != null ? `$${usd.toLocaleString()}` : "",
+  ].filter(Boolean).join(" + ");
   const payDate = ip["Pay Date"]?.date?.start ? String(ip["Pay Date"].date.start).slice(0, 10) : "";
   const dueDate = ip["Due Date"]?.date?.start ? String(ip["Due Date"].date.start).slice(0, 10) : "";
   const nm = (ip["Name"]?.title || []).map((t: any) => t.plain_text).join("");
@@ -362,8 +368,7 @@ export async function fetchNotionClient(pageId: string): Promise<{
   let progress = fin.progress;
   const paidSum = rows.reduce((sum, r) => {
     if (r.status !== "paid") return sum;
-    const m = (r.amount || "").match(/([\d,.]+)\s*ILS/i);
-    return sum + (m ? parseFloat(m[1].replace(/,/g, "")) || 0 : 0);
+    return sum + amountLabelToIls(r.amount || ""); // counts ILS + any USD, in shekels
   }, 0);
   if (paidSum > 0 || fin.balanceNum > 0) {
     progress = Math.max(0, Math.min(100, Math.round((paidSum / Math.max(1, paidSum + fin.balanceNum)) * 100)));
