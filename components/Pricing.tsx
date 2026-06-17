@@ -116,16 +116,10 @@ export default function Pricing({ t }: { t: SiteContent }) {
               </ul>
 
               <a
-                href="#contact"
+                href={`/onboarding?${category.key === "marketing" ? "marketing" : "branding"}=${i}`}
                 className={`ms-btn ms-plan__cta ${
                   plan.featured ? "ms-btn-primary" : "ms-btn-outline"
                 }`}
-                onClick={() => {
-                  // Carry the selected package into the contact form below.
-                  window.dispatchEvent(
-                    new CustomEvent("ms-quote", { detail: { plan: plan.name, category: category.key } })
-                  );
-                }}
               >
                 {p.cta} <span>{p.arrow}</span>
               </a>

@@ -402,7 +402,7 @@ export function CinematicHero({
           {ctaDescription}
         </p>
         <div className="flex flex-col sm:flex-row gap-4">
-          <a href="#contact" className="ms-btn ms-btn-primary" style={{ justifyContent: "center" }}>
+          <a href="/onboarding" className="ms-btn ms-btn-primary" style={{ justifyContent: "center" }}>
             {ctaPrimary} <span>{arrow}</span>
           </a>
           <a href="#work" className="ms-btn ms-btn-outline" style={{ justifyContent: "center" }}>
