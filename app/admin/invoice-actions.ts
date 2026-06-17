@@ -4,9 +4,13 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
-import { createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived, invoiceCurrency, type InvoiceItem, type InvoiceStatus } from "@/lib/invoices";
+import {
+  createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
+  invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
+  type InvoiceItem, type InvoiceStatus,
+} from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
-import { createIncomePayment } from "@/lib/notion";
+import { createIncomePaymentLines } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
 async function clientBySlug(slug: string) {
@@ -24,7 +28,26 @@ async function syncPaymentToNotion(slug: string, amount: number, items: InvoiceI
     const c = await clientBySlug(slug);
     const pageId = c?.data?.notionPageId;
     if (!pageId) return;
-    await createIncomePayment({ clientPageId: pageId, amount, currency: invoiceCurrency(items), dueDate: dueDate || undefined, name: label });
+    const currency = invoiceCurrency(items);
+    const clientTotal = invoiceTotal(items); // every line — what the client pays
+
+    // One Notion row per Marker line, named by category so the budget formula
+    // classifies it. The payment is split across lines in proportion to the
+    // invoice; Ramzi/stories lines are pass-through — collected for Ramzi, never
+    // written to Marker's books — so they're dropped here (their share of the
+    // payment simply isn't sent).
+    const lines = (items || [])
+      .filter((it) => !isRamziLine(it))
+      .map((it) => {
+        const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
+        return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
+      })
+      .filter((l) => l.amount > 0);
+
+    // Fall back to a single row when there are no usable line amounts (e.g. a
+    // deposit on an invoice with no priced lines yet).
+    const payload = lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
+    await createIncomePaymentLines({ clientPageId: pageId, lines: payload, currency, dueDate: dueDate || undefined });
   } catch {
     /* never block the local record on a Notion write */
   }

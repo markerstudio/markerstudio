@@ -132,38 +132,64 @@ export async function createIncomePayment(input: {
   dueDate?: string; // ISO yyyy-mm-dd; the invoice's due date
   name?: string;
 }): Promise<string | null> {
-  if (!process.env.NOTION_TOKEN) return null;
-  if (!input.clientPageId || !(input.amount > 0)) return null;
+  if (!(input.amount > 0)) return null;
+  const ids = await createIncomePaymentLines({
+    clientPageId: input.clientPageId,
+    currency: input.currency,
+    payDate: input.payDate,
+    dueDate: input.dueDate,
+    lines: [{ name: input.name || `Payment ${(input.payDate || "").slice(0, 10)}`.trim(), amount: input.amount }],
+  });
+  return ids[0] || null;
+}
+
+// Write one Income row PER LINE, so a payment lands in Notion categorised the
+// way the budget formula expects — "Branding", "Plan Payment", "Extra" — rather
+// than a single lump row. Each row links to the client and their Source. Callers
+// must drop Ramzi/stories pass-through lines beforehand: those are never Marker
+// income and must not touch the books. Best-effort; returns the created ids.
+export async function createIncomePaymentLines(input: {
+  clientPageId: string;
+  lines: { name: string; amount: number }[];
+  currency: "ILS" | "USD";
+  payDate?: string;
+  dueDate?: string;
+}): Promise<string[]> {
+  if (!process.env.NOTION_TOKEN || !input.clientPageId) return [];
+  const lines = (input.lines || []).filter((l) => l.amount > 0);
+  if (!lines.length) return [];
+  const created: string[] = [];
   try {
     const payDate = (input.payDate || new Date().toISOString().slice(0, 10)).slice(0, 10);
-    const properties: Record<string, any> = {
-      Name: { title: [{ text: { content: input.name || `Payment ${payDate}` } }] },
-      "Pay Date": { date: { start: payDate } },
-      "Clients Database": { relation: [{ id: input.clientPageId }] },
-    };
-    if (input.dueDate) properties["Due Date"] = { date: { start: input.dueDate.slice(0, 10) } };
-
-    // Amount + matching bank account, so the bank's running balance updates.
-    if (input.currency === "USD") {
-      properties.USD = { number: input.amount };
-      properties["Arab Bank USD"] = { relation: [{ id: ARAB_BANK_USD }] };
-    } else {
-      properties.ILS = { number: input.amount };
-      properties["ILS Account"] = { relation: [{ id: ARAB_BANK_ILS }] };
-    }
-
     // Source — match the client's Budget Tracker source row (first one found).
     const sourceIds = await fetchClientSourceIds(input.clientPageId);
-    if (sourceIds.length) properties.Source = { relation: [{ id: sourceIds[0] }] };
-
-    const res = await notionPost(`/v1/pages`, {
-      parent: { database_id: INCOME_DB },
-      properties,
-    });
-    return (res?.id as string) || null;
+    for (const line of lines) {
+      const properties: Record<string, any> = {
+        Name: { title: [{ text: { content: line.name || `Payment ${payDate}` } }] },
+        "Pay Date": { date: { start: payDate } },
+        "Clients Database": { relation: [{ id: input.clientPageId }] },
+      };
+      if (input.dueDate) properties["Due Date"] = { date: { start: input.dueDate.slice(0, 10) } };
+      // Amount + matching bank account, so the bank's running balance updates.
+      if (input.currency === "USD") {
+        properties.USD = { number: line.amount };
+        properties["Arab Bank USD"] = { relation: [{ id: ARAB_BANK_USD }] };
+      } else {
+        properties.ILS = { number: line.amount };
+        properties["ILS Account"] = { relation: [{ id: ARAB_BANK_ILS }] };
+      }
+      if (sourceIds.length) properties.Source = { relation: [{ id: sourceIds[0] }] };
+      try {
+        const res = await notionPost(`/v1/pages`, { parent: { database_id: INCOME_DB }, properties });
+        if (res?.id) created.push(res.id as string);
+      } catch {
+        /* skip a line that won't write; never block the others */
+      }
+    }
   } catch {
-    return null;
+    /* best-effort — the local invoice is the source of truth */
   }
+  return created;
 }
 
 // Create a client in Notion's Clients Database plus a matching Source row in the

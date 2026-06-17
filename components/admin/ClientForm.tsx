@@ -383,11 +383,12 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only.">
+      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
           <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
           <Text label="Total agreed" value={data.finance?.totalAgreed ?? ""} onChange={(totalAgreed) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, totalAgreed } })} placeholder="e.g. 2,425 ILS" />
+          <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesFee } })} placeholder="e.g. 30 ILS / day" />
           <div>
             <label className={lbl}>Money left · auto</label>
             <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>

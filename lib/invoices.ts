@@ -2,8 +2,43 @@
 // PDF. Auto-numbered INV-YYYY-NNN. Stored in their own Neon table.
 import { getSql } from "@/lib/db";
 
-export type InvoiceItem = { label: string; amount: string };
+export type InvoiceItem = { label: string; amount: string; kind?: LineKind; owner?: LineOwner };
 export type InvoiceStatus = "draft" | "due" | "partial" | "paid";
+
+// A line's category (drives the Notion Income row name so the budget formula
+// classifies it) and who the money belongs to. "ramzi" lines are pass-through:
+// they stay on the client's invoice but are never Marker income and never sync
+// to Marker's Notion books. Stories collected on Ramzi's behalf are the case.
+export type LineKind = "branding" | "plan" | "stories" | "extra";
+export type LineOwner = "marker" | "ramzi";
+
+// Parse the numeric part of a line amount ("1,800 ILS" → 1800). Single-currency
+// per line; mixing happens across lines, not within one.
+export function lineAmount(amount: string): number {
+  const n = parseFloat((amount || "").replace(/[^0-9.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
+
+// Stories / explicitly Ramzi-owned lines are collected for Ramzi, not Marker.
+export function isRamziLine(it: InvoiceItem): boolean {
+  return it.owner === "ramzi" || it.kind === "stories" || /stor(y|ies)/i.test(it.label || "");
+}
+
+// Best-effort category for a line: an explicit kind wins, otherwise guess from
+// the label so legacy invoices still sync under the right Notion name.
+export function inferKind(it: InvoiceItem): LineKind {
+  if (it.kind) return it.kind;
+  const l = (it.label || "").toLowerCase();
+  if (/stor(y|ies)/.test(l)) return "stories";
+  if (/brand/.test(l)) return "branding";
+  if (/month|plan|social|marketing|cycle|retainer/.test(l)) return "plan";
+  return "extra";
+}
+
+// The Notion Income row Name your budget formula expects per category.
+export function notionNameForKind(kind: LineKind): string {
+  return kind === "branding" ? "Branding" : kind === "plan" ? "Plan Payment" : kind === "stories" ? "Stories" : "Extra";
+}
 
 export type Invoice = {
   id: number;
@@ -137,10 +172,16 @@ export async function deleteInvoice(id: number): Promise<void> {
 }
 
 export function invoiceTotal(items: InvoiceItem[]): number {
-  return (items || []).reduce((sum, it) => {
-    const n = parseFloat((it.amount || "").replace(/[^0-9.]/g, ""));
-    return sum + (Number.isFinite(n) ? n : 0);
-  }, 0);
+  return (items || []).reduce((sum, it) => sum + lineAmount(it.amount), 0);
+}
+
+// Subtotal of just Marker's lines (excludes Ramzi pass-through) and just
+// Ramzi's lines — for splitting one invoice's money between the two books.
+export function markerItemsTotal(items: InvoiceItem[]): number {
+  return (items || []).filter((it) => !isRamziLine(it)).reduce((s, it) => s + lineAmount(it.amount), 0);
+}
+export function ramziItemsTotal(items: InvoiceItem[]): number {
+  return (items || []).filter(isRamziLine).reduce((s, it) => s + lineAmount(it.amount), 0);
 }
 
 // Guess an invoice's currency from its line amounts — "$"/"USD" → USD, else ILS
