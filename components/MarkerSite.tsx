@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { gsap } from "gsap";
+import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 import { PixelLogoGrid } from "@/components/ui/pixel-logo-grid";
@@ -11,6 +13,13 @@ import { useLang } from "@/lib/useLang";
 import { type Project } from "@/lib/projects";
 
 const LOGO = "/assets/logo-primary-transparent.png";
+
+if (typeof window !== "undefined") {
+  gsap.registerPlugin(ScrollToPlugin);
+}
+
+// Sticky-header offset reused for anchor scrolling (matches scroll-margin-top).
+const HEADER_OFFSET = 86;
 
 function ArrowIcon() {
   return (
@@ -721,6 +730,41 @@ function SiteFooter({ t }: { t: SiteContent }) {
 export default function MarkerSite({ projects }: { projects: Project[] }) {
   const [lang, setLang] = useLang();
   const t = MARKER_CONTENT[lang];
+
+  // Smooth in-page anchor scrolling (e.g. "Get a quote" → #contact). We can't
+  // use CSS `scroll-behavior: smooth` because it fights the GSAP-pinned hero and
+  // leaves the jump stuck inside the pinned section. GSAP's ScrollToPlugin is
+  // ScrollTrigger-aware, so it scrolls cleanly through the pin to the target.
+  useEffect(() => {
+    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const onClick = (e: MouseEvent) => {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+        return;
+      }
+      const link = (e.target as HTMLElement | null)?.closest?.('a[href^="#"]') as
+        | HTMLAnchorElement
+        | null;
+      if (!link) return;
+      const hash = link.getAttribute("href") || "";
+      if (hash.length < 2) return; // bare "#"
+      const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+      if (!target) return;
+      e.preventDefault();
+      if (reduce) {
+        const y = target.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
+        window.scrollTo(0, y);
+      } else {
+        gsap.to(window, {
+          duration: 0.9,
+          ease: "power2.inOut",
+          scrollTo: { y: target, offsetY: HEADER_OFFSET, autoKill: true },
+        });
+      }
+      history.pushState(null, "", hash);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
 
   // Paint .brush-draw strokes in once they reach the viewport (the hero runs
   // its own GSAP-driven strokes and is not tagged with this class).
