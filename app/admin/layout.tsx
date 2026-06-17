@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getSession } from "@/lib/auth";
+import { getSession, canSeePartner } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
@@ -32,7 +32,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </div>
             </div>
             <div className="pb-2">
-              <AdminNav unreadInquiries={unread} unreadApplications={apps} />
+              <AdminNav unreadInquiries={unread} unreadApplications={apps} showPartner={canSeePartner(user)} />
             </div>
           </div>
         </header>

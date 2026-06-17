@@ -15,6 +15,26 @@ export function isSuperAdmin(user: { email?: string | null } | null | undefined)
   return !!user?.email && user.email.toLowerCase() === SUPERADMIN_EMAIL;
 }
 
+// Partner accounts (e.g. Ramzi). They — and only they plus the super admin —
+// can see the partner's money/clients. Set PARTNER_EMAILS to a comma-separated
+// list. Kept email-based (like the super admin) so no schema/role migration is
+// needed to stand the partner area up.
+export const PARTNER_EMAILS = (process.env.PARTNER_EMAILS || "ramzi@marker.ps")
+  .toLowerCase()
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+export function isPartner(user: { email?: string | null } | null | undefined): boolean {
+  return !!user?.email && PARTNER_EMAILS.includes(user.email.toLowerCase());
+}
+
+// Who may see the partner (Ramzi) area: the partner themselves and the super
+// admin. Regular admins (e.g. Maram) cannot.
+export function canSeePartner(user: { email?: string | null } | null | undefined): boolean {
+  return isSuperAdmin(user) || isPartner(user);
+}
+
 export type Role = "admin" | "client";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 

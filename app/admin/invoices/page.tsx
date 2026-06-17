@@ -103,6 +103,9 @@ export default async function InvoicesAdmin({
           <p className="text-sm text-neutral-500 mt-0.5">Create, send, track payments — printable from the portal.</p>
         </div>
         <div className="flex items-center gap-2 text-sm">
+          <Link href="/admin/payments/new" className="rounded-full px-3 py-1.5 font-semibold bg-green-600 text-white hover:bg-green-700">
+            + Record payment
+          </Link>
           <Link
             href="/admin/invoices"
             className={`rounded-full px-3 py-1.5 font-semibold ${!showArchived ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}

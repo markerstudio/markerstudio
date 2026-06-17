@@ -132,6 +132,7 @@ export type ClientData = {
   assets?: AssetItem[]; // downloadable brand deliverables (logos, exports, guidelines)
   updates?: ActivityItem[]; // portal activity feed — studio notes + client actions
   status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
+  owner?: "marker" | "ramzi"; // whose client this is — "ramzi" clients are walled off to the partner + super admin
   onboarding?: OnboardingBrief; // the brief captured at signup
   // Proposal & agreement are prepared by the studio and only shown to the
   // client once `published` is set (sent). They are not auto-generated to the client.

@@ -7,7 +7,15 @@ type Item = { href: string; label: string; badge?: number };
 
 /* Admin navigation — client component so the current section can be
    highlighted. Scrolls horizontally on narrow screens instead of wrapping. */
-export default function AdminNav({ unreadInquiries, unreadApplications }: { unreadInquiries: number; unreadApplications: number }) {
+export default function AdminNav({
+  unreadInquiries,
+  unreadApplications,
+  showPartner = false,
+}: {
+  unreadInquiries: number;
+  unreadApplications: number;
+  showPartner?: boolean;
+}) {
   const pathname = usePathname();
 
   const items: Item[] = [
@@ -19,6 +27,7 @@ export default function AdminNav({ unreadInquiries, unreadApplications }: { unre
     { href: "/admin/agreements", label: "Agreements" },
     { href: "/admin/consents", label: "Consents" },
     { href: "/admin/finance", label: "Finance" },
+    ...(showPartner ? [{ href: "/admin/partner", label: "Ramzi" } as Item] : []),
     { href: "/admin/inquiries", label: "Inquiries", badge: unreadInquiries },
     { href: "/admin/applications", label: "Applications", badge: unreadApplications },
     { href: "/admin/users", label: "Users" },
