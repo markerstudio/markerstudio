@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal, invoiceRemaining } from "@/lib/invoices";
+import { listInvoicePayments } from "@/lib/payments";
 import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -31,6 +32,7 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
   const grand = invoiceGrandTotal(inv.items, rate);
   const paid = Number(inv.paid_amount) || 0;
   const remaining = invoiceRemaining(inv.items, rate, paid);
+  const payments = await listInvoicePayments(inv.id);
   const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "partial" ? "bg-amber-100 text-amber-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
 
   return (
@@ -113,6 +115,26 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
               )}
             </div>
           </div>
+
+          {payments.length > 0 && (
+            <div className="px-6 pt-4 pb-2 sm:px-9">
+              <div className="text-xs font-semibold uppercase tracking-wider text-neutral-400 mb-2">Payments &amp; receipts</div>
+              <table className="w-full text-sm">
+                <tbody>
+                  {payments.map((p) => (
+                    <tr key={p.id} className="border-b border-neutral-100">
+                      <td className="py-2 text-neutral-800">{date(p.paid_on)}</td>
+                      <td className="py-2 text-neutral-500">{p.method ? p.method[0].toUpperCase() + p.method.slice(1) : "—"}</td>
+                      <td className="py-2 text-right tabular-nums text-neutral-900">{fmt(Number(p.amount) || 0)}{p.currency === "USD" ? " USD" : " ILS"}</td>
+                      <td className="py-2 text-right print:hidden">
+                        <a href={`/portal/${client.slug}/receipt/${p.id}`} className="font-mono text-xs font-medium text-neutral-500 hover:text-orange">{p.number} ↗</a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
           {inv.note && <p className="px-6 pb-2 text-sm text-neutral-500 sm:px-9">{inv.note}</p>}
 
