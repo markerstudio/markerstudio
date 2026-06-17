@@ -1,15 +1,27 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { saveClient } from "@/app/admin/actions";
 import { toCSV, fromCSV } from "@/lib/portalCsv";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
-import { blankClientData, type Client, type ClientData, type LocalizedText, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
+import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
+
+const fmtIls = (n: number) => `${Math.round(n).toLocaleString("en-US")} ILS`;
+
+// A payment amount is stored as one string ("1,800 ILS" / "$50"); the editor
+// works in a number + currency, so split it on load and recompose on change.
+function splitAmount(s: string): { num: string; cur: "ILS" | "USD" } {
+  return { num: (s || "").match(/[\d.,]+/)?.[0] || "", cur: /\$|usd/i.test(s || "") ? "USD" : "ILS" };
+}
+function joinAmount(num: string, cur: "ILS" | "USD"): string {
+  const clean = (num || "").trim();
+  return !clean ? "" : cur === "USD" ? `$${clean}` : `${clean} ILS`;
+}
 
 // AI prompt scoped to the ANALYTICS section only — built from the analysis rows
 // of the CSV so the AI returns just those, and we merge only analysis back in.
@@ -138,6 +150,17 @@ function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T[]; onC
 export default function ClientForm({ client, projectLogos = [] }: { client?: Client; projectLogos?: { slug: string; name: string; logo: string }[] }) {
   const [data, setData] = useState<ClientData>(client?.data ?? blankClientData());
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
+  // Money left & paid % are derived, never hand-typed. We persist the computed
+  // figures into plan.balance / finance.progress so the portal reads them too.
+  const fin = useMemo(() => computeClientFinance(data), [data]);
+  const persisted = useMemo<ClientData>(
+    () => ({
+      ...data,
+      plan: { ...data.plan, balance: fmtIls(fin.moneyLeftIls) },
+      finance: { ...data.finance, progress: fin.paidPct },
+    }),
+    [data, fin]
+  );
   const [color, setColor] = useState(client?.color ?? "#303030");
   const [logo, setLogo] = useState(client?.logo ?? "");
   const [csvMsg, setCsvMsg] = useState("");
@@ -204,7 +227,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
   return (
     <form ref={formRef} action={saveClient} className="space-y-6">
       {client && <input type="hidden" name="originalSlug" value={client.slug} />}
-      <input type="hidden" name="data" value={JSON.stringify(data)} />
+      <input type="hidden" name="data" value={JSON.stringify(persisted)} />
 
       <Group title="Identity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -360,31 +383,57 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Finance" hint="From Notion on sync: Money left + Paid % are the Budget Tracker's combined figures (branding + marketing + extras − paid, one number); Branding fee is the source's Branding Cost, shown for reference only. You can override anything here.">
+      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only.">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
           <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
-          <Text label="Money left (combined)" value={data.plan.balance ?? ""} onChange={(balance) => patch({ plan: { ...data.plan, balance } })} placeholder="e.g. 600 ILS" />
+          <Text label="Total agreed" value={data.finance?.totalAgreed ?? ""} onChange={(totalAgreed) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, totalAgreed } })} placeholder="e.g. 2,425 ILS" />
           <div>
-            <label className={lbl}>Paid (combined): {data.finance?.progress ?? 0}%</label>
-            <input type="range" min={0} max={100} value={data.finance?.progress ?? 0} onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: Number(e.target.value) } })} className="w-full accent-orange" />
+            <label className={lbl}>Money left · auto</label>
+            <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
           </div>
         </div>
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-1">
+            <span className={lbl + " mb-0"}>Paid · auto</span>
+            <span className="text-sm font-bold tabular-nums text-neutral-900">{fin.paidPct}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+            <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
+          </div>
+          <p className="text-[11px] text-neutral-400 mt-1 tabular-nums">
+            {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
+            {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
+          </p>
+        </div>
         <label className={lbl}>Payment history</label>
-        <Rows<Invoice> items={data.invoices} onChange={(invoices) => patch({ invoices })} blank={{ cycle: "", desc: "", amount: "", status: "due" }} addLabel="Add payment"
-          render={(inv, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pr-16">
-              <div className="md:col-span-2"><Text label="Cycle" value={inv.cycle} onChange={(cycle) => set({ cycle })} placeholder="Cycle 01 · Feb 26 → Mar 26" /></div>
-              <Text label="Amount" value={inv.amount} onChange={(amount) => set({ amount })} placeholder="1,800 ILS" />
-              <div>
-                <label className={lbl}>Status</label>
-                <select className={input} value={inv.status} onChange={(e) => set({ status: e.target.value as Invoice["status"] })}>
-                  <option value="paid">Paid</option><option value="due">Due</option><option value="overdue">Overdue</option>
-                </select>
+        <Rows<Invoice> items={data.invoices} onChange={(invoices) => patch({ invoices })} blank={{ cycle: "", desc: "", amount: "", status: "paid" }} addLabel="Add payment"
+          render={(inv, set) => {
+            const { num, cur } = splitAmount(inv.amount);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-[1fr_120px_96px_110px] gap-3 pr-16 items-end">
+                <div className="col-span-2 md:col-span-1"><Text label="Cycle" value={inv.cycle} onChange={(cycle) => set({ cycle })} placeholder="Cycle 01 · Feb → Mar" /></div>
+                <div>
+                  <label className={lbl}>Amount</label>
+                  <input className={`${input} text-right tabular-nums`} inputMode="decimal" value={num} placeholder="1,800" onChange={(e) => set({ amount: joinAmount(e.target.value, cur) })} />
+                </div>
+                <div>
+                  <label className={lbl}>Currency</label>
+                  <select className={input} value={cur} onChange={(e) => set({ amount: joinAmount(num, e.target.value as "ILS" | "USD") })}>
+                    <option value="ILS">ILS ₪</option>
+                    <option value="USD">USD $</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Status</label>
+                  <select className={input} value={inv.status} onChange={(e) => set({ status: e.target.value as Invoice["status"] })}>
+                    <option value="paid">Paid</option><option value="due">Due</option><option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <div className="col-span-2 md:col-span-4"><Text label="Description (optional)" value={inv.desc} onChange={(desc) => set({ desc })} /></div>
               </div>
-              <div className="md:col-span-4"><Text label="Description" value={inv.desc} onChange={(desc) => set({ desc })} /></div>
-            </div>
-          )} />
+            );
+          }} />
       </Group>
 
       <Group title="Documents" hint="Proposal, agreement, etc. Upload a PDF (or image) or paste a link — clients can open / download these.">

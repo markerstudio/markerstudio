@@ -8,7 +8,7 @@
 //   - a "Notes"/"Caption" prop → notes (rich text)
 import { unstable_cache } from "next/cache";
 import type { SocialPost, Invoice } from "@/lib/clients";
-import { amountLabelToIls } from "@/lib/invoices";
+import { amountLabelToIls } from "@/lib/money";
 
 // Accept a raw Notion id or a URL; return the 32-char id.
 export function extractNotionId(s: string): string | null {

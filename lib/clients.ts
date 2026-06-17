@@ -6,6 +6,7 @@
 import { getSql, isDbEnabled } from "@/lib/db";
 import type { AgreementDoc, ProposalDoc, ProposalSelection } from "@/lib/docs";
 import { createNotionClientWithSource } from "@/lib/notion";
+import { amountLabelToIls } from "@/lib/money";
 
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
@@ -117,8 +118,9 @@ export type ClientData = {
   invoices: Invoice[]; // payment history
   finance: {
     monthlyFee: string; // monthly marketing fee
-    progress: number; // % paid, combined (the combined money left lives on plan.balance)
+    progress: number; // % paid, combined (auto-derived; the money left lives on plan.balance)
     brandingFee?: string; // fixed branding fee (one-time, reference only)
+    totalAgreed?: string; // total agreed value of the engagement — drives auto money-left / paid %
     /** @deprecated Money left is a single combined figure — no branding split. */
     brandingProgress?: number;
     /** @deprecated Money left is a single combined figure — no branding split. */
@@ -200,6 +202,29 @@ export async function ensureClientSchema(): Promise<void> {
       used_at TIMESTAMPTZ
     )
   `;
+}
+
+// Auto-derived client finance, all in ILS (USD payment rows converted via
+// amountLabelToIls). Paid = sum of paid rows. The total is the "Total agreed"
+// when set, else paid + still-open rows, else paid + the last-known balance —
+// so the figures match the synced number until a total is entered. Money left
+// and Paid % follow from that, so neither is ever hand-edited.
+export function computeClientFinance(data: ClientData): {
+  paidIls: number;
+  openIls: number;
+  totalIls: number;
+  moneyLeftIls: number;
+  paidPct: number;
+} {
+  const invs = data.invoices || [];
+  const paidIls = invs.filter((i) => i.status === "paid").reduce((s, i) => s + amountLabelToIls(i.amount || ""), 0);
+  const openIls = invs.filter((i) => i.status !== "paid").reduce((s, i) => s + amountLabelToIls(i.amount || ""), 0);
+  const totalAgreed = amountLabelToIls(data.finance?.totalAgreed || "");
+  const storedLeft = amountLabelToIls(data.plan?.balance || "");
+  const totalIls = totalAgreed > 0 ? totalAgreed : openIls > 0 ? paidIls + openIls : paidIls + storedLeft;
+  const moneyLeftIls = Math.max(0, totalIls - paidIls);
+  const paidPct = totalIls > 0 ? Math.max(0, Math.min(100, Math.round((paidIls / totalIls) * 100))) : 0;
+  return { paidIls, openIls, totalIls, moneyLeftIls, paidPct };
 }
 
 // Empty portal content for a brand-new client.
