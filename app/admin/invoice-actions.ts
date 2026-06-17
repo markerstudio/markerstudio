@@ -7,10 +7,10 @@ import { getSql } from "@/lib/db";
 import {
   createInvoice, getInvoice, updateInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
   invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
-  type InvoiceItem, type InvoiceStatus,
+  type InvoiceItem, type InvoiceStatus, type LineKind,
 } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
-import { recordInvoicePayment, type PaymentMethod } from "@/lib/payments";
+import { recordInvoicePayment, type PaymentMethod, type AllocationLine } from "@/lib/payments";
 import { createIncomePaymentLines } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
@@ -23,34 +23,70 @@ async function clientBySlug(slug: string) {
 // Mirror an admin-recorded payment into the client's Notion Income database so
 // the books stay in sync both ways. Best-effort — only runs when the client is
 // linked to a Notion page, and a Notion failure never blocks the local record.
-async function syncPaymentToNotion(slug: string, amount: number, items: InvoiceItem[], label: string, dueDate?: string | null) {
+async function syncPaymentToNotion(
+  slug: string,
+  amount: number,
+  items: InvoiceItem[],
+  label: string,
+  dueDate?: string | null,
+  allocation?: AllocationLine[]
+) {
   if (!(amount > 0)) return;
   try {
     const c = await clientBySlug(slug);
     const pageId = c?.data?.notionPageId;
     if (!pageId) return;
     const currency = invoiceCurrency(items);
-    const clientTotal = invoiceTotal(items); // every line — what the client pays
 
     // One Notion row per Marker line, named by category so the budget formula
-    // classifies it. The payment is split across lines in proportion to the
-    // invoice; Ramzi/stories lines are pass-through — collected for Ramzi, never
-    // written to Marker's books — so they're dropped here (their share of the
-    // payment simply isn't sent).
-    const lines = (items || [])
-      .filter((it) => !isRamziLine(it))
-      .map((it) => {
-        const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
-        return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
-      })
-      .filter((l) => l.amount > 0);
+    // classifies it. Ramzi/stories lines are pass-through — collected for Ramzi,
+    // never written to Marker's books — so they're dropped here.
+    let lines: { name: string; amount: number }[];
+    if (allocation && allocation.length) {
+      // Use exactly how the admin split this payment across the lines.
+      lines = allocation
+        .filter((a) => !(a.owner === "ramzi" || a.kind === "stories"))
+        .map((a) => ({
+          name: notionNameForKind((a.kind as LineKind) || inferKind({ label: a.label, amount: String(a.amount) })),
+          amount: Math.round(a.amount),
+        }))
+        .filter((l) => l.amount > 0);
+    } else {
+      // No explicit split — apportion the payment across lines by invoice share.
+      const clientTotal = invoiceTotal(items);
+      lines = (items || [])
+        .filter((it) => !isRamziLine(it))
+        .map((it) => {
+          const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
+          return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
+        })
+        .filter((l) => l.amount > 0);
+    }
 
-    // Fall back to a single row when there are no usable line amounts (e.g. a
-    // deposit on an invoice with no priced lines yet).
+    // Fall back to a single row when there are no usable line amounts.
     const payload = lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
     await createIncomePaymentLines({ clientPageId: pageId, lines: payload, currency, dueDate: dueDate || undefined });
   } catch {
     /* never block the local record on a Notion write */
+  }
+}
+
+// Read the optional per-line allocation a payment form may post (a JSON array
+// of { label, kind, owner, amount }). Returns [] when absent or unparseable.
+function parseAllocation(raw: FormDataEntryValue | null): AllocationLine[] {
+  try {
+    const arr = JSON.parse(String(raw || "[]"));
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((a) => ({
+        label: String((a as AllocationLine)?.label || ""),
+        kind: (a as AllocationLine)?.kind ? String((a as AllocationLine).kind) : undefined,
+        owner: (a as AllocationLine)?.owner ? String((a as AllocationLine).owner) : undefined,
+        amount: Number((a as AllocationLine)?.amount) || 0,
+      }))
+      .filter((a) => a.amount > 0);
+  } catch {
+    return [];
   }
 }
 
@@ -214,6 +250,7 @@ export async function recordPaymentAction(formData: FormData) {
   const method = (["cash", "bank", "card", "other"].includes(methodRaw) ? methodRaw : undefined) as PaymentMethod | undefined;
   const paidOn = String(formData.get("paidOn") || "").trim();
   const note = String(formData.get("note") || "").trim();
+  const allocation = parseAllocation(formData.get("allocation"));
   const inv = await getInvoice(id);
   if (inv && amount > 0) {
     const currency = invoiceCurrency(inv.items);
@@ -225,9 +262,10 @@ export async function recordPaymentAction(formData: FormData) {
       paidOn: paidOn || undefined,
       method,
       note: note || undefined,
+      allocation: allocation.length ? allocation : undefined,
     });
     await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
-    await syncPaymentToNotion(slug, amount, inv.items, `${inv.number} payment`, inv.due_date);
+    await syncPaymentToNotion(slug, amount, inv.items, `${inv.number} payment`, inv.due_date, allocation.length ? allocation : undefined);
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
     revalidatePath("/admin");

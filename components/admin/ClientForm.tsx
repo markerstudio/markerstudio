@@ -233,6 +233,14 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
           <div><label className={lbl}>Slug</label><input name="slug" defaultValue={client?.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" /></div>
           <div><label className={lbl}>Client name</label><input name="name" defaultValue={client?.name} required className={input} placeholder="Dr. Jack Sabat" /></div>
+          <div>
+            <label className={lbl}>Owner</label>
+            <select className={input} value={data.owner || "marker"} onChange={(e) => patch({ owner: e.target.value as "marker" | "ramzi" })}>
+              <option value="marker">Marker</option>
+              <option value="ramzi">Ramzi (partner)</option>
+            </select>
+            <p className="text-[11px] text-neutral-400 mt-1">Ramzi&apos;s clients are visible only to Ramzi and the super admin.</p>
+          </div>
           <div className="md:col-span-2">
             <label className={lbl}>Logo</label>
             <input type="hidden" name="logo" value={logo} />
