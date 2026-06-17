@@ -3,6 +3,8 @@ import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal, invoiceRemaining } from "@/lib/invoices";
 import { listInvoicePayments } from "@/lib/payments";
+import { deletePaymentAction } from "@/app/admin/invoice-actions";
+import ConfirmButton from "@/components/admin/ConfirmButton";
 import PrintButton from "@/components/PrintButton";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +35,7 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
   const paid = Number(inv.paid_amount) || 0;
   const remaining = invoiceRemaining(inv.items, rate, paid);
   const payments = await listInvoicePayments(inv.id);
+  const isAdmin = s.role !== "client";
   const statusTone = inv.status === "paid" ? "bg-green-100 text-green-800" : inv.status === "partial" ? "bg-amber-100 text-amber-800" : inv.status === "due" ? "bg-orange-100 text-orange-deep" : "bg-neutral-100 text-neutral-600";
 
   return (
@@ -129,6 +132,20 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
                       <td className="py-2 text-right print:hidden">
                         <a href={`/portal/${client.slug}/receipt/${p.id}`} className="font-mono text-xs font-medium text-neutral-500 hover:text-orange">{p.number} ↗</a>
                       </td>
+                      {isAdmin && (
+                        <td className="py-2 text-right print:hidden">
+                          <form action={deletePaymentAction}>
+                            <input type="hidden" name="payId" value={p.id} />
+                            <input type="hidden" name="back" value={`/portal/${client.slug}/invoice/${inv.id}`} />
+                            <ConfirmButton
+                              message={`Void payment ${p.number} (${fmt(Number(p.amount) || 0)})? It rolls back off the invoice. Re-record the correct amount afterwards.`}
+                              className="text-xs font-medium text-neutral-300 hover:text-red-600"
+                            >
+                              Void
+                            </ConfirmButton>
+                          </form>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

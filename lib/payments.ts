@@ -128,3 +128,14 @@ export async function getPayment(id: number): Promise<Payment | undefined> {
     return undefined;
   }
 }
+
+// Void a payment (deletes the receipt row). The caller re-derives the invoice's
+// paid total/status. Past Notion income rows are not removed automatically.
+export async function deletePayment(id: number): Promise<void> {
+  try {
+    await ensurePaymentsTable();
+    await getSql()`DELETE FROM invoice_payments WHERE id = ${id}`;
+  } catch {
+    /* best-effort */
+  }
+}

@@ -10,7 +10,7 @@ import {
   type InvoiceItem, type InvoiceStatus, type LineKind,
 } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
-import { recordInvoicePayment, type PaymentMethod, type AllocationLine } from "@/lib/payments";
+import { recordInvoicePayment, deletePayment, getPayment, type PaymentMethod, type AllocationLine } from "@/lib/payments";
 import { createIncomePaymentLines } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
@@ -272,6 +272,29 @@ export async function recordPaymentAction(formData: FormData) {
     // Land on the receipt voucher (carry the admin's return path so the page
     // can offer a way back to the list).
     redirect(`/portal/${slug}/receipt/${payId}?back=${encodeURIComponent(back || "/admin/invoices")}`);
+  }
+  redirect(back || "/admin/invoices");
+}
+
+// Void a recorded payment — deletes its receipt and rolls the amount back off
+// the invoice's paid total, re-deriving the status. A wrong payment is fixed by
+// voiding it and recording the right one. (Any Notion income row it created is
+// not auto-removed; delete that in Notion if needed.)
+export async function deletePaymentAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const payId = Number(formData.get("payId") || 0);
+  const back = String(formData.get("back") || "").trim();
+  const pay = await getPayment(payId);
+  if (pay) {
+    await deletePayment(payId);
+    const inv = await getInvoice(pay.invoice_id);
+    if (inv) {
+      const newPaid = Math.max(0, (Number(inv.paid_amount) || 0) - (Number(pay.amount) || 0));
+      await setInvoicePaid(inv.id, newPaid);
+      revalidatePath(`/portal/${pay.client_slug}`);
+      revalidatePath("/admin/invoices");
+      revalidatePath("/admin");
+    }
   }
   redirect(back || "/admin/invoices");
 }
