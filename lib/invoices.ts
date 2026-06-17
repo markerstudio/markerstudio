@@ -167,6 +167,31 @@ export async function setInvoiceStatus(id: number, status: InvoiceStatus): Promi
   await getSql()`UPDATE invoices SET status = ${status} WHERE id = ${id}`;
 }
 
+// Edit an existing invoice's lines / VAT / due date / note. Keeps whatever has
+// already been paid and re-derives the status from the new total, so changing
+// amounts can't leave a "paid" invoice that no longer adds up. Past Notion
+// payments are not rewritten — only future payments sync against the new lines.
+export async function updateInvoice(
+  id: number,
+  input: { items: InvoiceItem[]; note?: string; dueDate?: string | null; vatRate?: number }
+): Promise<void> {
+  const sql = getSql();
+  const cur = await getInvoice(id);
+  if (!cur) return;
+  const items = input.items || [];
+  const vat = Number.isFinite(input.vatRate) ? Number(input.vatRate) : 0;
+  const paid = Number(cur.paid_amount) || 0;
+  const grand = invoiceGrandTotal(items, vat);
+  const status: InvoiceStatus =
+    paid <= 0 ? (cur.status === "draft" ? "draft" : "due") : paid >= grand && grand > 0 ? "paid" : "partial";
+  await sql`
+    UPDATE invoices
+    SET items = ${JSON.stringify(items)}::jsonb, note = ${input.note || null},
+        due_date = ${input.dueDate || null}, vat_rate = ${vat}, status = ${status}
+    WHERE id = ${id}
+  `;
+}
+
 export async function deleteInvoice(id: number): Promise<void> {
   await getSql()`DELETE FROM invoices WHERE id = ${id}`;
 }

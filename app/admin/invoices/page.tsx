@@ -221,6 +221,7 @@ export default async function InvoicesAdmin({
               {inv.status !== "paid" && !inv.archived_at && (
                 <RecordPayment id={inv.id} slug={inv.client_slug} back={backHref || "/admin/invoices"} remaining={remaining} />
               )}
+              <Link href={`/admin/invoices/${inv.id}/edit`} className="text-sm font-medium text-neutral-600 hover:text-orange">Edit</Link>
               <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">PDF ↗</Link>
               <form action={duplicateInvoiceAction}>
                 <input type="hidden" name="id" value={inv.id} />

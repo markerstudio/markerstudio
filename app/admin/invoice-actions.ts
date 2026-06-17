@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import {
-  createInvoice, getInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
+  createInvoice, getInvoice, updateInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
   invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
   type InvoiceItem, type InvoiceStatus,
 } from "@/lib/invoices";
@@ -157,6 +157,25 @@ export async function createInvoiceFromTab(formData: FormData) {
   revalidatePath(`/portal/${target.slug}`);
   revalidatePath("/admin/invoices");
   redirect(`/admin/invoices?ok=${encodeURIComponent(number)}`);
+}
+
+// Edit an existing invoice's lines / VAT / due date / note from the edit page.
+export async function updateInvoiceAction(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const id = Number(formData.get("id") || 0);
+  const back = String(formData.get("back") || "").trim();
+  const inv = await getInvoice(id);
+  if (!inv) redirect("/admin/invoices");
+  const items = parseItems(formData.get("items"));
+  if (items.length === 0) redirect(`/admin/invoices/${id}/edit?error=empty`);
+  const addVat = String(formData.get("addVat") || "") === "on";
+  const vatRate = addVat ? parseFloat(String(formData.get("vatRate") || "16")) || 16 : 0;
+  const note = String(formData.get("note") || "").trim();
+  const dueDate = String(formData.get("dueDate") || "").trim();
+  await updateInvoice(id, { items, note, dueDate: dueDate || null, vatRate });
+  revalidatePath(`/portal/${inv.client_slug}`);
+  revalidatePath("/admin/invoices");
+  redirect(back || "/admin/invoices");
 }
 
 export async function setInvoiceStatusAction(formData: FormData) {
