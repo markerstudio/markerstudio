@@ -60,8 +60,22 @@ function parseItems(raw: FormDataEntryValue | null): InvoiceItem[] {
   } catch {
     parsed = [];
   }
+  const KINDS = ["branding", "plan", "stories", "extra"];
+  const OWNERS = ["marker", "ramzi"];
   return (Array.isArray(parsed) ? parsed : [])
-    .map((i) => ({ label: String((i as { label?: unknown })?.label || "").trim(), amount: String((i as { amount?: unknown })?.amount || "").trim() }))
+    .map((i) => {
+      const o = i as { label?: unknown; amount?: unknown; kind?: unknown; owner?: unknown };
+      const item: InvoiceItem = {
+        label: String(o?.label || "").trim(),
+        amount: String(o?.amount || "").trim(),
+      };
+      // Preserve the line's category/owner when the form sends them; a stories
+      // line is always Ramzi's pass-through.
+      if (typeof o?.kind === "string" && KINDS.includes(o.kind)) item.kind = o.kind as InvoiceItem["kind"];
+      if (typeof o?.owner === "string" && OWNERS.includes(o.owner)) item.owner = o.owner as InvoiceItem["owner"];
+      if (item.kind === "stories") item.owner = "ramzi";
+      return item;
+    })
     .filter((i) => i.label || i.amount);
 }
 

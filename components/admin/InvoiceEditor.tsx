@@ -3,7 +3,15 @@
 import { useState } from "react";
 import { createInvoiceAction } from "@/app/admin/invoice-actions";
 
-type Item = { label: string; amount: string };
+type Kind = "branding" | "plan" | "stories" | "extra";
+type Item = { label: string; amount: string; kind?: Kind };
+
+const KIND_OPTS: { value: Kind; label: string }[] = [
+  { value: "plan", label: "Marketing" },
+  { value: "branding", label: "Branding" },
+  { value: "stories", label: "Stories · Ramzi" },
+  { value: "extra", label: "Extra" },
+];
 
 function numeric(amount: string): number {
   const n = parseFloat(amount.replace(/[^0-9.]/g, ""));
@@ -12,13 +20,13 @@ function numeric(amount: string): number {
 
 const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 
-export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slug: string; seed: Item[]; defaultVatRate?: number }) {
+export default function InvoiceEditor({ slug, seed, defaultVatRate = 16, storiesFee = "" }: { slug: string; seed: Item[]; defaultVatRate?: number; storiesFee?: string }) {
   const [items, setItems] = useState<Item[]>(seed.length ? seed : [{ label: "", amount: "" }]);
   const [addVat, setAddVat] = useState(false);
   const [vatRate, setVatRate] = useState(String(defaultVatRate));
   const [paid, setPaid] = useState("");
   const update = (i: number, key: keyof Item, value: string) =>
-    setItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [key]: value } : it)));
+    setItems((prev) => prev.map((it, idx) => (idx === i ? ({ ...it, [key]: value } as Item) : it)));
   const addRow = () => setItems((prev) => [...prev, { label: "", amount: "" }]);
   const removeRow = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
 
@@ -36,21 +44,44 @@ export default function InvoiceEditor({ slug, seed, defaultVatRate = 16 }: { slu
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="items" value={JSON.stringify(cleaned)} />
 
-      <div className="grid grid-cols-[1fr_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+      <div className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
         <span>Item</span>
         <span>Amount</span>
+        <span>Type</span>
         <span />
       </div>
       <div className="space-y-2">
-        {items.map((it, i) => (
-          <div key={i} className="grid grid-cols-[1fr_130px_24px] items-center gap-2">
-            <input className={field} placeholder="e.g. Monthly social — Jun" value={it.label} onChange={(e) => update(i, "label", e.target.value)} />
-            <input className={`${field} text-right tabular-nums`} placeholder="1,800 ILS" value={it.amount} onChange={(e) => update(i, "amount", e.target.value)} />
-            <button type="button" onClick={() => removeRow(i)} className="text-neutral-300 hover:text-red-600 text-lg leading-none" aria-label="Remove line">×</button>
-          </div>
-        ))}
+        {items.map((it, i) => {
+          const stories = it.kind === "stories";
+          return (
+            <div key={i} className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2">
+              <input className={field} placeholder="e.g. Monthly social — Jun" value={it.label} onChange={(e) => update(i, "label", e.target.value)} />
+              <input className={`${field} text-right tabular-nums`} placeholder="1,800 ILS" value={it.amount} onChange={(e) => update(i, "amount", e.target.value)} />
+              <select
+                className={`${field} ${stories ? "text-orange-deep font-semibold" : ""}`}
+                value={it.kind || "plan"}
+                onChange={(e) => update(i, "kind", e.target.value as Kind)}
+                title={stories ? "Collected for Ramzi — billed to the client but kept out of Marker's income & Notion" : undefined}
+              >
+                {KIND_OPTS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+              <button type="button" onClick={() => removeRow(i)} className="text-neutral-300 hover:text-red-600 text-lg leading-none" aria-label="Remove line">×</button>
+            </div>
+          );
+        })}
       </div>
-      <button type="button" onClick={addRow} className="mt-2 text-sm font-medium text-neutral-600 hover:text-orange">+ Add line</button>
+      <div className="mt-2 flex items-center gap-4 flex-wrap">
+        <button type="button" onClick={addRow} className="text-sm font-medium text-neutral-600 hover:text-orange">+ Add line</button>
+        <button
+          type="button"
+          onClick={() => setItems((prev) => [...prev, { label: "Stories", amount: storiesFee || "", kind: "stories" }])}
+          className="text-sm font-medium text-orange-deep hover:text-orange"
+        >
+          + Stories (Ramzi){storiesFee ? ` · ${storiesFee}` : ""}
+        </button>
+      </div>
 
       {/* VAT toggle */}
       <input type="hidden" name="addVat" value={addVat ? "on" : ""} />
