@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getProjectSlugs } from "@/lib/projects";
+import { SERVICE_SLUGS } from "@/lib/services";
 
 // Public URLs only — home, careers, and every case study. Regenerated with the
 // same cadence as the work pages so new projects surface to crawlers.
@@ -17,9 +18,17 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }));
 
+  const services = SERVICE_SLUGS.map((slug) => ({
+    url: `${base}/services/${slug}`,
+    lastModified: now,
+    changeFrequency: "monthly" as const,
+    priority: 0.7,
+  }));
+
   return [
     { url: base, lastModified: now, changeFrequency: "weekly", priority: 1 },
     { url: `${base}/careers`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    ...services,
     ...work,
   ];
 }

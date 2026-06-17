@@ -5,6 +5,7 @@ import Link from "next/link";
 import { gsap } from "gsap";
 import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
+import { SERVICE_SLUGS } from "@/lib/services";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
 import { PixelLogoGrid } from "@/components/ui/pixel-logo-grid";
 import Pricing from "@/components/Pricing";
@@ -459,17 +460,27 @@ function ServicesGrid({ t }: { t: SiteContent }) {
           </Reveal>
         </div>
         <div className="ms-services">
-          {t.services.items.map((s, i) => (
-            <Reveal key={s.num} delay={i * 80} className="ms-service">
-              <div className="ms-service__num">{s.num}</div>
-              <h3 className="ms-service__title">{s.title}</h3>
-              <p className="ms-service__desc">{s.desc}</p>
-              <a className="ms-service__link" href="#">
-                {t.services.link}
-                <ArrowIcon />
-              </a>
-            </Reveal>
-          ))}
+          {t.services.items.map((s, i) => {
+            const slug = SERVICE_SLUGS[i];
+            return (
+              <Reveal key={s.num} delay={i * 80} className="ms-service">
+                <div className="ms-service__num">{s.num}</div>
+                <h3 className="ms-service__title">{s.title}</h3>
+                <p className="ms-service__desc">{s.desc}</p>
+                {slug ? (
+                  <Link className="ms-service__link" href={`/services/${slug}`}>
+                    {t.services.link}
+                    <ArrowIcon />
+                  </Link>
+                ) : (
+                  <a className="ms-service__link" href="#contact">
+                    {t.services.link}
+                    <ArrowIcon />
+                  </a>
+                )}
+              </Reveal>
+            );
+          })}
         </div>
       </div>
     </section>
