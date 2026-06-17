@@ -411,7 +411,7 @@ export default async function EditClientPage({
             </div>
           )}
 
-          <InvoiceEditor slug={client.slug} seed={(client.data.pricing?.items || []).length ? client.data.pricing!.items : seededPricing} />
+          <InvoiceEditor slug={client.slug} seed={(client.data.pricing?.items || []).length ? client.data.pricing!.items : seededPricing} storiesFee={client.data.finance?.storiesFee || ""} />
         </div>
       )}
 
