@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { gsap } from "gsap";
-import { ScrollToPlugin } from "gsap/ScrollToPlugin";
 import { MARKER_CONTENT, type Lang, type SiteContent } from "@/lib/content";
 import { SERVICE_SLUGS } from "@/lib/services";
 import { CinematicHero } from "@/components/ui/cinematic-landing-hero";
@@ -14,10 +12,6 @@ import { useLang } from "@/lib/useLang";
 import { type Project } from "@/lib/projects";
 
 const LOGO = "/assets/logo-primary-transparent.png";
-
-if (typeof window !== "undefined") {
-  gsap.registerPlugin(ScrollToPlugin);
-}
 
 // Sticky-header offset reused for anchor scrolling (matches scroll-margin-top).
 const HEADER_OFFSET = 86;
@@ -743,11 +737,39 @@ export default function MarkerSite({ projects }: { projects: Project[] }) {
   const t = MARKER_CONTENT[lang];
 
   // Smooth in-page anchor scrolling (e.g. "Get a quote" → #contact). We can't
-  // use CSS `scroll-behavior: smooth` because it fights the GSAP-pinned hero and
-  // leaves the jump stuck inside the pinned section. GSAP's ScrollToPlugin is
-  // ScrollTrigger-aware, so it scrolls cleanly through the pin to the target.
+  // use CSS `scroll-behavior: smooth` (it fights the GSAP-pinned hero and leaves
+  // the jump stuck inside the pinned section), and a GSAP scrollTo tween gets
+  // auto-killed by the pin's per-frame scroll nudges. So we drive the scroll
+  // ourselves with rAF: ScrollTrigger is only a passive observer of scroll
+  // position, so manually setting it each frame reliably reaches the target.
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    let raf = 0;
+    const cancel = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+
+    const animateTo = (toY: number) => {
+      cancel();
+      const startY = window.scrollY;
+      const dist = toY - startY;
+      if (Math.abs(dist) < 2) return;
+      // Scale duration with distance, clamped to a snappy range.
+      const dur = Math.min(900, Math.max(350, Math.abs(dist) * 0.4));
+      let startT: number | null = null;
+      const step = (ts: number) => {
+        if (startT === null) startT = ts;
+        const p = Math.min(1, (ts - startT) / dur);
+        const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; // easeInOutQuad
+        window.scrollTo(0, startY + dist * eased);
+        raf = p < 1 ? requestAnimationFrame(step) : 0;
+      };
+      raf = requestAnimationFrame(step);
+    };
+
     const onClick = (e: MouseEvent) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
         return;
@@ -761,20 +783,26 @@ export default function MarkerSite({ projects }: { projects: Project[] }) {
       const target = document.getElementById(decodeURIComponent(hash.slice(1)));
       if (!target) return;
       e.preventDefault();
-      if (reduce) {
-        const y = target.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET;
-        window.scrollTo(0, y);
-      } else {
-        gsap.to(window, {
-          duration: 0.9,
-          ease: "power2.inOut",
-          scrollTo: { y: target, offsetY: HEADER_OFFSET, autoKill: true },
-        });
-      }
+      const maxY = document.documentElement.scrollHeight - window.innerHeight;
+      const y = Math.max(
+        0,
+        Math.min(maxY, target.getBoundingClientRect().top + window.scrollY - HEADER_OFFSET)
+      );
       history.pushState(null, "", hash);
+      if (reduce) window.scrollTo(0, y);
+      else animateTo(y);
     };
+
+    // A manual scroll should interrupt the programmatic one.
     document.addEventListener("click", onClick);
-    return () => document.removeEventListener("click", onClick);
+    window.addEventListener("wheel", cancel, { passive: true });
+    window.addEventListener("touchstart", cancel, { passive: true });
+    return () => {
+      document.removeEventListener("click", onClick);
+      window.removeEventListener("wheel", cancel);
+      window.removeEventListener("touchstart", cancel);
+      cancel();
+    };
   }, []);
 
   // Paint .brush-draw strokes in once they reach the viewport (the hero runs
