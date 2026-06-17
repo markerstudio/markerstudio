@@ -125,11 +125,14 @@
 /* ===============================================================
    SEMANTIC TYPE STYLES
    =============================================================== */
-html { font-family: var(--font-latin); color: var(--fg); background: var(--bg); scroll-behavior: smooth; overflow-x: clip; }
+/* NOTE: no CSS `scroll-behavior: smooth` here — it fights GSAP ScrollTrigger's
+   pinned hero and leaves in-page anchor jumps (e.g. "Get a quote" → #contact)
+   stuck in the pinned section. Smooth scrolling for hash links is handled in
+   JS via GSAP's ScrollToPlugin (see MarkerSite), which is ScrollTrigger-aware. */
+html { font-family: var(--font-latin); color: var(--fg); background: var(--bg); overflow-x: clip; }
 body { overflow-x: clip; }
 /* Offset anchor jumps so the sticky header doesn't cover section tops */
 section[id], div[id="top"] { scroll-margin-top: 84px; }
-@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
 body { font-family: var(--font-body); font-size: var(--fs-16); line-height: var(--lh-normal); color: var(--fg); -webkit-font-smoothing: antialiased; }
 
 [dir="rtl"], .ar { font-family: var(--font-arabic); }
