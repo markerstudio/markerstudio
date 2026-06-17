@@ -153,7 +153,7 @@ export default function ServiceWalkthrough({ service }: { service: ServiceDetail
               <span className="text-charcoal-20">/</span>
               <button className={lang === "ar" ? "text-ink" : "text-charcoal-40"} onClick={() => setLang("ar" as Lang)}>ع</button>
             </div>
-            <Link href="/#contact" className="ms-btn ms-btn-primary" style={{ padding: "9px 16px", fontSize: 13, borderRadius: 999 }}>
+            <Link href="/onboarding" className="ms-btn ms-btn-primary" style={{ padding: "9px 16px", fontSize: 13, borderRadius: 999 }}>
               {labels.quote} <span>{t.cta.arrow}</span>
             </Link>
           </div>
@@ -317,7 +317,7 @@ export default function ServiceWalkthrough({ service }: { service: ServiceDetail
           </h2>
           <div className="max-w-md">
             <p className="text-[1.05rem] leading-relaxed text-ink/80 font-body">{labels.ctaSub}</p>
-            <Link href="/#contact" className="ms-btn ms-btn-dark mt-6">
+            <Link href="/onboarding" className="ms-btn ms-btn-dark mt-6">
               {labels.quote} <span>{t.cta.arrow}</span>
             </Link>
           </div>

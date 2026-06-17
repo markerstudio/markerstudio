@@ -333,9 +333,9 @@ function SiteHeader({
             </svg>
           </Link>
           <Magnetic className="ms-cta-desktop">
-            <a href="#contact" className="ms-btn ms-btn-primary">
+            <Link href="/onboarding" className="ms-btn ms-btn-primary">
               {t.cta.primary} <span>{t.cta.arrow}</span>
-            </a>
+            </Link>
           </Magnetic>
           <button
             className={`ms-burger ${menuOpen ? "is-open" : ""}`}
@@ -656,9 +656,9 @@ function CtaBanner({ t }: { t: SiteContent }) {
           <div className="ms-cta-banner__side">
             <p className="ms-cta-banner__sub">{t.ctaBanner.sub}</p>
             <Magnetic>
-              <a href="#contact" className="ms-btn ms-btn-dark">
+              <Link href="/onboarding" className="ms-btn ms-btn-dark">
                 {t.ctaBanner.button} <span>{t.cta.arrow}</span>
-              </a>
+              </Link>
             </Magnetic>
           </div>
         </Reveal>
