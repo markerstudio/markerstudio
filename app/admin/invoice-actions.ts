@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import {
   createInvoice, getInvoice, updateInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
-  invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
+  invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind, syncsToNotion,
   type InvoiceItem, type InvoiceStatus, type LineKind,
 } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
@@ -38,14 +38,15 @@ async function syncPaymentToNotion(
     if (!pageId) return;
     const currency = invoiceCurrency(items);
 
-    // One Notion row per Marker line, named by category so the budget formula
-    // classifies it. Ramzi/stories lines are pass-through — collected for Ramzi,
-    // never written to Marker's books — so they're dropped here.
+    // One Notion row per agreed plan line (branding / plan), named so the budget
+    // formula classifies it. Stories (Ramzi) and Extras (out-of-plan) are billed
+    // to the client but never written to Marker's Notion books, so they're
+    // dropped here and never move the plan's Money Left.
     let lines: { name: string; amount: number }[];
     if (allocation && allocation.length) {
       // Use exactly how the admin split this payment across the lines.
       lines = allocation
-        .filter((a) => !(a.owner === "ramzi" || a.kind === "stories"))
+        .filter((a) => syncsToNotion({ label: a.label, amount: String(a.amount), kind: a.kind as LineKind | undefined, owner: a.owner as InvoiceItem["owner"] }))
         .map((a) => ({
           name: notionNameForKind((a.kind as LineKind) || inferKind({ label: a.label, amount: String(a.amount) })),
           amount: Math.round(a.amount),
@@ -55,7 +56,7 @@ async function syncPaymentToNotion(
       // No explicit split — apportion the payment across lines by invoice share.
       const clientTotal = invoiceTotal(items);
       lines = (items || [])
-        .filter((it) => !isRamziLine(it))
+        .filter((it) => syncsToNotion(it))
         .map((it) => {
           const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
           return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
@@ -63,8 +64,12 @@ async function syncPaymentToNotion(
         .filter((l) => l.amount > 0);
     }
 
-    // Fall back to a single row when there are no usable line amounts.
-    const payload = lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
+    // Fall back to a single lump row only when the invoice carries NO line info
+    // at all (e.g. a bare deposit). If it has lines but none are syncable — an
+    // all-Extra or all-Stories invoice — sync nothing.
+    const hasLineInfo = (items || []).length > 0 || !!(allocation && allocation.length);
+    const payload = lines.length ? lines : hasLineInfo ? [] : [{ name: label, amount: Math.round(amount) }];
+    if (!payload.length) return;
     await createIncomePaymentLines({ clientPageId: pageId, lines: payload, currency, dueDate: dueDate || undefined });
   } catch {
     /* never block the local record on a Notion write */

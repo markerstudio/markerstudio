@@ -40,6 +40,15 @@ export function notionNameForKind(kind: LineKind): string {
   return kind === "branding" ? "Branding" : kind === "plan" ? "Plan Payment" : kind === "stories" ? "Stories" : "Extra";
 }
 
+// Only the agreed plan items belong in Marker's Notion books: branding and the
+// monthly/marketing plan. Stories (Ramzi pass-through) and Extras (out-of-plan
+// one-offs) are billed to the client but kept OFF Notion, so they never move
+// the plan's "Money Left" / Paid %.
+export function syncsToNotion(it: InvoiceItem): boolean {
+  if (isRamziLine(it)) return false;
+  return inferKind(it) !== "extra";
+}
+
 export type Invoice = {
   id: number;
   number: string;
