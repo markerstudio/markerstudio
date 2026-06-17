@@ -121,6 +121,8 @@ export type ClientData = {
     progress: number; // % paid, combined (auto-derived; the money left lives on plan.balance)
     brandingFee?: string; // fixed branding fee (one-time, reference only)
     totalAgreed?: string; // total agreed value of the engagement — drives auto money-left / paid %
+    storiesFee?: string; // daily stories fee collected for Ramzi (app-only, never synced to Notion); prefills the stories line when invoicing
+
     /** @deprecated Money left is a single combined figure — no branding split. */
     brandingProgress?: number;
     /** @deprecated Money left is a single combined figure — no branding split. */
