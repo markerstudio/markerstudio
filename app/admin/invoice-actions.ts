@@ -10,6 +10,7 @@ import {
   type InvoiceItem, type InvoiceStatus,
 } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
+import { recordInvoicePayment, type PaymentMethod } from "@/lib/payments";
 import { createIncomePaymentLines } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
@@ -200,21 +201,39 @@ export async function setInvoiceArchivedAction(formData: FormData) {
   redirect(`/admin/invoices${archived ? "" : "?archived=1"}`);
 }
 
-// Record a payment against an invoice — adds to what's already been paid and
-// re-derives the status (due → partial → paid).
+// Record a payment against an invoice — logs a numbered receipt voucher, adds
+// to what's already been paid and re-derives the status (due → partial → paid).
+// On success it redirects to the receipt so it can be viewed/printed/shared.
 export async function recordPaymentAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
   const back = String(formData.get("back") || "").trim();
   const amount = parseFloat(String(formData.get("amount") || "0")) || 0;
+  const methodRaw = String(formData.get("method") || "").trim();
+  const method = (["cash", "bank", "card", "other"].includes(methodRaw) ? methodRaw : undefined) as PaymentMethod | undefined;
+  const paidOn = String(formData.get("paidOn") || "").trim();
+  const note = String(formData.get("note") || "").trim();
   const inv = await getInvoice(id);
   if (inv && amount > 0) {
+    const currency = invoiceCurrency(inv.items);
+    const { id: payId } = await recordInvoicePayment({
+      invoiceId: id,
+      clientSlug: slug,
+      amount,
+      currency,
+      paidOn: paidOn || undefined,
+      method,
+      note: note || undefined,
+    });
     await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
     await syncPaymentToNotion(slug, amount, inv.items, `${inv.number} payment`, inv.due_date);
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
     revalidatePath("/admin");
+    // Land on the receipt voucher (carry the admin's return path so the page
+    // can offer a way back to the list).
+    redirect(`/portal/${slug}/receipt/${payId}?back=${encodeURIComponent(back || "/admin/invoices")}`);
   }
   redirect(back || "/admin/invoices");
 }

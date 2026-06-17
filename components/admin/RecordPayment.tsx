@@ -36,7 +36,7 @@ export default function RecordPayment({
   }
 
   return (
-    <form action={recordPaymentAction} className="flex items-center gap-1.5">
+    <form action={recordPaymentAction} className="flex items-center gap-1.5 flex-wrap">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="back" value={back} />
@@ -50,7 +50,19 @@ export default function RecordPayment({
         placeholder="Amount"
         className="w-24 border border-neutral-300 rounded-md px-2 py-1 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500"
       />
-      <button className="text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md px-2.5 py-1">✓</button>
+      <select
+        name="method"
+        defaultValue=""
+        title="Payment method (shown on the receipt)"
+        className="border border-neutral-300 rounded-md px-1.5 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-green-200 focus:border-green-500"
+      >
+        <option value="">Method…</option>
+        <option value="cash">Cash</option>
+        <option value="bank">Bank</option>
+        <option value="card">Card</option>
+        <option value="other">Other</option>
+      </select>
+      <button className="text-sm font-semibold text-white bg-green-600 hover:bg-green-700 rounded-md px-2.5 py-1" title="Record payment & create receipt">✓</button>
       <button type="button" onClick={() => setOpen(false)} className="text-sm text-neutral-400 hover:text-neutral-700 px-1">
         ✕
       </button>
