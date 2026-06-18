@@ -13,7 +13,7 @@ import { isAiEnabled } from "@/lib/ai";
 import AiAnalysisPanel from "@/components/admin/AiAnalysisPanel";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, mergeOnboardingIntoClient } from "../../../actions";
+import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, createInNotion, mergeOnboardingIntoClient } from "../../../actions";
 import { connectMeta, syncMetaNow, disconnectMeta } from "@/app/meta-actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
@@ -49,6 +49,9 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "notion-token": { text: "NOTION_TOKEN is not set. Add it in Vercel → Environment Variables and redeploy." },
   "notion-id": { text: "Couldn't read a Notion database ID from that — paste the database URL or 32-char ID." },
   "notion-fetch": { text: "Couldn't reach that Notion database. Check the ID and that it's shared with your integration." },
+  "notion-created": { text: "Created in Notion ✓ — a Clients Database page and Budget Tracker source are now linked. Pull the client record to fill plan & finance.", ok: true },
+  "notion-exists": { text: "This client is already linked to Notion." },
+  "notion-create": { text: "Couldn't create the client in Notion. Check NOTION_TOKEN and that the integration can edit your Clients Database." },
   "meta-saved": { text: "Meta connection saved. Click “Pull from Meta” to load live numbers.", ok: true },
   "meta-connected": { text: "Connected to Facebook & Instagram ✓ — click “Pull from Meta” to load live numbers.", ok: true },
   "meta-removed": { text: "Meta connection removed.", ok: true },
@@ -507,6 +510,19 @@ export default async function EditClientPage({
       <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-1">Notion sync</h2>
         <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
+
+        {!client.data.notionPageId && (
+          <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 mb-4">
+            <div className="font-semibold text-sm mb-1">Not linked to Notion yet</div>
+            <p className="text-xs text-neutral-600 mb-3">
+              Onboarding portals aren&apos;t added to Notion automatically. Create the client&apos;s <b>Clients Database</b> page and <b>Budget Tracker</b> source (attached to the debt table) and link it here in one click — then pull the record below to fill plan &amp; finance.
+            </p>
+            <form action={createInNotion}>
+              <input type="hidden" name="slug" value={client.slug} />
+              <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors h-[38px]">Create in Notion</button>
+            </form>
+          </div>
+        )}
 
         <div className="border border-neutral-200 rounded-lg p-4 mb-4">
           <div className="font-semibold text-sm mb-1">Client record → plan, dates, status &amp; invoices</div>
