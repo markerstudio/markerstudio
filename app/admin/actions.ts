@@ -831,6 +831,34 @@ export async function syncNotionClient(formData: FormData) {
   redirect(`/admin/clients/${slug}/edit?ok=client-synced-${info.invoices.length}`);
 }
 
+// Create this (already-existing) client in Notion — a Clients Database page plus
+// a Budget Tracker source attached to the debt table — and link it back, for
+// portals that came in through onboarding (those skip the auto-create that new
+// editor clients get). No-op with a friendly note if it's already linked.
+export async function createInNotion(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  if (!process.env.NOTION_TOKEN) redirect(`/admin/clients/${slug}/edit?error=notion-token`);
+
+  const sql = getSql();
+  const rows = (await sql`SELECT name, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { name: string; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = rows[0].data;
+  if (data.notionPageId) redirect(`/admin/clients/${slug}/edit?ok=notion-exists`);
+
+  const made = await createNotionClientWithSource({
+    name: rows[0].name,
+    monthlyFee: data.finance?.monthlyFee,
+    brandingFee: data.finance?.brandingFee,
+  });
+  if (!made?.clientPageId) redirect(`/admin/clients/${slug}/edit?error=notion-create`);
+
+  data.notionPageId = made.clientPageId;
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+  revalidatePath(`/portal/${slug}`);
+  redirect(`/admin/clients/${slug}/edit?ok=notion-created`);
+}
+
 // Import EVERY client from the Notion Clients Database in one click.
 // - Already-imported clients (matched by notionPageId) are left alone.
 // - A manually-created portal with the same name/slug gets LINKED to its
