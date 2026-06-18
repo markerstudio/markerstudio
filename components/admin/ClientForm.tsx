@@ -6,7 +6,7 @@ import { saveClient } from "@/app/admin/actions";
 import { toCSV, fromCSV } from "@/lib/portalCsv";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
-import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
+import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type StoryCard, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
@@ -21,6 +21,21 @@ function splitAmount(s: string): { num: string; cur: "ILS" | "USD" } {
 function joinAmount(num: string, cur: "ILS" | "USD"): string {
   const clean = (num || "").trim();
   return !clean ? "" : cur === "USD" ? `$${clean}` : `${clean} ILS`;
+}
+
+// Normalise whatever the AI put in a bilingual field — a {en,ar} object, or a
+// bare string (treated as English) — into a LocalizedText. Returns undefined
+// when there's nothing usable so callers can skip empty fields.
+function coerceLT(v: unknown): LocalizedText | undefined {
+  if (v == null) return undefined;
+  if (typeof v === "string") return v.trim() ? { en: v, ar: "" } : undefined;
+  if (typeof v === "object") {
+    const o = v as { en?: unknown; ar?: unknown };
+    const en = typeof o.en === "string" ? o.en : "";
+    const ar = typeof o.ar === "string" ? o.ar : "";
+    return en || ar ? { en, ar } : undefined;
+  }
+  return undefined;
 }
 
 // AI prompt scoped to the ANALYTICS section only — built from the analysis rows
@@ -169,6 +184,9 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
   const [socialCopied, setSocialCopied] = useState(false);
   const [socialPaste, setSocialPaste] = useState("");
   const [socialMsg, setSocialMsg] = useState("");
+  const [portalJson, setPortalJson] = useState("");
+  const [portalMsg, setPortalMsg] = useState("");
+  const hasOnboarding = !!client?.data?.onboarding;
   const formRef = useRef<HTMLFormElement>(null);
 
   function copyPrompt() {
@@ -200,6 +218,61 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
     } catch {
       setSocialMsg("Couldn't read that — paste the CSV the AI returned (the field,en,ar,value table).");
     }
+  }
+
+  // Take the JSON the onboarding "Copy AI prompt" produces (accent, hero,
+  // dashboard headline/diagnosis/cards, proposal summary) and merge each section
+  // it understands into the form. Tolerant: code fences are stripped, bilingual
+  // fields accept a string or {en,ar}, unknown keys are ignored.
+  function applyPortalJson() {
+    let obj: Record<string, unknown>;
+    try {
+      const raw = portalJson.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      obj = JSON.parse(raw);
+    } catch {
+      setPortalMsg("Couldn't read that — paste the JSON object the AI returned (it should start with “{”).");
+      return;
+    }
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) {
+      setPortalMsg("That isn't a JSON object — paste the { … } the AI returned.");
+      return;
+    }
+
+    const filled: string[] = [];
+    const next: ClientData = { ...data, dashboard: { ...data.dashboard } };
+
+    if (typeof obj.accent === "string" && obj.accent.trim()) { next.accent = obj.accent.trim(); filled.push("watermark"); }
+    const hero = coerceLT(obj.hero);
+    if (hero) { next.hero = hero; filled.push("hero"); }
+
+    const dash = obj.dashboard;
+    if (dash && typeof dash === "object" && !Array.isArray(dash)) {
+      const d = dash as Record<string, unknown>;
+      const headline = coerceLT(d.headline);
+      if (headline) { next.dashboard.headline = headline; filled.push("dashboard headline"); }
+      const diagnosis = coerceLT(d.diagnosis);
+      if (diagnosis) { next.dashboard.diagnosis = diagnosis; filled.push("diagnosis"); }
+      if (Array.isArray(d.cards)) {
+        const cards: StoryCard[] = d.cards
+          .filter((c): c is Record<string, unknown> => !!c && typeof c === "object")
+          .map((c) => ({ tag: String(c.tag ?? ""), value: String(c.value ?? ""), desc: String(c.desc ?? "") }))
+          .filter((c) => c.tag || c.value || c.desc);
+        if (cards.length) { next.dashboard.cards = cards; filled.push(`${cards.length} story card${cards.length > 1 ? "s" : ""}`); }
+      }
+    }
+
+    if (typeof obj.proposalSummary === "string" && obj.proposalSummary.trim()) {
+      next.proposal = { ...data.proposal, note: obj.proposalSummary.trim() };
+      filled.push("proposal summary");
+    }
+
+    if (!filled.length) {
+      setPortalMsg("Parsed OK, but found no portal fields — expected accent / hero / dashboard.");
+      return;
+    }
+    setData(next);
+    setPortalMsg(`Filled ${filled.join(", ")} ✓ — review below, then Save changes.`);
+    setPortalJson("");
   }
 
   function downloadCsv() {
@@ -282,6 +355,22 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         </div>
       </Group>
 
+      {hasOnboarding && (
+        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+          <h2 className="font-bold mb-1">✨ Fill the portal from the onboarding AI</h2>
+          <p className="text-sm text-neutral-600 mb-3">
+            <b>1.</b> Use <b>Copy AI prompt</b> above and run it in ChatGPT / Claude.
+            <b> 2.</b> Paste the AI&apos;s JSON reply below and Apply — it fills the
+            <b> Hero</b> and <b>Dashboard</b> (headline, diagnosis, story cards) here. Then Save.
+          </p>
+          <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={applyPortalJson} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Apply portal content</button>
+            {portalMsg && <span className="text-sm text-neutral-700">{portalMsg}</span>}
+          </div>
+        </div>
+      )}
+
       <Group title="Hero">
         <Bi label="Intro line" value={data.hero} onChange={(hero) => patch({ hero })} area />
         <Text label="Watermark word (optional)" value={data.accent ?? ""} onChange={(accent) => patch({ accent })} placeholder="JACK" />
@@ -303,7 +392,17 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
 
       <Group title="Dashboard" hint="The Dashboard is an auto quick-view (plan, money left, next post, top result). You just set a one-line headline and a few optional health bars.">
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
-        <label className={`${lbl} mt-2`}>Account health bars (optional)</label>
+        <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
+        <label className={`${lbl} mt-2`}>Story cards (optional)</label>
+        <Rows<StoryCard> items={data.dashboard.cards} onChange={(cards) => patch({ dashboard: { ...data.dashboard, cards } })} blank={{ tag: "", value: "", desc: "" }} addLabel="Add card"
+          render={(c, set) => (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
+              <Text label="Tag" value={c.tag} onChange={(tag) => set({ tag })} placeholder="Reach" />
+              <Text label="Value" value={c.value} onChange={(value) => set({ value })} placeholder="×4" />
+              <Text label="Description" value={c.desc} onChange={(desc) => set({ desc })} />
+            </div>
+          )} />
+        <label className={`${lbl} mt-4`}>Account health bars (optional)</label>
         <Rows<Vital> items={data.dashboard.vitals} onChange={(vitals) => patch({ dashboard: { ...data.dashboard, vitals } })} blank={{ label: "", pct: 50, note: "" }} addLabel="Add vital"
           render={(v, set) => (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
