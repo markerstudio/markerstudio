@@ -96,7 +96,8 @@ export default function OnboardingBriefActions({ brief }: { brief: OnboardingBri
     <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
       <h2 className="font-bold mb-1">Process this brief</h2>
       <p className="text-sm text-neutral-500 mb-4">
-        Download the raw input or hand it to an AI agent — the prompt asks it to return portal-ready JSON you can paste into the content editor.
+        Download the raw input, or hand it to an AI agent: <b>Copy AI prompt</b> → run it in ChatGPT / Claude → paste the JSON it returns into the
+        <b> “✨ Fill the portal from the onboarding AI”</b> box below to auto-fill the Hero &amp; Dashboard.
       </p>
       <div className="flex flex-wrap gap-2">
         <button type="button" className={btn} onClick={() => download(`${slugName}-brief.json`, JSON.stringify(brief, null, 2), "application/json")}>
