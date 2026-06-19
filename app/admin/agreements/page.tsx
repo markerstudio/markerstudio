@@ -25,7 +25,8 @@ export default async function AgreementsAdmin({ searchParams }: { searchParams: 
   const dbOff = !isDbEnabled();
   const showArchived = searchParams.archived === "1";
   const all = dbOff ? [] : await getClients();
-  const withAgreement = all.filter((c) => c.data.onboarding || c.data.agreement);
+  // Archived clients are parked — keep them out of the agreement pipeline entirely.
+  const withAgreement = all.filter((c) => !c.data.archived && (c.data.onboarding || c.data.agreement));
   const archivedCount = withAgreement.filter((c) => c.data.agreement?.archived).length;
   const clients = withAgreement.filter((c) => (showArchived ? c.data.agreement?.archived : !c.data.agreement?.archived));
 

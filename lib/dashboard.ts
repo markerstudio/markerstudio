@@ -180,7 +180,9 @@ export async function getDashboardData(): Promise<DashboardData> {
   dueSoon.sort((a, b) => (a.inv.due_date! < b.inv.due_date! ? -1 : 1));
 
   // ---- Client pipeline ----------------------------------------------------
-  const pulses: ClientPulse[] = clients.map((c) => ({
+  // Archived clients are parked — keep them out of the pipeline, counts, and feeds.
+  const liveClients = clients.filter((c) => !c.data?.archived);
+  const pulses: ClientPulse[] = liveClients.map((c) => ({
     slug: c.slug,
     name: c.name || c.slug,
     color: c.color || "#303030",
@@ -191,10 +193,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   const pendingClients = pulses.filter((p) => p.pending);
   const activeClients = pulses.filter((p) => p.active).length;
 
-  const proposalsAwaiting = clients.filter(
+  const proposalsAwaiting = liveClients.filter(
     (c) => c.data?.proposal?.published && !c.data?.proposal?.acceptedAt
   );
-  const agreementsAwaiting = clients.filter(
+  const agreementsAwaiting = liveClients.filter(
     (c) => c.data?.agreement?.published && !c.data?.agreement?.acceptedAt
   );
 

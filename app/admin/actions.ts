@@ -553,6 +553,27 @@ export async function saveClient(formData: FormData) {
   redirect(`/admin/clients/${slug}/edit?ok=saved`);
 }
 
+// Archive / restore a whole client. Archiving keeps everything (portal, logins,
+// data) but hides the client from the active admin list and blocks the client's
+// own portal access until restored — for a dropped/changed-mind prospect you may
+// want back later. Non-destructive; Delete (with undo) stays for permanent removal.
+export async function setClientArchived(formData: FormData) {
+  if (!(await getSession())) redirect("/login");
+  const slug = String(formData.get("slug") || "").trim();
+  const archived = String(formData.get("archived") || "") === "1";
+
+  const sql = getSql();
+  const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+  if (!rows[0]) redirect("/admin/clients");
+  const data = (rows[0].data || {}) as ClientData;
+  data.archived = archived;
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+
+  revalidatePath(`/portal/${slug}`);
+  revalidatePath("/admin/clients");
+  redirect(`/admin/clients/${slug}/edit?ok=${archived ? "archived" : "unarchived"}`);
+}
+
 export async function deleteClient(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const slug = String(formData.get("slug") || "").trim();

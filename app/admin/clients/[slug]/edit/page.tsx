@@ -13,7 +13,7 @@ import { isAiEnabled } from "@/lib/ai";
 import AiAnalysisPanel from "@/components/admin/AiAnalysisPanel";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
-import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, createInNotion, mergeOnboardingIntoClient } from "../../../actions";
+import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, createInNotion, setClientArchived, mergeOnboardingIntoClient } from "../../../actions";
 import { connectMeta, syncMetaNow, disconnectMeta } from "@/app/meta-actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
@@ -52,6 +52,8 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "notion-created": { text: "Created in Notion ✓ — a Clients Database page and Budget Tracker source are now linked. Pull the client record to fill plan & finance.", ok: true },
   "notion-exists": { text: "This client is already linked to Notion." },
   "notion-create": { text: "Couldn't create the client in Notion. Check NOTION_TOKEN and that the integration can edit your Clients Database." },
+  archived: { text: "Client archived — hidden from the active list and their portal is blocked until you restore.", ok: true },
+  unarchived: { text: "Client restored — back in the active list and their portal works again.", ok: true },
   "meta-saved": { text: "Meta connection saved. Click “Pull from Meta” to load live numbers.", ok: true },
   "meta-connected": { text: "Connected to Facebook & Instagram ✓ — click “Pull from Meta” to load live numbers.", ok: true },
   "meta-removed": { text: "Meta connection removed.", ok: true },
@@ -613,6 +615,22 @@ export default async function EditClientPage({
       <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
         <h2 className="font-bold mb-3">AI reading</h2>
         <AiAnalysisPanel client={client} apiEnabled={isAiEnabled()} />
+      </div>
+
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold mb-1">{client.data.archived ? "Archived" : "Archive client"}</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          {client.data.archived
+            ? "This client is archived — hidden from the active list and the client can't open their portal. Everything is kept; restore it anytime."
+            : "Hide this client from the active list and block their portal access, without deleting anything. Use it for a dropped or changed-mind prospect you may want back. Restore anytime."}
+        </p>
+        <form action={setClientArchived}>
+          <input type="hidden" name="slug" value={client.slug} />
+          <input type="hidden" name="archived" value={client.data.archived ? "" : "1"} />
+          <button className="border border-neutral-300 text-neutral-700 font-semibold rounded-md px-5 py-2.5 text-sm hover:border-neutral-400 hover:bg-neutral-50 transition-colors">
+            {client.data.archived ? "Restore client" : "Archive client"}
+          </button>
+        </form>
       </div>
 
       <div id="sec-danger" className="scroll-mt-24 bg-white border border-red-200 rounded-2xl p-6 shadow-sm">

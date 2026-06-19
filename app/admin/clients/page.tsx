@@ -66,6 +66,7 @@ function toCard(c: Client): ClientCardData {
     planName: c.data?.plan?.name || "",
     balance: c.data?.plan?.balance || "",
     status: c.data?.status === "pending" ? "pending" : c.data?.plan?.active ? "active" : "inactive",
+    archived: !!c.data?.archived,
     notion: !!c.data?.notionPageId,
     sections: secs.map((s) => ({ key: s.key, state: s.state, href: s.href })),
     pct: Math.round((filled / secs.length) * 100),
@@ -92,9 +93,11 @@ export default async function ClientsHome({
   const notYetImported = notionClients.filter((n) => !linkedPages.has(norm(n.id)));
 
   const cards = clients.map(toCard);
-  const pending = cards.filter((c) => c.status === "pending");
-  const active = cards.filter((c) => c.status === "active");
-  const inactive = cards.filter((c) => c.status === "inactive");
+  // Top-line stats describe the live roster; archived clients are excluded.
+  const live = cards.filter((c) => !c.archived);
+  const pending = live.filter((c) => c.status === "pending");
+  const active = live.filter((c) => c.status === "active");
+  const inactive = live.filter((c) => c.status === "inactive");
 
   // Fallback when the tracker is unreachable: sum of saved money-left figures
   // (can be stale — the tracker number is preferred and labelled accordingly).
