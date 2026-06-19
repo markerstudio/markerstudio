@@ -25,7 +25,8 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
   const dbOff = !isDbEnabled();
   const showArchived = searchParams.archived === "1";
   const all = dbOff ? [] : await getClients();
-  const withProposal = all.filter((c) => c.data.onboarding || c.data.proposal);
+  // Archived clients are parked — keep them out of the proposal pipeline entirely.
+  const withProposal = all.filter((c) => !c.data.archived && (c.data.onboarding || c.data.proposal));
   const archivedCount = withProposal.filter((c) => c.data.proposal?.archived).length;
   const clients = withProposal.filter((c) => (showArchived ? c.data.proposal?.archived : !c.data.proposal?.archived));
 

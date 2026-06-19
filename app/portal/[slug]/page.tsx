@@ -31,6 +31,21 @@ export default async function PortalPage({
   // Clients may only view their own portal; admins may view (and edit) any.
   if (s.role === "client" && s.clientId !== client.id) redirect("/portal");
 
+  // Archived clients are parked: the client can't open the portal (a redirect
+  // would loop via /portal, so show a notice instead). Admins still see it.
+  if (s.role === "client" && client.data?.archived) {
+    return (
+      <main className="min-h-screen flex items-center justify-center bg-cream px-6">
+        <div className="max-w-md text-center">
+          <h1 className="text-2xl font-bold text-charcoal mb-2">This portal isn&apos;t active right now</h1>
+          <p className="text-neutral-600">
+            Your portal is paused. If you think this is a mistake, please reach out to Marker Studio and we&apos;ll get you back in.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
   const canEdit = s.role === "admin";
   const editing = canEdit && searchParams?.edit === "1";
 

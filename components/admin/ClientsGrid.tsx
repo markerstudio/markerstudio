@@ -13,12 +13,13 @@ export type ClientCardData = {
   planName: string;
   balance: string; // combined money left, already formatted ("600 ILS")
   status: "active" | "pending" | "inactive";
+  archived: boolean; // parked: hidden from active views, portal blocked
   notion: boolean; // linked to a Notion Clients Database record
   sections: { key: string; state: SectionState; href: string }[]; // fill matrix
   pct: number; // % of sections filled/sent
 };
 
-type Filter = "all" | "active" | "pending" | "inactive";
+type Filter = "all" | "active" | "pending" | "inactive" | "archived";
 
 const STATUS_META: Record<ClientCardData["status"], { label: string; cls: string; dot: string }> = {
   active: { label: "Active", cls: "bg-green-100 text-green-800", dot: "bg-green-500" },
@@ -27,6 +28,14 @@ const STATUS_META: Record<ClientCardData["status"], { label: string; cls: string
 };
 
 const ORDER: Record<ClientCardData["status"], number> = { pending: 0, active: 1, inactive: 2 };
+
+// Dot colour for the filter chips (archived has no STATUS_META entry).
+const CHIP_DOT: Record<Exclude<Filter, "all">, string> = {
+  active: "bg-green-500",
+  pending: "bg-amber-500",
+  inactive: "bg-neutral-300",
+  archived: "bg-neutral-400",
+};
 
 const DOT: Record<SectionState, string> = {
   done: "bg-green-500",
@@ -44,20 +53,22 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
 
-  const counts = useMemo(
-    () => ({
-      all: clients.length,
-      active: clients.filter((c) => c.status === "active").length,
-      pending: clients.filter((c) => c.status === "pending").length,
-      inactive: clients.filter((c) => c.status === "inactive").length,
-    }),
-    [clients]
-  );
+  const counts = useMemo(() => {
+    const live = clients.filter((c) => !c.archived);
+    return {
+      all: live.length,
+      active: live.filter((c) => c.status === "active").length,
+      pending: live.filter((c) => c.status === "pending").length,
+      inactive: live.filter((c) => c.status === "inactive").length,
+      archived: clients.filter((c) => c.archived).length,
+    };
+  }, [clients]);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return clients
-      .filter((c) => (filter === "all" ? true : c.status === filter))
+      // Archived clients live only under the "Archived" filter, never in the active views.
+      .filter((c) => (filter === "archived" ? c.archived : !c.archived && (filter === "all" || c.status === filter)))
       .filter((c) => !needle || c.name.toLowerCase().includes(needle) || c.slug.includes(needle))
       .sort((a, b) => ORDER[a.status] - ORDER[b.status] || a.name.localeCompare(b.name));
   }, [clients, filter, q]);
@@ -67,6 +78,7 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
     { key: "active", label: "Active" },
     { key: "pending", label: "Pending" },
     { key: "inactive", label: "Inactive" },
+    ...(counts.archived > 0 ? [{ key: "archived" as Filter, label: "Archived" }] : []),
   ];
 
   return (
@@ -84,7 +96,7 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                   on ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
                 }`}
               >
-                {c.key !== "all" && <span className={`w-2 h-2 rounded-full ${STATUS_META[c.key as ClientCardData["status"]].dot}`} />}
+                {c.key !== "all" && <span className={`w-2 h-2 rounded-full ${CHIP_DOT[c.key]}`} />}
                 {c.label}
                 <span className={`tabular-nums text-xs ${on ? "text-white/60" : "text-neutral-400"}`}>{counts[c.key]}</span>
               </button>
@@ -135,7 +147,7 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                       (c.name || c.slug).charAt(0).toUpperCase()
                     )}
                   </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${meta.cls}`}>{meta.label}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${c.archived ? "bg-neutral-200 text-neutral-600" : meta.cls}`}>{c.archived ? "Archived" : meta.label}</span>
                 </div>
 
                 <div className="mt-3 pointer-events-none">
