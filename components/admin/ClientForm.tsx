@@ -168,13 +168,21 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
   // Money left & paid % are derived, never hand-typed. We persist the computed
   // figures into plan.balance / finance.progress so the portal reads them too.
   const fin = useMemo(() => computeClientFinance(data), [data]);
+  // When linked to Notion, Notion owns plan.balance & finance.progress (shown
+  // read-only at the top of the client page). Don't recompute and clobber them
+  // from the local payment-history rows on save — that two-way fight is what
+  // made the numbers drift. Unlinked clients keep the local auto-computation.
+  const linkedToNotion = !!client?.data?.notionPageId;
   const persisted = useMemo<ClientData>(
-    () => ({
-      ...data,
-      plan: { ...data.plan, balance: fmtIls(fin.moneyLeftIls) },
-      finance: { ...data.finance, progress: fin.paidPct },
-    }),
-    [data, fin]
+    () =>
+      linkedToNotion
+        ? data
+        : {
+            ...data,
+            plan: { ...data.plan, balance: fmtIls(fin.moneyLeftIls) },
+            finance: { ...data.finance, progress: fin.paidPct },
+          },
+    [data, fin, linkedToNotion]
   );
   const [color, setColor] = useState(client?.color ?? "#303030");
   const [logo, setLogo] = useState(client?.logo ?? "");
@@ -491,6 +499,13 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
       </Group>
 
       <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
+        {linkedToNotion && (
+          <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-relaxed">
+            Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b>{" "}
+            come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving
+            here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
+          </div>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
           <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
