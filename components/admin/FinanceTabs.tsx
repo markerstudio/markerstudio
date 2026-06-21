@@ -10,6 +10,7 @@ import { usePathname } from "next/navigation";
 const TABS = [
   { href: "/admin/finance", label: "Overview" },
   { href: "/admin/invoices", label: "Invoices" },
+  { href: "/admin/payments/new", label: "Record payment" },
 ];
 
 export default function FinanceTabs() {

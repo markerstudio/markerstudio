@@ -252,19 +252,66 @@ export default async function EditClientPage({
         </div>
       </div>
 
-      {/* At-a-glance tracking — the numbers you care about, up top. */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {[
-          { label: "Money left", value: client.data.plan?.balance || "—" },
-          { label: "Paid", value: `${client.data.finance?.progress ?? 0}%` },
-          { label: "Invoices", value: String(clientInvoices.length) },
-          { label: "Planned posts", value: String(client.data.social?.posts?.length ?? 0) },
-        ].map((s) => (
-          <div key={s.label} className="rounded-2xl bg-white border border-neutral-200 p-4 shadow-sm">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{s.label}</div>
-            <div className="text-xl font-bold tracking-tight mt-1 truncate">{s.value}</div>
+      {/* Plan & finance — owned by Notion, shown read-only here so it's always
+          clear WHERE the real numbers live and how to update them. */}
+      <div className="rounded-2xl bg-white border border-neutral-200 p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
+          <div className="flex items-center gap-2">
+            <h2 className="font-bold">Plan &amp; finance</h2>
+            <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-neutral-900 text-white">From Notion</span>
           </div>
-        ))}
+          {client.data.notionPageId ? (
+            <div className="flex items-center gap-3">
+              <a
+                href={`https://www.notion.so/${client.data.notionPageId.replace(/-/g, "")}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm font-medium text-neutral-500 hover:text-neutral-900 whitespace-nowrap"
+              >
+                Open in Notion ↗
+              </a>
+              <form action={syncNotionClient}>
+                <input type="hidden" name="slug" value={client.slug} />
+                <input type="hidden" name="notionPageId" value={client.data.notionPageId} />
+                <button className="bg-charcoal text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-ink transition-colors whitespace-nowrap">
+                  Refresh from Notion
+                </button>
+              </form>
+            </div>
+          ) : (
+            <a href="#sec-integrations" className="text-sm font-semibold text-orange hover:text-orange-deep whitespace-nowrap">
+              Set up Notion link ↓
+            </a>
+          )}
+        </div>
+
+        {client.data.notionPageId ? (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
+              {[
+                { label: "Plan", value: client.data.plan?.name || "—" },
+                { label: "Status", value: client.data.plan?.active ? "Active" : "Inactive" },
+                { label: "Cycle", value: [client.data.plan?.start, client.data.plan?.end].filter(Boolean).join(" → ") || "—" },
+                { label: "Monthly fee", value: client.data.finance?.monthlyFee || "—" },
+                { label: "Money left", value: client.data.plan?.balance || "—" },
+                { label: "Paid", value: `${client.data.finance?.progress ?? 0}%` },
+              ].map((s) => (
+                <div key={s.label} className="min-w-0">
+                  <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400">{s.label}</div>
+                  <div className="text-base font-semibold tracking-tight mt-0.5 truncate">{s.value}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs text-neutral-400 mt-4">
+              These live in Notion — edit them there, then <b>Refresh</b>. They aren&apos;t editable here.
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-neutral-600">
+            Not linked to Notion yet. Plan &amp; finance live in your Notion Budget Tracker — set up the link under{" "}
+            <a href="#sec-integrations" className="font-semibold text-orange hover:text-orange-deep">Integrations</a> below.
+          </p>
+        )}
       </div>
 
       {msg && (
@@ -279,8 +326,8 @@ export default async function EditClientPage({
         <nav className="hidden lg:flex lg:flex-col gap-1 lg:sticky lg:top-24">
           {(
             [
-              ["sec-docs", "Documents & finance"],
-              ["sec-brand", "Brand & portal"],
+              ["sec-docs", "Documents & invoices"],
+              ["sec-brand", "Portal content"],
               ["sec-access", "Access"],
               ["sec-integrations", "Integrations"],
               ["sec-ai", "AI analysis"],
@@ -311,7 +358,7 @@ export default async function EditClientPage({
 
       {brief && <OnboardingBriefActions brief={brief} />}
 
-      <h2 id="sec-docs" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; finance</h2>
+      <h2 id="sec-docs" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; invoices</h2>
       {client && (
         <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
           <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
@@ -399,6 +446,9 @@ export default async function EditClientPage({
                       {paid > 0 && <span className="block text-xs font-medium text-orange-deep">{left.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</span>}
                     </span>
                     <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
+                    {inv.status !== "paid" && (
+                      <a href={`/admin/payments/new?invoice=${inv.id}`} className="text-xs font-semibold text-green-700 hover:text-green-800">+ Payment</a>
+                    )}
                     <a href={`/admin/invoices/${inv.id}/edit`} className="text-xs font-medium text-neutral-600 hover:text-orange">Edit</a>
                     <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
                     <form action={deleteInvoiceAction}>
@@ -448,7 +498,8 @@ export default async function EditClientPage({
         </div>
       )}
 
-      <h2 id="sec-brand" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Brand &amp; portal content</h2>
+      <h2 id="sec-brand" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Portal — what the client sees</h2>
+      <p className="text-sm text-neutral-500 px-1 -mt-3">Branding, colours, headlines and the content shown on the client&apos;s portal. This is presentation only — plan &amp; finance come from Notion (top of page).</p>
       <ClientForm client={client} projectLogos={projectLogos} />
 
       <h2 id="sec-access" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
@@ -527,15 +578,20 @@ export default async function EditClientPage({
         )}
 
         <div className="border border-neutral-200 rounded-lg p-4 mb-4">
-          <div className="font-semibold text-sm mb-1">Client record → plan, dates, status &amp; invoices</div>
-          <p className="text-xs text-neutral-500 mb-3">Paste the client&apos;s row (page) from your <b>Clients Database</b>. Maps Name, Marketing Start/End dates, Status (Active), Notes, and the linked Income payments → invoices.</p>
+          <div className="font-semibold text-sm mb-1">Linked Notion page (Clients Database)</div>
+          <p className="text-xs text-neutral-500 mb-3">
+            This is where the <b>Plan &amp; finance</b> shown at the top of the page comes from. Once linked, use{" "}
+            <b>Refresh from Notion</b> up top to re-pull. Paste a different Clients Database page below to link or change it.
+          </p>
           <form action={syncNotionClient} className="flex items-end gap-3 flex-wrap">
             <input type="hidden" name="slug" value={client.slug} />
             <div className="flex-1 min-w-[240px]">
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Clients Database page URL or ID</label>
               <input name="notionPageId" defaultValue={client.data.notionPageId || ""} className={inputCls} placeholder="https://www.notion.so/…" />
             </div>
-            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull client record</button>
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">
+              {client.data.notionPageId ? "Re-link & pull" : "Link & pull"}
+            </button>
           </form>
         </div>
 

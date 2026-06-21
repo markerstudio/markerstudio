@@ -6,7 +6,6 @@ import InvoiceCreateFromTab from "@/components/admin/InvoiceCreateFromTab";
 import FinanceTabs from "@/components/admin/FinanceTabs";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import ConfirmButton from "@/components/admin/ConfirmButton";
-import RecordPayment from "@/components/admin/RecordPayment";
 import UndoBanner from "@/components/admin/UndoBanner";
 import { setInvoiceArchivedAction, deleteInvoiceAction, duplicateInvoiceAction } from "../invoice-actions";
 
@@ -222,7 +221,12 @@ export default async function InvoicesAdmin({
               </div>
               <InvoiceStatusSelect id={inv.id} slug={inv.client_slug} status={inv.status} back={backHref || "/admin/invoices"} />
               {inv.status !== "paid" && !inv.archived_at && (
-                <RecordPayment id={inv.id} slug={inv.client_slug} back={backHref || "/admin/invoices"} remaining={remaining} />
+                <Link
+                  href={`/admin/payments/new?invoice=${inv.id}`}
+                  className="text-sm font-semibold text-green-700 hover:text-green-800 whitespace-nowrap"
+                >
+                  + Payment
+                </Link>
               )}
               <Link href={`/admin/invoices/${inv.id}/edit`} className="text-sm font-medium text-neutral-600 hover:text-orange">Edit</Link>
               <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">PDF ↗</Link>
