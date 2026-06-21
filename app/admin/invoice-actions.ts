@@ -6,12 +6,13 @@ import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import {
   createInvoice, getInvoice, updateInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
-  invoiceCurrency, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
-  type InvoiceItem, type InvoiceStatus, type LineKind,
+  invoiceCurrency,
+  type InvoiceItem, type InvoiceStatus,
 } from "@/lib/invoices";
 import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { recordInvoicePayment, deletePayment, getPayment, type PaymentMethod, type AllocationLine } from "@/lib/payments";
-import { createIncomePaymentLines } from "@/lib/notion";
+import { syncPaymentToNotion, reconcilePendingNotionPayments } from "@/lib/notionSync";
+import { notionArchivePage } from "@/lib/notion";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
 async function clientBySlug(slug: string) {
@@ -20,56 +21,10 @@ async function clientBySlug(slug: string) {
   return rows[0];
 }
 
-// Mirror an admin-recorded payment into the client's Notion Income database so
-// the books stay in sync both ways. Best-effort — only runs when the client is
-// linked to a Notion page, and a Notion failure never blocks the local record.
-async function syncPaymentToNotion(
-  slug: string,
-  amount: number,
-  items: InvoiceItem[],
-  label: string,
-  dueDate?: string | null,
-  allocation?: AllocationLine[]
-) {
-  if (!(amount > 0)) return;
-  try {
-    const c = await clientBySlug(slug);
-    const pageId = c?.data?.notionPageId;
-    if (!pageId) return;
-    const currency = invoiceCurrency(items);
-
-    // One Notion row per Marker line, named by category so the budget formula
-    // classifies it. Ramzi/stories lines are pass-through — collected for Ramzi,
-    // never written to Marker's books — so they're dropped here.
-    let lines: { name: string; amount: number }[];
-    if (allocation && allocation.length) {
-      // Use exactly how the admin split this payment across the lines.
-      lines = allocation
-        .filter((a) => !(a.owner === "ramzi" || a.kind === "stories"))
-        .map((a) => ({
-          name: notionNameForKind((a.kind as LineKind) || inferKind({ label: a.label, amount: String(a.amount) })),
-          amount: Math.round(a.amount),
-        }))
-        .filter((l) => l.amount > 0);
-    } else {
-      // No explicit split — apportion the payment across lines by invoice share.
-      const clientTotal = invoiceTotal(items);
-      lines = (items || [])
-        .filter((it) => !isRamziLine(it))
-        .map((it) => {
-          const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
-          return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
-        })
-        .filter((l) => l.amount > 0);
-    }
-
-    // Fall back to a single row when there are no usable line amounts.
-    const payload = lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
-    await createIncomePaymentLines({ clientPageId: pageId, lines: payload, currency, dueDate: dueDate || undefined });
-  } catch {
-    /* never block the local record on a Notion write */
-  }
-}
+// Payment → Notion mirroring now lives in lib/notionSync.ts, which records each
+// payment's sync state and retries failures so a payment can never be silently
+// lost. recordPaymentAction (below) calls syncPaymentToNotion with the new
+// receipt's id; reconcilePendingNotionPayments re-pushes anything still pending.
 
 // Read the optional per-line allocation a payment form may post (a JSON array
 // of { label, kind, owner, amount }). Returns [] when absent or unparseable.
@@ -116,6 +71,38 @@ function parseItems(raw: FormDataEntryValue | null): InvoiceItem[] {
     .filter((i) => i.label || i.amount);
 }
 
+// Record an at-creation deposit (the "already paid" amount on a new invoice) as
+// a real, tracked payment — so it gets a receipt, lands in the ledger, and syncs
+// to Notion durably (retried on failure) exactly like any other payment, instead
+// of the old fire-and-forget write that could vanish silently.
+async function recordDepositPayment(input: {
+  invoiceId: number;
+  slug: string;
+  items: InvoiceItem[];
+  amount: number;
+  label: string;
+  dueDate?: string | null;
+}) {
+  if (!(input.amount > 0)) return;
+  const currency = invoiceCurrency(input.items);
+  const { id: payId } = await recordInvoicePayment({
+    invoiceId: input.invoiceId,
+    clientSlug: input.slug,
+    amount: input.amount,
+    currency,
+  });
+  await setInvoicePaid(input.invoiceId, input.amount);
+  await syncPaymentToNotion({
+    payId,
+    slug: input.slug,
+    amount: input.amount,
+    items: input.items,
+    label: input.label,
+    currency,
+    dueDate: input.dueDate || null,
+  });
+}
+
 // Custom invoice built from line items (seeded from the priced quote).
 export async function createInvoiceAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
@@ -131,8 +118,8 @@ export async function createInvoiceAction(formData: FormData) {
   if (!c) redirect("/admin/clients");
   if (items.length === 0) redirect(`/admin/clients/${slug}/edit?error=invoice-empty`);
 
-  const { number } = await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate, paidAmount });
-  await syncPaymentToNotion(slug, paidAmount, items, `${number} deposit`, dueDate || undefined);
+  const { id: invoiceId, number } = await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate });
+  await recordDepositPayment({ invoiceId, slug, items, amount: paidAmount, label: `${number} deposit`, dueDate });
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }
@@ -180,7 +167,7 @@ export async function createInvoiceFromTab(formData: FormData) {
   }
   if (!target) redirect("/admin/invoices?error=client");
 
-  const { number } = await createInvoice({
+  const { id: invoiceId, number } = await createInvoice({
     clientId: target.id,
     clientSlug: target.slug,
     items,
@@ -188,9 +175,8 @@ export async function createInvoiceFromTab(formData: FormData) {
     dueDate: dueDate || undefined,
     source: "custom",
     vatRate,
-    paidAmount,
   });
-  await syncPaymentToNotion(target.slug, paidAmount, items, `${number} deposit`, dueDate || undefined);
+  await recordDepositPayment({ invoiceId, slug: target.slug, items, amount: paidAmount, label: `${number} deposit`, dueDate });
   revalidatePath(`/portal/${target.slug}`);
   revalidatePath("/admin/invoices");
   redirect(`/admin/invoices?ok=${encodeURIComponent(number)}`);
@@ -265,7 +251,19 @@ export async function recordPaymentAction(formData: FormData) {
       allocation: allocation.length ? allocation : undefined,
     });
     await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
-    await syncPaymentToNotion(slug, amount, inv.items, `${inv.number} payment`, inv.due_date, allocation.length ? allocation : undefined);
+    // Mirror into Notion and record whether it stuck; a failure here is saved on
+    // the payment and retried by the reconciler, never silently dropped.
+    await syncPaymentToNotion({
+      payId,
+      slug,
+      amount,
+      items: inv.items,
+      label: `${inv.number} payment`,
+      currency,
+      dueDate: inv.due_date,
+      allocation: allocation.length ? allocation : null,
+      paidOn: paidOn || undefined,
+    });
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
     revalidatePath("/admin");
@@ -276,16 +274,30 @@ export async function recordPaymentAction(formData: FormData) {
   redirect(back || "/admin/invoices");
 }
 
-// Void a recorded payment — deletes its receipt and rolls the amount back off
-// the invoice's paid total, re-deriving the status. A wrong payment is fixed by
-// voiding it and recording the right one. (Any Notion income row it created is
-// not auto-removed; delete that in Notion if needed.)
+// Re-push any payments that haven't made it into Notion yet (failed write, or
+// recorded while Notion was down). Safe to run anytime — it only touches the
+// stragglers. Wired to the "Re-sync payments" button on the Finance page.
+export async function resyncNotionPaymentsAction() {
+  if (!(await getSession())) redirect("/login");
+  await reconcilePendingNotionPayments(100);
+  revalidatePath("/admin/finance");
+  revalidatePath("/admin");
+  redirect("/admin/finance?ok=resynced");
+}
+
+// Void a recorded payment — deletes its receipt, rolls the amount back off the
+// invoice's paid total (re-deriving the status), and archives the Notion Income
+// rows it created so the books don't keep phantom income. A wrong payment is
+// fixed by voiding it and recording the right one.
 export async function deletePaymentAction(formData: FormData) {
   if (!(await getSession())) redirect("/login");
   const payId = Number(formData.get("payId") || 0);
   const back = String(formData.get("back") || "").trim();
   const pay = await getPayment(payId);
   if (pay) {
+    // Remove the mirrored Income rows from Notion (best-effort) before deleting
+    // the local receipt that remembers their ids.
+    for (const pageId of pay.notion_page_ids || []) await notionArchivePage(pageId);
     await deletePayment(payId);
     const inv = await getInvoice(pay.invoice_id);
     if (inv) {

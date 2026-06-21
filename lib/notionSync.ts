@@ -1,0 +1,137 @@
+// Durable, self-healing mirror of recorded payments into the Notion Income DB.
+//
+// A payment is the source of truth LOCALLY; this writes a matching set of Income
+// rows into Notion and — crucially — remembers whether that succeeded. Failures
+// are recorded on the payment row (not swallowed) and retried automatically by
+// reconcilePendingNotionPayments, so a transient Notion outage, rate-limit, or
+// token hiccup can never silently drop a payment from the studio's books.
+import { getSql, isDbEnabled } from "@/lib/db";
+import {
+  getInvoice, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
+  type InvoiceItem, type LineKind,
+} from "@/lib/invoices";
+import { createIncomePaymentLines, notionArchivePage, NotionSyncError } from "@/lib/notion";
+import {
+  listUnsyncedPayments, markPaymentSynced, markPaymentSyncFailed,
+  type AllocationLine,
+} from "@/lib/payments";
+import type { ClientData } from "@/lib/clients";
+
+// Turn a payment into the per-category Notion Income rows the budget formula
+// expects ("Branding", "Plan Payment", "Extra"). Ramzi/stories lines are dropped
+// — they're collected for Ramzi, never Marker income. Prefers the admin's
+// explicit split (allocation); otherwise apportions across the invoice's own
+// Marker lines by share. Falls back to a single row when nothing else survives.
+export function buildIncomeLines(
+  amount: number,
+  items: InvoiceItem[],
+  label: string,
+  allocation?: AllocationLine[] | null,
+): { name: string; amount: number }[] {
+  let lines: { name: string; amount: number }[];
+  if (allocation && allocation.length) {
+    lines = allocation
+      .filter((a) => !(a.owner === "ramzi" || a.kind === "stories"))
+      .map((a) => ({
+        name: notionNameForKind((a.kind as LineKind) || inferKind({ label: a.label, amount: String(a.amount) })),
+        amount: Math.round(a.amount),
+      }))
+      .filter((l) => l.amount > 0);
+  } else {
+    const clientTotal = invoiceTotal(items);
+    lines = (items || [])
+      .filter((it) => !isRamziLine(it))
+      .map((it) => {
+        const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
+        return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
+      })
+      .filter((l) => l.amount > 0);
+  }
+  return lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
+}
+
+// The client's Notion page id, or null when the client isn't linked to Notion.
+async function clientNotionPageId(slug: string): Promise<string | null> {
+  try {
+    const rows = (await getSql()`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+    return rows[0]?.data?.notionPageId || null;
+  } catch {
+    return null;
+  }
+}
+
+export type SyncPaymentInput = {
+  payId: number;
+  slug: string;
+  amount: number;
+  items: InvoiceItem[];
+  label: string;
+  currency: "ILS" | "USD";
+  dueDate?: string | null;
+  allocation?: AllocationLine[] | null;
+  paidOn?: string;
+  // Income page ids written by a previous (failed) attempt — archived first so a
+  // re-sync never doubles the payment in the books.
+  priorPageIds?: string[] | null;
+};
+
+// Mirror one payment into Notion and persist the outcome on the payment row.
+// Never throws and never blocks the caller: the local receipt is the source of
+// truth. A success marks the payment synced; a failure is recorded and left for
+// reconcilePendingNotionPayments to retry.
+export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void> {
+  if (!(input.amount > 0)) return;
+  if (!process.env.NOTION_TOKEN) return; // no Notion configured — nothing to mirror
+  const pageId = await clientNotionPageId(input.slug);
+  if (!pageId) return; // client isn't linked to Notion — not a pending sync
+
+  // Clean up any rows a previous partial attempt left behind, so retries are
+  // idempotent (archive is best-effort and never throws).
+  for (const id of input.priorPageIds || []) await notionArchivePage(id);
+
+  const lines = buildIncomeLines(input.amount, input.items, input.label, input.allocation);
+  try {
+    const created = await createIncomePaymentLines({
+      clientPageId: pageId,
+      lines,
+      currency: input.currency,
+      payDate: input.paidOn || undefined,
+      dueDate: input.dueDate || undefined,
+    });
+    await markPaymentSynced(input.payId, created);
+  } catch (e) {
+    const created = e instanceof NotionSyncError ? e.created : [];
+    await markPaymentSyncFailed(input.payId, created, (e as Error)?.message || String(e));
+  }
+}
+
+// Re-push every payment that should be in Notion but isn't yet (failed write,
+// recorded while Notion was down, or recorded before the client was linked).
+// Bounded per run and safe to call on a hot path — in steady state it's a single
+// cheap SELECT that returns nothing. Returns how many payments it processed.
+export async function reconcilePendingNotionPayments(limit = 20): Promise<number> {
+  if (!isDbEnabled() || !process.env.NOTION_TOKEN) return 0;
+  let processed = 0;
+  try {
+    const pending = await listUnsyncedPayments(limit);
+    for (const p of pending) {
+      const inv = await getInvoice(p.invoice_id);
+      await syncPaymentToNotion({
+        payId: p.id,
+        slug: p.client_slug,
+        amount: Number(p.amount) || 0,
+        items: inv?.items || [],
+        label: inv ? `${inv.number} payment` : (p.number || "Payment"),
+        currency: (p.currency as "ILS" | "USD") || "ILS",
+        dueDate: inv?.due_date || null,
+        allocation: p.allocation,
+        paidOn: typeof p.paid_on === "string" ? p.paid_on.slice(0, 10) : undefined,
+        priorPageIds: p.notion_page_ids,
+      });
+      processed++;
+    }
+  } catch {
+    /* best-effort — the reconciler runs again on the next admin load */
+  }
+  return processed;
+}
