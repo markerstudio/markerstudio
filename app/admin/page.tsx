@@ -4,7 +4,7 @@ import { getSession } from "@/lib/auth";
 import { getDashboardData, fmtMoney, timeAgo } from "@/lib/dashboard";
 import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
 import { runPaymentHistoryBackfill } from "@/lib/backfill";
-import { reconcilePendingNotionPayments } from "@/lib/notionSync";
+import { cleanupReconcilerDuplicates } from "@/lib/notionSync";
 
 export const dynamic = "force-dynamic";
 
@@ -102,10 +102,11 @@ export default async function AdminDashboard() {
   // One-time: invoice every client's payment history (backdated). Self-guarded
   // by a flag row — after the first run this is a single cheap SELECT.
   await runPaymentHistoryBackfill();
-  // Self-heal any payments that didn't reach Notion (e.g. a transient failure
-  // when they were recorded). In steady state this is one cheap SELECT that
-  // finds nothing; otherwise it re-pushes the stragglers.
-  await reconcilePendingNotionPayments();
+  // One-time: archive the duplicate Income rows an earlier, too-aggressive
+  // reconciler created for already-synced historical payments. Self-guarded by
+  // a flag. Payment→Notion healing is now MANUAL only (the Finance page's
+  // "Re-sync payments" button) so nothing pushes to Notion on its own.
+  await cleanupReconcilerDuplicates();
   const [user, d] = await Promise.all([getSession(), getDashboardData()]);
   const firstName = (user?.name || "there").split(" ")[0];
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
