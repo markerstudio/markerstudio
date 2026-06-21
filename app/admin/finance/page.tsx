@@ -3,6 +3,7 @@ import { getFinance, fmtILS, type MonthFin, type PaymentRow } from "@/lib/financ
 import { timeAgo } from "@/lib/dashboard";
 import FinanceTabs from "@/components/admin/FinanceTabs";
 import { syncFinance } from "../actions";
+import { resyncNotionPaymentsAction } from "../invoice-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -94,6 +95,9 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
           <a href={NOTION_TRACKER_URL} target="_blank" rel="noreferrer" className="text-sm font-medium text-neutral-500 hover:text-neutral-900">
             Open in Notion ↗
           </a>
+          <form action={resyncNotionPaymentsAction} title="Push any recorded payments that haven't reached Notion yet">
+            <button className="border border-neutral-300 text-neutral-700 text-sm font-semibold rounded-md px-4 py-2 hover:bg-neutral-50 transition-colors">Re-sync payments</button>
+          </form>
           <form action={syncFinance}>
             <button className="bg-charcoal text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-ink transition-colors">Sync now</button>
           </form>
@@ -102,6 +106,9 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
 
       {searchParams.ok === "synced" && (
         <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Synced fresh numbers from Notion.</p>
+      )}
+      {searchParams.ok === "resynced" && (
+        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Re-pushed any payments that weren&apos;t in Notion yet.</p>
       )}
       {f.available && f.diag && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-2.5">{f.diag}</p>
