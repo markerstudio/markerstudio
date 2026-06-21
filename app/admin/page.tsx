@@ -136,6 +136,9 @@ export default async function AdminDashboard() {
           <Link href="/admin/invoices" className="bg-orange text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-orange-deep transition-colors">
             + New invoice
           </Link>
+          <Link href="/admin/payments/new" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
+            + Record payment
+          </Link>
           <Link href="/admin/proposals" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
             + New proposal
           </Link>
