@@ -12,7 +12,7 @@ import {
 } from "@/lib/invoices";
 import { createIncomePaymentLines, notionArchivePage, NotionSyncError } from "@/lib/notion";
 import {
-  listUnsyncedPayments, markPaymentSynced, markPaymentSyncFailed,
+  ensurePaymentsTable, listUnsyncedPayments, markPaymentSynced, markPaymentSyncFailed,
   type AllocationLine,
 } from "@/lib/payments";
 import type { ClientData } from "@/lib/clients";
@@ -103,6 +103,56 @@ export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void
     const created = e instanceof NotionSyncError ? e.created : [];
     await markPaymentSyncFailed(input.payId, created, (e as Error)?.message || String(e));
   }
+}
+
+// One-time cleanup of the duplicate Income rows the first version of the
+// reconciler created. That version treated every pre-existing payment as
+// "never synced" and re-pushed it, even though it had already been mirrored
+// (untracked) under the old code — so any payment whose TRACKED rows were
+// written markedly later than the payment was recorded is a duplicate. We
+// archive those rows (recoverable from Notion's trash) and baseline the
+// payment so nothing touches it again. Guarded by a flag so it runs once.
+export async function cleanupReconcilerDuplicates(): Promise<number> {
+  if (!isDbEnabled() || !process.env.NOTION_TOKEN) return 0;
+  const sql = getSql();
+  let archived = 0;
+  try {
+    await ensurePaymentsTable(); // also creates app_flags + baselines the backlog
+    const claimed = (await sql`
+      INSERT INTO app_flags (key, value) VALUES ('payments-notion-dedupe-v1', 'running')
+      ON CONFLICT (key) DO NOTHING RETURNING key
+    `) as unknown as unknown[];
+    if (!claimed.length) return 0; // already done (or running elsewhere)
+
+    const dupes = (await sql`
+      SELECT id, notion_page_ids FROM invoice_payments
+      WHERE notion_page_ids IS NOT NULL
+        AND notion_synced_at IS NOT NULL
+        AND notion_synced_at > created_at + INTERVAL '10 minutes'
+    `) as unknown as { id: number; notion_page_ids: string[] | null }[];
+
+    for (const row of dupes) {
+      for (const pid of row.notion_page_ids || []) {
+        await notionArchivePage(pid); // best-effort; no-op if already deleted
+        archived++;
+      }
+      // Baseline the payment back to "originally synced" so it's left alone.
+      await sql`
+        UPDATE invoice_payments
+        SET notion_page_ids = NULL, notion_synced_at = created_at, notion_error = NULL
+        WHERE id = ${row.id}
+      `;
+    }
+    await sql`UPDATE app_flags SET value = ${"done:" + archived} WHERE key = 'payments-notion-dedupe-v1'`;
+  } catch {
+    // Don't get stuck half-done — let it retry on the next load.
+    try {
+      await sql`DELETE FROM app_flags WHERE key = 'payments-notion-dedupe-v1' AND value = 'running'`;
+    } catch {
+      /* ignore */
+    }
+  }
+  return archived;
 }
 
 // Re-push every payment that should be in Notion but isn't yet (failed write,

@@ -55,6 +55,27 @@ export async function ensurePaymentsTable(): Promise<void> {
   await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS notion_page_ids JSONB`;
   await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS notion_error TEXT`;
   await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS notion_sync_attempts INTEGER NOT NULL DEFAULT 0`;
+
+  // One-time baseline. The notion_* columns above are brand new, so every
+  // payment recorded before this release reads as notion_synced_at = NULL
+  // ("never synced"). But those were ALREADY mirrored to Notion at record time
+  // under the old code — so claim a flag and mark the whole existing backlog as
+  // synced. Without this, the reconciler re-creates a duplicate Income row for
+  // every historical payment. Guarded by a flag so it runs exactly once.
+  await sql`
+    CREATE TABLE IF NOT EXISTS app_flags (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `;
+  const baseline = (await sql`
+    INSERT INTO app_flags (key, value) VALUES ('payments-notion-sync-baseline-v1', 'done')
+    ON CONFLICT (key) DO NOTHING RETURNING key
+  `) as unknown as unknown[];
+  if (baseline.length) {
+    await sql`UPDATE invoice_payments SET notion_synced_at = COALESCE(created_at, now()) WHERE notion_synced_at IS NULL`;
+  }
 }
 
 // REC-YYYY-NNN, sequential within the receipt's year.
