@@ -20,15 +20,22 @@ function num(s: string): number {
   const n = parseFloat((s || "").replace(/[^0-9.]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
+// Default each line to its share of what's still owed on the invoice.
+function defaultAlloc(o: OpenInvoice): string[] {
+  const total = o.lines.reduce((s, l) => s + num(l.amount), 0);
+  return o.lines.map((l) => (total > 0 ? String(Math.round((num(l.amount) * o.remaining) / total)) : "0"));
+}
 const KIND_LABEL: Record<string, string> = { branding: "Branding", plan: "Marketing", stories: "Stories · Ramzi", extra: "Extra" };
 const isRamzi = (l: Line) => l.owner === "ramzi" || l.kind === "stories";
 
 /* Global "Record payment": pick any open invoice, then choose how the payment
    splits across its lines (defaults proportional to what's left). The split
-   drives the Marker-vs-Ramzi booking and the per-line Notion sync. */
-export default function RecordPaymentForm({ invoices }: { invoices: OpenInvoice[] }) {
-  const [id, setId] = useState<number | "">("");
-  const [alloc, setAlloc] = useState<string[]>([]);
+   drives the Marker-vs-Ramzi booking and the per-line Notion sync. An optional
+   initialId pre-selects an invoice (deep-linked from an invoice's "+ Payment"). */
+export default function RecordPaymentForm({ invoices, initialId }: { invoices: OpenInvoice[]; initialId?: number }) {
+  const preset = initialId != null ? invoices.find((v) => v.id === initialId) : undefined;
+  const [id, setId] = useState<number | "">(preset ? preset.id : "");
+  const [alloc, setAlloc] = useState<string[]>(preset ? defaultAlloc(preset) : []);
   const inv = invoices.find((v) => v.id === id);
 
   function selectInvoice(value: string) {
@@ -36,9 +43,7 @@ export default function RecordPaymentForm({ invoices }: { invoices: OpenInvoice[
     setId(value ? v : "");
     const o = invoices.find((x) => x.id === v);
     if (!o) return setAlloc([]);
-    const total = o.lines.reduce((s, l) => s + num(l.amount), 0);
-    // Default each line to its share of what's still owed.
-    setAlloc(o.lines.map((l) => (total > 0 ? String(Math.round((num(l.amount) * o.remaining) / total)) : "0")));
+    setAlloc(defaultAlloc(o));
   }
 
   const groups = Array.from(new Set(invoices.map((v) => v.clientName))).sort();

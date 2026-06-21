@@ -446,6 +446,9 @@ export default async function EditClientPage({
                       {paid > 0 && <span className="block text-xs font-medium text-orange-deep">{left.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</span>}
                     </span>
                     <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
+                    {inv.status !== "paid" && (
+                      <a href={`/admin/payments/new?invoice=${inv.id}`} className="text-xs font-semibold text-green-700 hover:text-green-800">+ Payment</a>
+                    )}
                     <a href={`/admin/invoices/${inv.id}/edit`} className="text-xs font-medium text-neutral-600 hover:text-orange">Edit</a>
                     <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
                     <form action={deleteInvoiceAction}>

@@ -9,8 +9,10 @@ import RecordPaymentForm, { type OpenInvoice } from "@/components/admin/RecordPa
 
 export const dynamic = "force-dynamic";
 
-export default async function NewPaymentPage() {
+export default async function NewPaymentPage({ searchParams }: { searchParams: { invoice?: string } }) {
   if (!(await getSession())) redirect("/login");
+  const presetId = Number(searchParams.invoice);
+  const initialId = Number.isFinite(presetId) && presetId > 0 ? presetId : undefined;
 
   let open: OpenInvoice[] = [];
   if (isDbEnabled()) {
@@ -49,7 +51,7 @@ export default async function NewPaymentPage() {
         <Link href="/admin/invoices" className="text-sm font-medium text-neutral-500 hover:text-orange">← Invoices</Link>
       </div>
       <div className="max-w-2xl">
-        <RecordPaymentForm invoices={open} />
+        <RecordPaymentForm invoices={open} initialId={initialId} />
       </div>
     </div>
   );
