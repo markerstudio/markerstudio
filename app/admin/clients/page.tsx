@@ -23,7 +23,8 @@ const ERR: Record<string, string> = {
 // empty sections are visible at a glance and one click away from editing.
 function portalSections(c: Client) {
   const d = c.data;
-  const edit = `/portal/${c.slug}?edit=1`;
+  // The portal is view-only now — all editing happens in client Settings.
+  const edit = `/admin/clients/${c.slug}/edit`;
   const docStatus = (x?: { published?: boolean; acceptedAt?: string }) =>
     x?.acceptedAt ? "done" : x?.published ? "sent" : x ? "draft" : "empty";
   return [

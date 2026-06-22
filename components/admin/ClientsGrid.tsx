@@ -135,8 +135,8 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                 className="adm-rise group relative bg-white border border-neutral-200 rounded-xl p-4 hover:border-orange hover:shadow-md hover:-translate-y-0.5 transition-all"
                 style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
               >
-                {/* Whole-card link opens the portal editor; explicit actions sit above it */}
-                <Link href={`/portal/${c.slug}?edit=1`} className="absolute inset-0 z-0" aria-label={`Fill ${c.name}'s portal`} />
+                {/* Whole-card link opens client Settings; explicit actions sit above it */}
+                <Link href={`/admin/clients/${c.slug}/edit`} className="absolute inset-0 z-0" aria-label={`Edit ${c.name}'s settings`} />
 
                 <div className="flex items-start justify-between gap-3 pointer-events-none">
                   <span className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-lg" style={{ background: c.color }}>

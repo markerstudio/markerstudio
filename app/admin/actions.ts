@@ -706,6 +706,7 @@ export async function quickCreateFromNotion(formData: FormData) {
     balance: info.balance || "",
   };
   data.finance = {
+    ...data.finance,
     monthlyFee: info.monthlyFee || "",
     progress: info.progress || 0,
     brandingFee: info.brandingFee || "",
@@ -760,6 +761,7 @@ export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; err
         balance: info.balance || data.plan?.balance || "",
       };
       data.finance = {
+        ...data.finance,
         monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
         progress: info.progress || data.finance?.progress || 0,
         brandingFee: info.brandingFee || data.finance?.brandingFee || "",
@@ -845,6 +847,7 @@ export async function syncNotionClient(formData: FormData) {
     balance: info.balance || data.plan?.balance || "",
   };
   data.finance = {
+    ...data.finance,
     monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
     progress: info.progress || data.finance?.progress || 0,
     brandingFee: info.brandingFee || data.finance?.brandingFee || "",
@@ -948,6 +951,7 @@ export async function importAllNotionClients() {
         balance: info.balance || data.plan?.balance || "",
       };
       data.finance = {
+        ...data.finance,
         monthlyFee: info.monthlyFee || data.finance?.monthlyFee || "",
         progress: info.progress || data.finance?.progress || 0,
         brandingFee: info.brandingFee || data.finance?.brandingFee || "",

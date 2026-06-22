@@ -180,8 +180,10 @@ export async function getDashboardData(): Promise<DashboardData> {
   dueSoon.sort((a, b) => (a.inv.due_date! < b.inv.due_date! ? -1 : 1));
 
   // ---- Client pipeline ----------------------------------------------------
-  // Archived clients are parked — keep them out of the pipeline, counts, and feeds.
-  const liveClients = clients.filter((c) => !c.data?.archived);
+  // Archived clients are parked — keep them out of the pipeline, counts, and
+  // feeds. Ramzi-owned clients are the partner's own and live in the partner
+  // area, never in Marker's dashboard.
+  const liveClients = clients.filter((c) => !c.data?.archived && c.data?.owner !== "ramzi");
   const pulses: ClientPulse[] = liveClients.map((c) => ({
     slug: c.slug,
     name: c.name || c.slug,

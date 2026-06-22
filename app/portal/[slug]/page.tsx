@@ -7,7 +7,7 @@ import { clientInvoiceFinanceIls, clientStoriesFinanceIls } from "@/lib/invoices
 import { amountLabelToIls } from "@/lib/money";
 import { getLiveNotionClient } from "@/lib/notion";
 import { getLiveMetaAnalysis } from "@/lib/meta";
-import { isDbEnabled } from "@/lib/db";
+import { isDbEnabled, getSql } from "@/lib/db";
 import PortalView from "@/components/PortalView";
 
 export const dynamic = "force-dynamic";
@@ -48,13 +48,19 @@ export default async function PortalPage({
     );
   }
 
-  const canEdit = s.role === "admin";
-  const editing = canEdit && searchParams?.edit === "1";
+  // Portal is view-only. Editing a client's content lives in Settings
+  // (/admin/clients/[slug]/edit) — the in-portal editor was removed.
+  const canEdit = false;
+  const editing = false;
 
-  // Auto-refresh finance/plan from Notion on view (cached ~5 min). Skipped while
-  // an admin is editing, so they work against the saved snapshot. Only overwrite
-  // fields Notion actually returned, so a partial read never wipes saved data.
-  if (!editing && client.data?.notionPageId) {
+  // Auto-refresh finance/plan from Notion on view (cached ~5 min). Only overwrite
+  // fields Notion actually returned, so a partial read never wipes saved data —
+  // and spread the existing finance so app-only fields (stories fee/active,
+  // totals) survive the refresh. The pulled snapshot is then PERSISTED so recent
+  // payments stay intact in the app without a manual "Refresh from Notion" each
+  // visit (best-effort; never blocks the render).
+  if (client.data?.notionPageId) {
+    const before = JSON.stringify(client.data);
     const live = await getLiveNotionClient(client.data.notionPageId);
     if (live) {
       const d = client.data;
@@ -67,11 +73,19 @@ export default async function PortalPage({
         balance: live.balance || d.plan.balance,
       };
       d.finance = {
+        ...d.finance,
         monthlyFee: live.monthlyFee || d.finance?.monthlyFee || "",
         progress: live.progress || d.finance?.progress || 0,
         brandingFee: live.brandingFee || d.finance?.brandingFee || "",
       };
       if (live.invoices.length) d.invoices = live.invoices;
+    }
+    if (isDbEnabled() && JSON.stringify(client.data) !== before) {
+      try {
+        await getSql()`UPDATE clients SET data = ${JSON.stringify(client.data)}::jsonb, updated_at = now() WHERE id = ${client.id}`;
+      } catch {
+        /* best-effort — the in-memory snapshot still renders this view */
+      }
     }
   }
 
