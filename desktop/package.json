@@ -1,13 +1,13 @@
 {
-  "name": "marker-admin-desktop",
-  "version": "0.1.0",
+  "name": "marker-studio-desktop",
+  "version": "0.2.0",
   "private": true,
-  "description": "Native macOS wrapper around the Marker Studio admin portal (https://marker.ps/admin).",
+  "description": "Native macOS app for Marker Studio (https://marker.ps/login).",
   "scripts": {
     "tauri": "tauri",
     "dev": "tauri dev",
     "build:dmg": "tauri build --target universal-apple-darwin",
-    "icons": "tauri icon ../public/assets/logo-favicon.png"
+    "icons": "tauri icon ./src-tauri/app-icon.png"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.1.0"

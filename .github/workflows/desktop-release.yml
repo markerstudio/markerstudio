@@ -67,15 +67,16 @@ jobs:
         with:
           projectPath: desktop
           tagName: desktop-v__VERSION__
-          releaseName: "Marker Admin v__VERSION__"
+          releaseName: "Marker Studio v__VERSION__"
           releaseBody: |
-            Marker Studio admin — macOS app.
+            Marker Studio — macOS app.
 
-            Download **Marker Admin_*_universal.dmg** below, open it, and drag
-            **Marker Admin** into Applications. It opens https://marker.ps/admin.
+            Download **Marker Studio_*_universal.dmg** below, open it, and drag
+            **Marker Studio** into Applications. It opens https://marker.ps/login —
+            sign in to reach the studio admin or your client portal.
 
-            > Unsigned build: the first time you launch it, right-click the app
-            > and choose **Open** to get past Gatekeeper.
+            > Unsigned build: the first launch is blocked by macOS. Open
+            > **System Settings -> Privacy & Security**, then click **Open Anyway**.
           releaseDraft: true
           prerelease: false
           args: --target universal-apple-darwin
