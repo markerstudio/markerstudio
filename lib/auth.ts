@@ -35,6 +35,14 @@ export function canSeePartner(user: { email?: string | null } | null | undefined
   return isSuperAdmin(user) || isPartner(user);
 }
 
+// A partner who is NOT the super admin (e.g. Ramzi). These accounts are
+// confined to their own area — their partner page and their own clients — and
+// must never see Marker's dashboard, finance, or other clients. Enforced in
+// middleware (route allowlist) plus page-level guards.
+export function isPartnerOnly(user: { email?: string | null } | null | undefined): boolean {
+  return isPartner(user) && !isSuperAdmin(user);
+}
+
 export type Role = "admin" | "client";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 

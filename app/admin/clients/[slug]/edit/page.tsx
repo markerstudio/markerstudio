@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { getSession, isPartnerOnly } from "@/lib/auth";
 import ClientForm from "@/components/admin/ClientForm";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
@@ -139,6 +140,8 @@ export default async function EditClientPage({
   const pending = client.data.status === "pending";
   // Ramzi-owned clients are the partner's own — kept entirely out of Marker's Notion.
   const ramziOwned = client.data.owner === "ramzi";
+  // A partner-only admin (Ramzi) may open ONLY their own clients.
+  if (isPartnerOnly(await getSession()) && !ramziOwned) redirect("/admin/partner");
   const others = brief ? (await getClients()).filter((c) => c.slug !== client.slug) : [];
   const projectLogos = (await getProjects().catch(() => [])).map((p) => ({ slug: p.slug, name: p.name.en, logo: p.logo }));
 

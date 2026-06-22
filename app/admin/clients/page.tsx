@@ -1,5 +1,5 @@
 import { isDbEnabled } from "@/lib/db";
-import { getSession, canSeePartner } from "@/lib/auth";
+import { getSession, canSeePartner, isPartnerOnly } from "@/lib/auth";
 import { getClients, type Client } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
 import { getFinance, fmtILS } from "@/lib/finance";
@@ -86,7 +86,12 @@ export default async function ClientsHome({
     trackerDebt(),
   ]);
   // Ramzi's clients are walled off — only Ramzi and the super admin see them.
-  const clients = canSeePartner(user) ? allClients : allClients.filter((c) => c.data?.owner !== "ramzi");
+  // Ramzi himself (partner-only) sees ONLY his own clients, nothing of Marker's.
+  const clients = isPartnerOnly(user)
+    ? allClients.filter((c) => c.data?.owner === "ramzi")
+    : canSeePartner(user)
+    ? allClients
+    : allClients.filter((c) => c.data?.owner !== "ramzi");
 
   const norm = (s: string) => (s || "").replace(/-/g, "").toLowerCase();
   const linkedPages = new Set(clients.map((c) => norm(c.data?.notionPageId || "")).filter(Boolean));
