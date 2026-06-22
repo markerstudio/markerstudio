@@ -1,6 +1,10 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
+
+export const viewport: Viewport = {
+  themeColor: "#FF9100",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://marker.ps"),
@@ -18,6 +22,13 @@ export const metadata: Metadata = {
     "bilingual",
   ],
   icons: { icon: "/assets/logo-favicon.png" },
+  manifest: "/manifest.webmanifest",
+  // Installs full-screen (no Safari bars) from the iPhone home screen.
+  appleWebApp: {
+    capable: true,
+    title: "Marker Studio",
+    statusBarStyle: "default",
+  },
   openGraph: {
     title: "Marker Studio® — Creative & Marketing Studio",
     description:
