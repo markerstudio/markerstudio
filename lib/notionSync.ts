@@ -39,13 +39,15 @@ export function buildIncomeLines(
       .filter((l) => l.amount > 0);
   } else {
     const clientTotal = invoiceTotal(items);
-    lines = (items || [])
-      .filter((it) => !isRamziLine(it))
-      .map((it) => {
-        const share = clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0;
-        return { name: notionNameForKind(inferKind(it)), amount: Math.round(amount * share) };
-      })
-      .filter((l) => l.amount > 0);
+    const markerItems = (items || []).filter((it) => !isRamziLine(it));
+    const shares = markerItems.map((it) => (clientTotal > 0 ? lineAmount(it.amount) / clientTotal : 0));
+    // Exact Marker total for this payment — so per-line rounding can't drop or
+    // add a shekel against the books.
+    const target = Math.round(amount * shares.reduce((a, b) => a + b, 0));
+    lines = markerItems.map((it, i) => ({ name: notionNameForKind(inferKind(it)), amount: Math.round(amount * shares[i]) }));
+    const sum = lines.reduce((s, l) => s + l.amount, 0);
+    if (lines.length && sum !== target) lines[lines.length - 1].amount += target - sum;
+    lines = lines.filter((l) => l.amount > 0);
   }
   return lines.length ? lines : [{ name: label, amount: Math.round(amount) }];
 }

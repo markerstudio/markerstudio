@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useLang } from "@/lib/useLang";
 import { useRouter } from "next/navigation";
-import { logout, updateClientData, resyncFromNotion } from "@/app/admin/actions";
+import { logout } from "@/app/admin/actions";
 import { setPostApproval, addPostComment } from "@/app/portal-feedback-actions";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
@@ -60,39 +60,19 @@ const TAB_ICONS: Record<string, React.ReactNode> = {
 
 export default function PortalView({
   client,
-  canEdit = false,
-  initialEdit = false,
   metaLive = false,
 }: {
   client: Client;
-  canEdit?: boolean;
-  initialEdit?: boolean;
   metaLive?: boolean;
 }) {
   const [lang, setLang] = useLang();
   const [tab, setTab] = useState<string>("dashboard");
   const [data, setData] = useState<ClientData>(client.data);
-  const [edit, setEdit] = useState<boolean>(initialEdit && canEdit);
-  const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
-  const [sync, setSync] = useState<"" | "syncing" | "synced" | "error">("");
-  const [syncMsg, setSyncMsg] = useState("");
   const [postBusy, setPostBusy] = useState<number | null>(null);
   const router = useRouter();
-  const linkedToNotion = !!(client.data.notionPageId || client.data.notionDbId);
-
-  async function doSync() {
-    setSync("syncing");
-    setSyncMsg("");
-    const r = await resyncFromNotion(client.slug);
-    if (r.ok) {
-      setSync("synced");
-      router.refresh();
-      setTimeout(() => setSync(""), 2500);
-    } else {
-      setSync("error");
-      setSyncMsg(r.error || "Sync failed.");
-    }
-  }
+  // The portal is view-only — content is edited in admin client Settings. `edit`
+  // stays a const so the shared view/edit field helpers below render read-only.
+  const edit = false;
 
   const d = data;
   const tr = (b?: LocalizedText) => (b ? b[lang] : "");
@@ -140,26 +120,19 @@ export default function PortalView({
   const del = (on: () => void) => (edit ? <button type="button" className="ms-edit-del" onClick={on} aria-label="Remove">✕</button> : null);
   const add = (on: () => void, label: string) => (edit ? <button type="button" className="ms-edit-add" onClick={on}>+ {label}</button> : null);
 
-  async function save() {
-    setSaving("saving");
-    const r = await updateClientData(client.slug, JSON.stringify(data));
-    setSaving(r?.ok ? "saved" : "error");
-    if (r?.ok) setTimeout(() => setSaving(""), 1600);
-  }
-
-  // Client/studio feedback on a planned post. Updates locally for instant
-  // feedback, then persists; the server is the source of truth on refresh.
-  const viewerRole: "studio" | "client" = canEdit ? "studio" : "client";
+  // Client feedback on a planned post. Updates locally for instant feedback,
+  // then persists; the server is the source of truth on refresh.
+  const viewerRole: "studio" | "client" = "client";
   async function approvePost(idx: number, approval: "approved" | "changes") {
     setPostBusy(idx);
-    up((c) => { c.social.posts[idx].approval = approval; });
+    up((c) => { if (c.social?.posts?.[idx]) c.social.posts[idx].approval = approval; });
     await setPostApproval(client.slug, idx, approval);
     setPostBusy(null);
     router.refresh();
   }
   async function commentPost(idx: number, text: string) {
     setPostBusy(idx);
-    up((c) => { (c.social.posts[idx].comments ||= []).push({ by: ui("You", "أنت"), role: viewerRole, text, at: new Date().toISOString() }); });
+    up((c) => { if (c.social?.posts?.[idx]) (c.social.posts[idx].comments ||= []).push({ by: ui("You", "أنت"), role: viewerRole, text, at: new Date().toISOString() }); });
     await addPostComment(client.slug, idx, text);
     setPostBusy(null);
     router.refresh();
@@ -640,10 +613,10 @@ export default function PortalView({
               </div>
             </div>
 
-            {/* Live studio documents — shown once sent (admins always see them). */}
-            {(canEdit || client.data.proposal?.published || client.data.agreement?.published) && (
+            {/* Live studio documents — shown once the studio has sent them. */}
+            {(client.data.proposal?.published || client.data.agreement?.published) && (
               <div className="ms-portal-grid" style={{ marginBottom: 20 }}>
-                {(canEdit || client.data.proposal?.published) && (
+                {client.data.proposal?.published && (
                   <a className="ms-doc-card pc-6 ms-rise" href={`/portal/${client.slug}/proposal`}>
                     <span className="ms-doc-kicker">{ui("Interactive document", "مستند تفاعلي")}</span>
                     <h3>{ui("Your proposal", "عرضك")}</h3>
@@ -662,7 +635,7 @@ export default function PortalView({
                     </div>
                   </a>
                 )}
-                {(canEdit || client.data.agreement?.published) && (
+                {client.data.agreement?.published && (
                   <a className="ms-doc-card pc-6 ms-rise" style={{ animationDelay: "90ms" }} href={`/portal/${client.slug}/agreement`}>
                     <span className="ms-doc-kicker">{ui("E-sign document", "مستند للتوقيع الإلكتروني")}</span>
                     <h3>{ui("Service agreement", "اتفاقية الخدمة")}</h3>
@@ -780,31 +753,6 @@ export default function PortalView({
           </div>
         </div>
       </footer>
-
-      {/* Admin edit controls */}
-      {canEdit && (
-        <div className="ms-edit-bar" dir="ltr">
-          {edit ? (
-            <>
-              <span>Editing — change any text, drag sliders, use + / ✕</span>
-              <button className="ms-btn ms-btn-primary" onClick={save}>
-                {saving === "saving" ? "Saving…" : saving === "saved" ? "Saved ✓" : saving === "error" ? "Retry" : "Save"}
-              </button>
-              <button className="ms-btn ms-btn-ghost" style={{ color: "#fff" }} onClick={() => { setData(client.data); setEdit(false); setSaving(""); }}>Done</button>
-            </>
-          ) : (
-            <>
-              {linkedToNotion && (
-                <button className="ms-btn ms-btn-ghost" style={{ color: "#fff" }} onClick={doSync} disabled={sync === "syncing"}>
-                  {sync === "syncing" ? "Syncing…" : sync === "synced" ? "Synced ✓" : sync === "error" ? "Retry sync" : "↻ Sync Notion"}
-                </button>
-              )}
-              {sync === "error" && syncMsg && <span style={{ color: "#ffb4a8", fontSize: 12 }}>{syncMsg}</span>}
-              <button className="ms-btn ms-btn-primary" onClick={() => setEdit(true)}>Edit portal</button>
-            </>
-          )}
-        </div>
-      )}
       </div>
     </div>
   );
