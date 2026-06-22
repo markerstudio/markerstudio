@@ -51,10 +51,14 @@ export function buildIncomeLines(
 }
 
 // The client's Notion page id, or null when the client isn't linked to Notion.
+// Ramzi-owned clients are the partner's own — walled off from Marker's Notion
+// books — so they never have a sync target, even if a page was linked.
 async function clientNotionPageId(slug: string): Promise<string | null> {
   try {
     const rows = (await getSql()`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
-    return rows[0]?.data?.notionPageId || null;
+    const d = rows[0]?.data;
+    if (!d || d.owner === "ramzi") return null;
+    return d.notionPageId || null;
   } catch {
     return null;
   }
