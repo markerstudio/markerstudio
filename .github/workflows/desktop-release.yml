@@ -1,0 +1,78 @@
+name: Desktop release (.dmg)
+
+# Builds the macOS app and attaches the .dmg to a GitHub Release.
+#
+# Trigger either by:
+#   - pushing a tag like `desktop-v0.1.0`, or
+#   - running this workflow manually (Actions tab -> "Run workflow").
+on:
+  push:
+    tags:
+      - "desktop-v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version for the release tag (e.g. 0.1.0)"
+        required: true
+        default: "0.1.0"
+
+jobs:
+  build-dmg:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Set up Rust (Intel + Apple Silicon targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - name: Cache cargo
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm install
+
+      - name: Generate app icons from the brand logo
+        working-directory: desktop
+        run: npm run icons
+
+      - name: Build and publish the .dmg
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # --- Optional code signing + notarization (recommended for wide
+          # distribution). Add these as repo secrets and they take effect
+          # automatically; without them the .dmg is unsigned (works, but users
+          # must right-click -> Open the first time). ---
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          projectPath: desktop
+          tagName: desktop-v__VERSION__
+          releaseName: "Marker Admin v__VERSION__"
+          releaseBody: |
+            Marker Studio admin — macOS app.
+
+            Download **Marker Admin_*_universal.dmg** below, open it, and drag
+            **Marker Admin** into Applications. It opens https://marker.ps/admin.
+
+            > Unsigned build: the first time you launch it, right-click the app
+            > and choose **Open** to get past Gatekeeper.
+          releaseDraft: true
+          prerelease: false
+          args: --target universal-apple-darwin

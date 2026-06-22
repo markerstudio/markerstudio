@@ -1,0 +1,10 @@
+node_modules/
+
+# Rust / Tauri build output
+src-tauri/target/
+src-tauri/gen/
+src-tauri/Cargo.lock
+
+# App icons are generated from ../public/assets/logo-favicon.png
+# via `npm run icons` (and automatically in CI). Not committed.
+src-tauri/icons/

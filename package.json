@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "desktop": "npm --prefix desktop run dev",
+    "desktop:dmg": "npm --prefix desktop run build:dmg"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
