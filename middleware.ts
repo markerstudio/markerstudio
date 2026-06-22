@@ -34,6 +34,35 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // Partner-only accounts (Ramzi) are confined to their own area. Email-based,
+  // inlined here to keep middleware edge-safe (mirrors the defaults in lib/auth).
+  // They may see only /admin/partner and their own clients (/admin/clients,
+  // ownership enforced on the pages); everything else under /admin bounces to
+  // their partner page.
+  if (pathname.startsWith("/admin")) {
+    const email = String(payload.email || "").toLowerCase();
+    const superEmail = (process.env.SUPERADMIN_EMAIL || "elias@marker.ps").toLowerCase();
+    const partnerEmails = (process.env.PARTNER_EMAILS || "ramzi@marker.ps")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const partnerOnly = !!email && partnerEmails.includes(email) && email !== superEmail;
+    if (partnerOnly) {
+      // /admin/partner is their home (lists their clients). Their own client
+      // sub-pages (/admin/clients/<slug>/edit, /admin/clients/new) are allowed —
+      // ownership is enforced on those pages. The bare clients LIST is not, since
+      // it carries Marker-wide stats; it bounces to the partner page.
+      const allowed = pathname.startsWith("/admin/partner") || pathname.startsWith("/admin/clients/");
+      if (!allowed) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/admin/partner";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   return NextResponse.next();
 }
 

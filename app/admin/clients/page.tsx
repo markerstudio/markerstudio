@@ -1,5 +1,5 @@
 import { isDbEnabled } from "@/lib/db";
-import { getSession, canSeePartner } from "@/lib/auth";
+import { getSession, canSeePartner, isPartnerOnly } from "@/lib/auth";
 import { getClients, type Client } from "@/lib/clients";
 import { listNotionClients } from "@/lib/notion";
 import { getFinance, fmtILS } from "@/lib/finance";
@@ -86,7 +86,12 @@ export default async function ClientsHome({
     trackerDebt(),
   ]);
   // Ramzi's clients are walled off — only Ramzi and the super admin see them.
-  const clients = canSeePartner(user) ? allClients : allClients.filter((c) => c.data?.owner !== "ramzi");
+  // Ramzi himself (partner-only) sees ONLY his own clients, nothing of Marker's.
+  const clients = isPartnerOnly(user)
+    ? allClients.filter((c) => c.data?.owner === "ramzi")
+    : canSeePartner(user)
+    ? allClients
+    : allClients.filter((c) => c.data?.owner !== "ramzi");
 
   const norm = (s: string) => (s || "").replace(/-/g, "").toLowerCase();
   const linkedPages = new Set(clients.map((c) => norm(c.data?.notionPageId || "")).filter(Boolean));
@@ -195,6 +200,15 @@ export default async function ClientsHome({
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">New client — just the name</label>
             <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
           </div>
+          {canSeePartner(user) && (
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Owner</label>
+              <select name="owner" defaultValue="marker" title="Ramzi's clients are walled off and never sync to Marker's Notion" className="border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
+                <option value="marker">Marker</option>
+                <option value="ramzi">Ramzi</option>
+              </select>
+            </div>
+          )}
           <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create →</button>
         </form>
 

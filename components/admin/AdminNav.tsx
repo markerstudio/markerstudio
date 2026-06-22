@@ -11,16 +11,21 @@ export default function AdminNav({
   unreadInquiries,
   unreadApplications,
   showPartner = false,
+  partnerOnly = false,
 }: {
   unreadInquiries: number;
   unreadApplications: number;
   showPartner?: boolean;
+  partnerOnly?: boolean;
 }) {
   const pathname = usePathname();
 
-  // Grouped into clusters so 12 flat tabs read as a handful of scannable areas:
-  // Overview · Clients & work · Documents · Money · Intake · System.
-  const groups: Item[][] = [
+  // Partner-only accounts (Ramzi) see just their own area.
+  const groups: Item[][] = partnerOnly
+    ? [[{ href: "/admin/partner", label: "Ramzi" }]]
+    : // Grouped into clusters so 12 flat tabs read as a handful of scannable areas:
+      // Overview · Clients & work · Documents · Money · Intake · System.
+      [
     [{ href: "/admin", label: "Dashboard" }],
     [
       { href: "/admin/clients", label: "Clients" },
