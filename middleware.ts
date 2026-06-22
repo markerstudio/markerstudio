@@ -51,9 +51,14 @@ export async function middleware(req: NextRequest) {
     if (partnerOnly) {
       // /admin/partner is their home (lists their clients). Their own client
       // sub-pages (/admin/clients/<slug>/edit, /admin/clients/new) are allowed —
-      // ownership is enforced on those pages. The bare clients LIST is not, since
-      // it carries Marker-wide stats; it bounces to the partner page.
-      const allowed = pathname.startsWith("/admin/partner") || pathname.startsWith("/admin/clients/");
+      // ownership is enforced on those pages. They may also record payments
+      // (/admin/payments), scoped to their own clients on the page + action. The
+      // bare clients LIST is not allowed (it carries Marker-wide stats); it
+      // bounces to the partner page.
+      const allowed =
+        pathname.startsWith("/admin/partner") ||
+        pathname.startsWith("/admin/clients/") ||
+        pathname.startsWith("/admin/payments");
       if (!allowed) {
         const url = req.nextUrl.clone();
         url.pathname = "/admin/partner";
