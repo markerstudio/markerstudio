@@ -13,8 +13,8 @@ export type BackfillEntry = {
 // Cycles already paid (received). Open/unpaid cycles are intentionally NOT here:
 // Al Qanater's outstanding cycle is already covered by an existing Marker invoice.
 export const STORIES_BACKFILL_2026: BackfillEntry[] = [
-  { name: "You Burger", fee: 650, dates: ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"] },
-  { name: "You Booza", fee: 650, dates: ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"] },
+  { name: "You Burger", slug: "youburger", fee: 650, dates: ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"] },
+  { name: "You Booza", slug: "youbooza", fee: 650, dates: ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"] },
   { name: "Tamashi", fee: 700, dates: ["2026-01-31", "2026-02-28", "2026-03-31", "2026-04-30", "2026-05-31"] },
   { name: "Gardenia", fee: 700, dates: ["2026-03-26", "2026-04-26", "2026-05-26"] },
   { name: "Al Qanater", fee: 1000, dates: ["2026-03-14", "2026-04-14"] },
