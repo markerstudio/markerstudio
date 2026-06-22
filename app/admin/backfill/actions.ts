@@ -108,3 +108,54 @@ export async function runStoriesBackfillAction() {
   revalidatePath("/admin/backfill");
   redirect(`/admin/backfill?created=${created}&skipped=${skipped}`);
 }
+
+// Remove ONLY the duplicate clients an earlier run mistakenly created — i.e. a
+// client sitting at slugify(name) when the real client is pinned to a different
+// slug. Heavily guarded: it deletes a client (and its invoices/payments) only
+// when EVERY record on it is backfill-created and it has no real portal content,
+// so it can never touch a client you actually use.
+export async function removeBackfillDuplicatesAction() {
+  const user = await getSession();
+  if (!user) redirect("/login");
+  if (!isSuperAdmin(user) || !isDbEnabled()) redirect("/admin");
+  const sql = getSql();
+
+  let removedClients = 0;
+  let removedRows = 0;
+  for (const entry of STORIES_BACKFILL_2026) {
+    if (!entry.slug) continue;
+    const autoSlug = slugify(entry.name);
+    if (autoSlug === entry.slug) continue; // pinned slug == auto slug → no dupe pattern
+
+    const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${autoSlug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
+    const dupe = rows[0];
+    if (!dupe) continue;
+
+    const invs = (await sql`SELECT items FROM invoices WHERE client_slug = ${autoSlug}`) as unknown as { items: { label?: string }[] }[];
+    const pays = (await sql`SELECT note FROM invoice_payments WHERE client_slug = ${autoSlug}`) as unknown as { note: string | null }[];
+
+    // Safety gates: there must BE backfill records, every payment must be a
+    // backfill payment, every invoice must be a backfill stories line, and the
+    // portal must have no real content. Any miss → leave it alone.
+    const allPaysBackfill = pays.length > 0 && pays.every((p) => p.note === "Stories backfill 2026");
+    const allInvsBackfill = invs.every((i) => (i.items || []).every((it) => typeof it.label === "string" && it.label.startsWith("Stories — ")));
+    const d = (dupe.data || {}) as ClientData;
+    const hasRealContent = !!(
+      d.onboarding || d.proposal || d.agreement ||
+      (d.documents && d.documents.length) ||
+      (d.social?.posts && d.social.posts.length) ||
+      (d.assets && d.assets.length)
+    );
+    if (!allPaysBackfill || !allInvsBackfill || hasRealContent) continue;
+
+    await sql`DELETE FROM invoice_payments WHERE client_slug = ${autoSlug}`;
+    await sql`DELETE FROM invoices WHERE client_slug = ${autoSlug}`;
+    await sql`DELETE FROM clients WHERE id = ${dupe.id}`;
+    removedClients++;
+    removedRows += pays.length;
+  }
+
+  revalidatePath("/admin/partner");
+  revalidatePath("/admin/backfill");
+  redirect(`/admin/backfill?removed=${removedClients}&removedRows=${removedRows}`);
+}

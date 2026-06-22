@@ -2,16 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
-import { getClients } from "@/lib/clients";
+import { getClients, slugify } from "@/lib/clients";
 import { listAllPayments, ramziAmountOf } from "@/lib/payments";
 import { STORIES_BACKFILL_2026, ymKey, dedupKey, monthLabel } from "./plan";
-import { runStoriesBackfillAction } from "./actions";
+import { runStoriesBackfillAction, removeBackfillDuplicatesAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
 const ils = (n: number) => `${Math.round(n).toLocaleString("en-US")} ILS`;
 
-export default async function BackfillPage({ searchParams }: { searchParams: { created?: string; skipped?: string } }) {
+export default async function BackfillPage({
+  searchParams,
+}: {
+  searchParams: { created?: string; skipped?: string; removed?: string; removedRows?: string };
+}) {
   const user = await getSession();
   if (!user) redirect("/login");
   // Sensitive one-off tool — super admin only.
@@ -20,6 +24,17 @@ export default async function BackfillPage({ searchParams }: { searchParams: { c
   const [clients, payments] = await Promise.all([getClients(), listAllPayments()]);
   const byName = new Map(clients.map((c) => [c.name.toLowerCase(), c]));
   const bySlug = new Map(clients.map((c) => [c.slug, c]));
+
+  // Duplicate clients an earlier run created (real client pinned to a different
+  // slug, an empty backfill copy sitting at slugify(name)).
+  const dupes = STORIES_BACKFILL_2026.flatMap((e) => {
+    if (!e.slug || e.slug === slugify(e.name)) return [];
+    const autoSlug = slugify(e.name);
+    const c = bySlug.get(autoSlug);
+    if (!c) return [];
+    const bf = payments.filter((p) => p.client_slug === autoSlug && p.note === "Stories backfill 2026").length;
+    return [{ name: e.name, autoSlug, realSlug: e.slug, bf }];
+  });
 
   const rows = STORIES_BACKFILL_2026.map((entry) => {
     const client = (entry.slug && bySlug.get(entry.slug)) || byName.get(entry.name.toLowerCase()) || null;
@@ -62,6 +77,36 @@ export default async function BackfillPage({ searchParams }: { searchParams: { c
         <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
           Done — created <b>{searchParams.created}</b> payment{searchParams.created === "1" ? "" : "s"}, skipped{" "}
           <b>{searchParams.skipped}</b> already-existing. The numbers below now reflect the new state.
+        </div>
+      )}
+
+      {searchParams.removed != null && (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          Removed <b>{searchParams.removed}</b> duplicate client{searchParams.removed === "1" ? "" : "s"} and{" "}
+          <b>{searchParams.removedRows}</b> backfilled payment{searchParams.removedRows === "1" ? "" : "s"}.
+        </div>
+      )}
+
+      {dupes.length > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
+          <h2 className="font-bold tracking-tight text-red-800">Duplicate clients to remove</h2>
+          <p className="text-xs text-red-700/80 mt-1 mb-3">
+            An earlier run created empty copies of these clients at the wrong slug. Removing them deletes the copy and its
+            backfilled payments only — your real client (and any real data) is never touched.
+          </p>
+          <ul className="space-y-1.5 mb-4">
+            {dupes.map((d) => (
+              <li key={d.autoSlug} className="text-sm text-red-900 flex items-center gap-2 flex-wrap">
+                <b>{d.name}</b>
+                <span className="text-red-700/70">delete copy <code>/{d.autoSlug}</code> ({d.bf} payment{d.bf === 1 ? "" : "s"}) · keep <code>/{d.realSlug}</code></span>
+              </li>
+            ))}
+          </ul>
+          <form action={removeBackfillDuplicatesAction}>
+            <button className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+              Remove {dupes.length} duplicate{dupes.length === 1 ? "" : "s"}
+            </button>
+          </form>
         </div>
       )}
 
