@@ -70,6 +70,9 @@ export type SyncPaymentInput = {
   dueDate?: string | null;
   allocation?: AllocationLine[] | null;
   paidOn?: string;
+  // Receipt number (REC-YYYY-NNN) — stamped on the Notion rows when the Income DB
+  // has a Ref property, making the write idempotent by receipt (opt-in).
+  ref?: string;
   // Income page ids written by a previous (failed) attempt — archived first so a
   // re-sync never doubles the payment in the books.
   priorPageIds?: string[] | null;
@@ -97,6 +100,7 @@ export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void
       currency: input.currency,
       payDate: input.paidOn || undefined,
       dueDate: input.dueDate || undefined,
+      ref: input.ref || undefined,
     });
     await markPaymentSynced(input.payId, created);
   } catch (e) {
@@ -176,6 +180,7 @@ export async function reconcilePendingNotionPayments(limit = 20): Promise<number
         dueDate: inv?.due_date || null,
         allocation: p.allocation,
         paidOn: typeof p.paid_on === "string" ? p.paid_on.slice(0, 10) : undefined,
+        ref: p.number || undefined,
         priorPageIds: p.notion_page_ids,
       });
       processed++;

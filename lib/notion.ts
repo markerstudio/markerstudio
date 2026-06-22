@@ -204,6 +204,47 @@ export async function createIncomePayment(input: {
   }
 }
 
+// Optional destination-side idempotency. If the Income database has a rich_text
+// property named "Ref" / "Reference" / "Receipt", we stamp each row with the app
+// receipt number (REC-YYYY-NNN) and replace-by-ref on re-sync — so the same
+// payment can never create two rows, even if local sync state is lost or a sync
+// is triggered by hand. Fully opt-in: with no such property (the default) this is
+// dormant and the sync behaves exactly as before. Detected once per process.
+let _incomeRefProp: string | null | undefined;
+async function getIncomeRefProp(): Promise<string | null> {
+  if (_incomeRefProp !== undefined) return _incomeRefProp;
+  try {
+    const db = await notionGet(`/v1/databases/${INCOME_DB}`);
+    let found: string | null = null;
+    for (const [name, p] of Object.entries<any>(db?.properties || {})) {
+      if (p?.type === "rich_text" && /^(ref|reference|receipt)$/i.test(String(name).trim())) {
+        found = name;
+        break;
+      }
+    }
+    _incomeRefProp = found;
+  } catch {
+    _incomeRefProp = null; // can't read the schema → behave exactly as before
+  }
+  return _incomeRefProp;
+}
+
+// Archive any existing Income rows already stamped with this receipt ref, so a
+// re-sync replaces rather than duplicates. Best-effort.
+async function archiveIncomeByRef(refProp: string, ref: string): Promise<void> {
+  try {
+    const q = await notionPost(`/v1/databases/${INCOME_DB}/query`, {
+      filter: { property: refProp, rich_text: { equals: ref } },
+      page_size: 50,
+    });
+    for (const r of q.results || []) {
+      if (r?.id) await notionArchivePage(r.id as string);
+    }
+  } catch {
+    /* best-effort — falls back to the caller's local-id archiving */
+  }
+}
+
 // Write one Income row PER LINE, so a payment lands in Notion categorised the
 // way the budget formula expects — "Branding", "Plan Payment", "Extra" — rather
 // than a single lump row. Each row links to the client and their Source. Callers
@@ -221,6 +262,7 @@ export async function createIncomePaymentLines(input: {
   currency: "ILS" | "USD";
   payDate?: string;
   dueDate?: string;
+  ref?: string; // app receipt number (REC-YYYY-NNN) — enables Ref idempotency
 }): Promise<string[]> {
   if (!process.env.NOTION_TOKEN || !input.clientPageId) return [];
   const lines = (input.lines || []).filter((l) => l.amount > 0);
@@ -235,6 +277,10 @@ export async function createIncomePaymentLines(input: {
   } catch {
     sourceIds = [];
   }
+  // Optional idempotency stamp (dormant unless the Income DB has a Ref property):
+  // replace any rows already written for this receipt before re-creating them.
+  const refProp = input.ref ? await getIncomeRefProp() : null;
+  if (input.ref && refProp) await archiveIncomeByRef(refProp, input.ref);
   for (const line of lines) {
     const properties: Record<string, any> = {
       Name: { title: [{ text: { content: line.name || `Payment ${payDate}` } }] },
@@ -251,6 +297,7 @@ export async function createIncomePaymentLines(input: {
       properties["ILS Account"] = { relation: [{ id: ARAB_BANK_ILS }] };
     }
     if (sourceIds.length) properties.Source = { relation: [{ id: sourceIds[0] }] };
+    if (input.ref && refProp) properties[refProp] = { rich_text: [{ text: { content: input.ref } }] };
     try {
       const res = await notionPost(`/v1/pages`, { parent: { database_id: INCOME_DB }, properties });
       if (res?.id) created.push(res.id as string);
