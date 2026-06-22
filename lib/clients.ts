@@ -48,6 +48,10 @@ export type AiAnalysis = {
   generatedAt: string;
 };
 export type DocItem = { title: string; type: string; url: string };
+// One unit of stories work Ramzi tracks per client (e.g. "Produce 5 daily
+// stories for the week"). Lives on the client so the partner portal can show
+// Ramzi exactly what he has to do, independent of Marker's marketing work.
+export type StoriesTask = { id: string; title: string; status: "todo" | "doing" | "done"; due?: string; at: string };
 // A downloadable brand deliverable (final logo, post export, guideline PDF…).
 // Lives alongside the proposal/agreement docs but is framed as a creative asset.
 export type AssetItem = { title: string; type: string; url: string; size?: string; at?: string };
@@ -122,6 +126,8 @@ export type ClientData = {
     brandingFee?: string; // fixed branding fee (one-time, reference only)
     totalAgreed?: string; // total agreed value of the engagement — drives auto money-left / paid %
     storiesFee?: string; // daily stories fee collected for Ramzi (app-only, never synced to Notion); prefills the stories line when invoicing
+    storiesActive?: boolean; // explicit "this client has stories" switch — when on, the client is connected to Ramzi's portal (stories work + collection) even before any payment
+    storiesTotal?: string; // optional total agreed stories value, for Ramzi's reference
 
     /** @deprecated Money left is a single combined figure — no branding split. */
     brandingProgress?: number;
@@ -129,6 +135,7 @@ export type ClientData = {
     brandingLeft?: string;
   };
   documents: DocItem[];
+  storiesTasks?: StoriesTask[]; // Ramzi's stories work list for this client (managed from the partner portal)
   assets?: AssetItem[]; // downloadable brand deliverables (logos, exports, guidelines)
   updates?: ActivityItem[]; // portal activity feed — studio notes + client actions
   status?: "pending" | "active"; // "pending" = created via onboarding, awaiting review
@@ -229,6 +236,27 @@ export function computeClientFinance(data: ClientData): {
   const moneyLeftIls = Math.max(0, totalIls - paidIls);
   const paidPct = totalIls > 0 ? Math.max(0, Math.min(100, Math.round((paidIls / totalIls) * 100))) : 0;
   return { paidIls, openIls, totalIls, moneyLeftIls, paidPct };
+}
+
+// A client is "connected to Ramzi" for stories when the explicit Stories switch
+// is on. Drives the partner portal: any such client shows up there (with its
+// work list) so Ramzi knows what he has to do — even before any money is paid.
+export function hasStories(data: ClientData | undefined | null): boolean {
+  return !!data?.finance?.storiesActive;
+}
+
+// Read–mutate–write a client's JSONB data in one place. Loads the current data,
+// lets the caller mutate it, and persists the whole object back. Used for small
+// targeted edits (e.g. Ramzi's stories tasks) that don't go through the big
+// client form. Best-effort: a missing client / DB is a silent no-op.
+export async function updateClientData(slug: string, mutate: (d: ClientData) => void): Promise<void> {
+  if (!isDbEnabled()) return;
+  const sql = getSql();
+  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  if (!rows[0]) return;
+  const data = (rows[0].data || {}) as ClientData;
+  mutate(data);
+  await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
 }
 
 // Empty portal content for a brand-new client.
