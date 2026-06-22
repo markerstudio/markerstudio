@@ -51,6 +51,7 @@ const MSG: Record<string, { text: string; ok?: boolean }> = {
   "notion-fetch": { text: "Couldn't reach that Notion database. Check the ID and that it's shared with your integration." },
   "notion-created": { text: "Created in Notion ✓ — a Clients Database page and Budget Tracker source are now linked. Pull the client record to fill plan & finance.", ok: true },
   "notion-exists": { text: "This client is already linked to Notion." },
+  "notion-ramzi": { text: "This client is owned by Ramzi — it's kept out of Marker's Notion books, so it isn't created there." },
   "notion-create": { text: "Couldn't create the client in Notion. Check NOTION_TOKEN and that the integration can edit your Clients Database." },
   archived: { text: "Client archived — hidden from the active list and their portal is blocked until you restore.", ok: true },
   unarchived: { text: "Client restored — back in the active list and their portal works again.", ok: true },
@@ -136,6 +137,8 @@ export default async function EditClientPage({
 
   const brief = client.data.onboarding;
   const pending = client.data.status === "pending";
+  // Ramzi-owned clients are the partner's own — kept entirely out of Marker's Notion.
+  const ramziOwned = client.data.owner === "ramzi";
   const others = brief ? (await getClients()).filter((c) => c.slug !== client.slug) : [];
   const projectLogos = (await getProjects().catch(() => [])).map((p) => ({ slug: p.slug, name: p.name.en, logo: p.logo }));
 
@@ -258,9 +261,9 @@ export default async function EditClientPage({
         <div className="flex items-center justify-between gap-3 flex-wrap mb-4">
           <div className="flex items-center gap-2">
             <h2 className="font-bold">Plan &amp; finance</h2>
-            <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-neutral-900 text-white">From Notion</span>
+            <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-neutral-900 text-white">{ramziOwned ? "Ramzi-owned" : "From Notion"}</span>
           </div>
-          {client.data.notionPageId ? (
+          {ramziOwned ? null : client.data.notionPageId ? (
             <div className="flex items-center gap-3">
               <a
                 href={`https://www.notion.so/${client.data.notionPageId.replace(/-/g, "")}`}
@@ -285,7 +288,11 @@ export default async function EditClientPage({
           )}
         </div>
 
-        {client.data.notionPageId ? (
+        {ramziOwned ? (
+          <p className="text-sm text-neutral-600">
+            This is <b>Ramzi&apos;s</b> client — kept out of Marker&apos;s Notion books. Manage its plan, fees and payments in the portal form below; nothing here syncs to Notion.
+          </p>
+        ) : client.data.notionPageId ? (
           <>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4">
               {[

@@ -531,9 +531,10 @@ export async function saveClient(formData: FormData) {
   } else {
     // New client from the editor — auto-create it in Notion (with its source
     // attached to All Time Clients Debt) unless it's already linked. Best-effort.
+    // Ramzi-owned clients are the partner's own and stay out of Marker's Notion.
     const d = data as ClientData;
     let outJson = json;
-    if (!d.notionPageId) {
+    if (!d.notionPageId && d.owner !== "ramzi") {
       const made = await createNotionClientWithSource({
         name,
         monthlyFee: d.finance?.monthlyFee,
@@ -866,6 +867,8 @@ export async function createInNotion(formData: FormData) {
   if (!rows[0]) redirect("/admin/clients");
   const data = rows[0].data;
   if (data.notionPageId) redirect(`/admin/clients/${slug}/edit?ok=notion-exists`);
+  // Ramzi-owned clients are walled off from Marker's Notion books.
+  if (data.owner === "ramzi") redirect(`/admin/clients/${slug}/edit?error=notion-ramzi`);
 
   const made = await createNotionClientWithSource({
     name: rows[0].name,

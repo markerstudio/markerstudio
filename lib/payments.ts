@@ -226,6 +226,7 @@ export async function listUnsyncedPayments(limit = 20): Promise<Payment[]> {
       JOIN clients c ON c.slug = p.client_slug
       WHERE p.notion_synced_at IS NULL
         AND COALESCE(c.data->>'notionPageId', '') <> ''
+        AND COALESCE(c.data->>'owner', '') <> 'ramzi'
         AND p.paid_on > CURRENT_DATE - INTERVAL '90 days'
         AND COALESCE(p.notion_sync_attempts, 0) < 10
       ORDER BY p.paid_on ASC, p.id ASC
