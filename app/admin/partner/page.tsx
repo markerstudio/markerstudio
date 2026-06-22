@@ -3,9 +3,9 @@ import { redirect } from "next/navigation";
 import { getSession, canSeePartner } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { getClients, hasStories } from "@/lib/clients";
-import { clientStoriesFinanceIls } from "@/lib/invoices";
+import { listInvoices, isRamziLine, amountLabelToIls } from "@/lib/invoices";
+import { APPROX_USD_ILS } from "@/lib/money";
 import { listAllPayments, ramziAmountOf, type Payment } from "@/lib/payments";
-import { addStoriesTaskAction, setStoriesTaskStatusAction, deleteStoriesTaskAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +37,7 @@ export default async function PartnerPage() {
     );
   }
 
-  const [clients, payments] = await Promise.all([getClients(), listAllPayments()]);
+  const [clients, payments, invoices] = await Promise.all([getClients(), listAllPayments(), listInvoices()]);
   const nameBySlug = new Map(clients.map((c) => [c.slug, c.name || c.slug]));
 
   // Stories collected for Ramzi across every client, by payment.
@@ -85,18 +85,47 @@ export default async function PartnerPage() {
   });
   const maxMonth = Math.max(1, ...months.map((m) => m.b.ils));
 
-  // Every client connected to Ramzi for stories (explicit toggle) — shown with
-  // their work list so Ramzi knows what to do, even before any money is paid.
+  // Every client connected to Ramzi for stories (explicit toggle).
   const storiesClients = clients.filter((c) => hasStories(c.data));
   const ramziClients = clients.filter((c) => c.data?.owner === "ramzi");
 
-  // Stories money per connected client (billed vs collected, all in ILS) — the
-  // "open" figures roll up into the Outstanding card.
-  const storiesFinance = new Map<string, { billedIls: number; collectedIls: number; openIls: number }>();
-  await Promise.all(
-    storiesClients.map(async (c) => storiesFinance.set(c.slug, await clientStoriesFinanceIls(c.id, c.slug)))
-  );
-  const outstandingIls = Array.from(storiesFinance.values()).reduce((s, v) => s + v.openIls, 0);
+  // ---- Per-client stories billing & collection -----------------------------
+  // Billed = stories invoice lines (this cycle + all-time) from one invoices
+  // query; collected = the stories part of payments (this cycle + all-time).
+  // This drives the per-client "due each cycle vs paid" view below.
+  type Money2 = { total: number; cycle: number };
+  const billedBy = new Map<string, Money2>();
+  for (const inv of invoices) {
+    if (inv.archived_at || inv.status === "draft") continue;
+    const ils = (inv.items || []).filter(isRamziLine).reduce((s, it) => s + amountLabelToIls(it.amount || ""), 0);
+    if (ils <= 0) continue;
+    const e = billedBy.get(inv.client_slug) || { total: 0, cycle: 0 };
+    e.total += ils;
+    if (ymKey(inv.issued_date) === ymNow) e.cycle += ils;
+    billedBy.set(inv.client_slug, e);
+  }
+  const collectedBy = new Map<string, Money2>();
+  for (const { p, amount } of collected) {
+    const ils = amount * (p.currency === "USD" ? APPROX_USD_ILS : 1);
+    const e = collectedBy.get(p.client_slug) || { total: 0, cycle: 0 };
+    e.total += ils;
+    if (ymKey(p.paid_on) === ymNow) e.cycle += ils;
+    collectedBy.set(p.client_slug, e);
+  }
+  const storyOf = (slug: string) => {
+    const billed = billedBy.get(slug) || { total: 0, cycle: 0 };
+    const coll = collectedBy.get(slug) || { total: 0, cycle: 0 };
+    return {
+      billedTotal: Math.round(billed.total),
+      billedCycle: Math.round(billed.cycle),
+      collectedTotal: Math.round(coll.total),
+      collectedCycle: Math.round(coll.cycle),
+      openTotal: Math.max(0, Math.round(billed.total - coll.total)),
+    };
+  };
+  const outstandingIls = storiesClients.reduce((s, c) => s + storyOf(c.slug).openTotal, 0);
+  // Clients with no stories invoice raised yet this cycle — the "to bill" queue.
+  const toBillCount = storiesClients.filter((c) => storyOf(c.slug).billedCycle <= 0).length;
 
   const thisMonthRows = Array.from(thisMonthByClient.entries())
     .map(([slug, v]) => ({ slug, name: nameBySlug.get(slug) || slug, ...v }))
@@ -187,90 +216,74 @@ export default async function PartnerPage() {
         )}
       </div>
 
-      {/* Stories — connected clients & Ramzi's work list */}
+      {/* Stories — per-client dues this cycle vs paid, with billing actions */}
       <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <h2 className="font-bold tracking-tight mb-1">Stories — clients &amp; work</h2>
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
+          <h2 className="font-bold tracking-tight">Stories — dues &amp; collection</h2>
+          {toBillCount > 0 && (
+            <span className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-3 py-1">
+              {toBillCount} to bill for {now.toLocaleDateString("en-US", { month: "long" })}
+            </span>
+          )}
+        </div>
         <p className="text-xs text-neutral-500 mb-4">
-          Every client connected to you for stories. Track what to produce and see what&apos;s billed vs collected. Connect
-          a client by turning on <b>“This client has stories”</b> in their setup.
+          What each stories client owes this cycle and what they&apos;ve paid. At month end, create the invoice (add the
+          stories &amp; marketing lines), then record the payment as it comes in. Connect a client with <b>“This client has
+          stories”</b> in their setup.
         </p>
         {storiesClients.length === 0 ? (
           <p className="text-sm text-neutral-400 py-6 text-center">
             No clients connected for stories yet. Turn on “This client has stories” in a client&apos;s setup.
           </p>
         ) : (
-          <div className="space-y-5">
+          <div className="space-y-3">
             {storiesClients.map((c) => {
-              const sf = storiesFinance.get(c.slug) || { billedIls: 0, collectedIls: 0, openIls: 0 };
-              const tasks = c.data.storiesTasks || [];
+              const s = storyOf(c.slug);
               const fee = c.data.finance?.storiesFee || "";
+              const status = s.billedCycle <= 0 ? "bill" : s.openTotal > 0 ? "due" : "settled";
+              const badge =
+                status === "bill"
+                  ? { text: "Bill this month", cls: "text-amber-700 bg-amber-50 border-amber-200" }
+                  : status === "due"
+                  ? { text: "Awaiting payment", cls: "text-sky-700 bg-sky-50 border-sky-200" }
+                  : { text: "Settled", cls: "text-emerald-700 bg-emerald-50 border-emerald-200" };
               return (
                 <div key={c.slug} className="rounded-lg border border-neutral-200 p-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-center justify-between gap-3 flex-wrap">
                     <div className="min-w-0">
                       <div className="text-sm font-bold text-neutral-900 truncate">{c.name || c.slug}</div>
-                      <div className="text-[11px] text-neutral-500">
-                        {fee ? `Fee ${fee} · ` : ""}
-                        Collected {money(sf.collectedIls, "ILS")} of {money(sf.billedIls, "ILS")}
-                        {sf.openIls > 0 ? ` · ${money(sf.openIls, "ILS")} open` : ""}
-                      </div>
+                      <div className="text-[11px] text-neutral-500">{fee ? `Fee ${fee}` : "No stories fee set"}</div>
                     </div>
-                    <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange shrink-0">
+                    <span className={`text-[11px] font-semibold rounded-full border px-2.5 py-0.5 ${badge.cls}`}>{badge.text}</span>
+                  </div>
+
+                  {/* This cycle vs paid */}
+                  <div className="mt-3 grid grid-cols-3 gap-3 text-center">
+                    <div className="rounded-md bg-neutral-50 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Billed {now.toLocaleDateString("en-US", { month: "short" })}</div>
+                      <div className="text-sm font-bold tabular-nums text-neutral-900">{money(s.billedCycle, "ILS")}</div>
+                    </div>
+                    <div className="rounded-md bg-neutral-50 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Paid {now.toLocaleDateString("en-US", { month: "short" })}</div>
+                      <div className="text-sm font-bold tabular-nums text-neutral-900">{money(s.collectedCycle, "ILS")}</div>
+                    </div>
+                    <div className="rounded-md bg-neutral-50 py-2">
+                      <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Outstanding</div>
+                      <div className={`text-sm font-bold tabular-nums ${s.openTotal > 0 ? "text-orange-deep" : "text-neutral-900"}`}>{money(s.openTotal, "ILS")}</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex items-center gap-2 flex-wrap">
+                    <Link href={`/admin/clients/${c.slug}/edit`} className="rounded-md bg-orange px-3 py-1.5 text-xs font-semibold text-white hover:bg-orange-deep">
+                      Create invoice →
+                    </Link>
+                    <Link href="/admin/payments/new" className="rounded-md border border-neutral-200 px-3 py-1.5 text-xs font-semibold text-neutral-600 hover:text-orange hover:border-orange">
+                      Record payment
+                    </Link>
+                    <Link href={`/admin/clients/${c.slug}/edit`} className="ml-auto text-xs font-semibold text-neutral-400 hover:text-orange">
                       Open client →
                     </Link>
                   </div>
-
-                  {/* Work list */}
-                  {tasks.length > 0 && (
-                    <ul className="mt-3 space-y-1.5">
-                      {tasks.map((t) => (
-                        <li key={t.id} className="flex items-center gap-2 flex-wrap">
-                          <span className={`flex-1 min-w-0 text-sm ${t.status === "done" ? "text-neutral-400 line-through" : "text-neutral-800"}`}>
-                            {t.title}
-                            {t.due ? <span className="text-[11px] text-neutral-400"> · due {t.due}</span> : null}
-                          </span>
-                          <form action={setStoriesTaskStatusAction} className="inline-flex rounded-md border border-neutral-200 overflow-hidden">
-                            <input type="hidden" name="slug" value={c.slug} />
-                            <input type="hidden" name="id" value={t.id} />
-                            {(["todo", "doing", "done"] as const).map((s) => (
-                              <button
-                                key={s}
-                                name="status"
-                                value={s}
-                                className={`px-2 py-1 text-[11px] font-semibold capitalize ${
-                                  t.status === s ? "bg-charcoal text-white" : "bg-white text-neutral-500 hover:text-orange"
-                                }`}
-                              >
-                                {s === "todo" ? "To do" : s}
-                              </button>
-                            ))}
-                          </form>
-                          <form action={deleteStoriesTaskAction}>
-                            <input type="hidden" name="slug" value={c.slug} />
-                            <input type="hidden" name="id" value={t.id} />
-                            <button className="px-1.5 text-xs text-neutral-300 hover:text-red-500" title="Remove">✕</button>
-                          </form>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {/* Add a task */}
-                  <form action={addStoriesTaskAction} className="mt-3 flex items-center gap-2 flex-wrap">
-                    <input type="hidden" name="slug" value={c.slug} />
-                    <input
-                      name="title"
-                      required
-                      placeholder="Add stories work — e.g. 5 daily stories this week"
-                      className="flex-1 min-w-[12rem] rounded-md border border-neutral-200 px-3 py-1.5 text-sm focus:border-orange focus:outline-none"
-                    />
-                    <input
-                      name="due"
-                      type="date"
-                      className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm text-neutral-600 focus:border-orange focus:outline-none"
-                    />
-                    <button className="rounded-md bg-orange px-3 py-1.5 text-sm font-semibold text-white hover:bg-orange-deep">Add</button>
-                  </form>
                 </div>
               );
             })}
