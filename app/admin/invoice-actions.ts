@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { getSession } from "@/lib/auth";
+import { getSession, isPartnerOnly } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import {
   createInvoice, getInvoice, updateInvoice, setInvoicePaid, setInvoiceStatus, deleteInvoice, setInvoiceArchived,
@@ -228,7 +228,8 @@ export async function setInvoiceArchivedAction(formData: FormData) {
 // to what's already been paid and re-derives the status (due → partial → paid).
 // On success it redirects to the receipt so it can be viewed/printed/shared.
 export async function recordPaymentAction(formData: FormData) {
-  if (!(await getSession())) redirect("/login");
+  const session = await getSession();
+  if (!session) redirect("/login");
   const id = Number(formData.get("id") || 0);
   const slug = String(formData.get("slug") || "").trim();
   const back = String(formData.get("back") || "").trim();
@@ -239,6 +240,11 @@ export async function recordPaymentAction(formData: FormData) {
   const note = String(formData.get("note") || "").trim();
   const allocation = parseAllocation(formData.get("allocation"));
   const inv = await getInvoice(id);
+  // A partner-only admin (Ramzi) may record payments only on their own clients.
+  if (inv && isPartnerOnly(session)) {
+    const c = await clientBySlug(inv.client_slug);
+    if (c?.data?.owner !== "ramzi") redirect("/admin/partner");
+  }
   if (inv && amount > 0) {
     const currency = invoiceCurrency(inv.items);
     const { id: payId, number: payNumber } = await recordInvoicePayment({
