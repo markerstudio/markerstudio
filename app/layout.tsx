@@ -21,7 +21,9 @@ export const metadata: Metadata = {
     "Beit Sahour",
     "bilingual",
   ],
-  icons: { icon: "/assets/logo-favicon.png" },
+  // Icons come from the file convention (app/icon.png 192×192 + app/apple-icon.png
+  // 180×180). The old /assets/logo-favicon.png was 4001×4001 — too large for
+  // Chrome to render as a favicon, which is why it vanished from the tab.
   manifest: "/manifest.webmanifest",
   // Installs full-screen (no Safari bars) from the iPhone home screen.
   appleWebApp: {

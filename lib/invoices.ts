@@ -2,6 +2,7 @@
 // PDF. Auto-numbered INV-YYYY-NNN. Stored in their own Neon table.
 import { getSql } from "@/lib/db";
 import { APPROX_USD_ILS } from "@/lib/money";
+import { listClientPayments, ramziAmountOf } from "@/lib/payments";
 
 export type InvoiceItem = { label: string; amount: string; kind?: LineKind; owner?: LineOwner };
 export type InvoiceStatus = "draft" | "due" | "partial" | "paid";
@@ -174,6 +175,41 @@ export async function clientInvoiceFinanceIls(
   totalIls = Math.round(totalIls);
   paidIls = Math.round(paidIls);
   return { totalIls, paidIls, openIls: Math.max(0, totalIls - paidIls), count };
+}
+
+// The STORIES side of a client's money, in ILS — the part Notion never sees
+// (stories are dropped on sync, collected for Ramzi). Billed = stories lines on
+// the client's real invoices; collected = the stories portion of every recorded
+// payment. The open figure is what's layered on top of Notion's Marker-only
+// balance so the client's portal shows the true combined "money left".
+export async function clientStoriesFinanceIls(
+  clientId: number,
+  clientSlug: string
+): Promise<{ billedIls: number; collectedIls: number; openIls: number }> {
+  let invs: Invoice[] = [];
+  try {
+    invs = await listClientInvoices(clientId);
+  } catch {
+    invs = [];
+  }
+  let billedIls = 0;
+  for (const inv of invs) {
+    if (inv.archived_at || inv.status === "draft") continue;
+    const rate = invoiceCurrency(inv.items) === "USD" ? APPROX_USD_ILS : 1;
+    billedIls += ramziItemsTotal(inv.items) * rate;
+  }
+  let collectedIls = 0;
+  try {
+    for (const p of await listClientPayments(clientSlug)) {
+      const rate = p.currency === "USD" ? APPROX_USD_ILS : 1;
+      collectedIls += ramziAmountOf(p) * rate;
+    }
+  } catch {
+    /* no payments / table — collected stays 0 */
+  }
+  billedIls = Math.round(billedIls);
+  collectedIls = Math.round(collectedIls);
+  return { billedIls, collectedIls, openIls: Math.max(0, billedIls - collectedIls) };
 }
 
 export async function getInvoice(id: number): Promise<Invoice | undefined> {
