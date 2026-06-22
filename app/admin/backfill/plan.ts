@@ -19,6 +19,7 @@ export const STORIES_BACKFILL_2026: BackfillEntry[] = [
   { name: "Gardenia", fee: 700, dates: ["2026-03-26", "2026-04-26", "2026-05-26"] },
   { name: "Al Qanater", fee: 1000, dates: ["2026-03-14", "2026-04-14"] },
   { name: "Dr. Jack Sabat", slug: "dr-jack-sabat", fee: 800, dates: ["2026-03-26", "2026-04-26"] },
+  { name: "Blok", fee: 800, dates: ["2026-06-02"] },
 ];
 
 // "YYYY-MM" from a date string or Date (local parts; tolerant of driver types).
