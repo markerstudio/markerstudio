@@ -638,6 +638,7 @@ export async function quickCreateClient(formData: FormData) {
   await ensureClientSchema();
   const name = String(formData.get("name") || "").trim();
   if (!name) redirect("/admin/clients?error=name");
+  const owner = String(formData.get("owner") || "").trim() === "ramzi" ? "ramzi" : "marker";
 
   const sql = getSql();
   const base = slugify(name);
@@ -652,9 +653,13 @@ export async function quickCreateClient(formData: FormData) {
   }
   // Auto-create the client + source in Notion and attach it to All Time Clients
   // Debt, then save the link back so payments and finance sync to it. Best-effort.
+  // Ramzi-owned clients are the partner's own and stay out of Marker's Notion.
   const data = blankClientData();
-  const made = await createNotionClientWithSource({ name });
-  if (made?.clientPageId) data.notionPageId = made.clientPageId;
+  data.owner = owner;
+  if (owner !== "ramzi") {
+    const made = await createNotionClientWithSource({ name });
+    if (made?.clientPageId) data.notionPageId = made.clientPageId;
+  }
   await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
   redirect(`/admin/clients/${slug}/edit`);
 }
