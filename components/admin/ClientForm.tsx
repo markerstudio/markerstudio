@@ -398,6 +398,67 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         <p className="text-xs text-neutral-400 mt-1">Leave End blank in Notion (or here) and the plan shows as “Ongoing”.</p>
       </Group>
 
+      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
+        {linkedToNotion && (
+          <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-relaxed">
+            Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b>{" "}
+            come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving
+            here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
+          </div>
+        )}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
+          <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
+          <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
+          <Text label="Total agreed" value={data.finance?.totalAgreed ?? ""} onChange={(totalAgreed) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, totalAgreed } })} placeholder="e.g. 2,425 ILS" />
+          <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesFee } })} placeholder="e.g. 30 ILS / day" />
+          <div>
+            <label className={lbl}>Money left · auto</label>
+            <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
+          </div>
+        </div>
+        <div className="mb-5">
+          <div className="flex items-center justify-between mb-1">
+            <span className={lbl + " mb-0"}>Paid · auto</span>
+            <span className="text-sm font-bold tabular-nums text-neutral-900">{fin.paidPct}%</span>
+          </div>
+          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+            <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
+          </div>
+          <p className="text-[11px] text-neutral-400 mt-1 tabular-nums">
+            {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
+            {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
+          </p>
+        </div>
+        <label className={lbl}>Payment history</label>
+        <Rows<Invoice> items={data.invoices} onChange={(invoices) => patch({ invoices })} blank={{ cycle: "", desc: "", amount: "", status: "paid" }} addLabel="Add payment"
+          render={(inv, set) => {
+            const { num, cur } = splitAmount(inv.amount);
+            return (
+              <div className="grid grid-cols-2 md:grid-cols-[1fr_120px_96px_110px] gap-3 pr-16 items-end">
+                <div className="col-span-2 md:col-span-1"><Text label="Cycle" value={inv.cycle} onChange={(cycle) => set({ cycle })} placeholder="Cycle 01 · Feb → Mar" /></div>
+                <div>
+                  <label className={lbl}>Amount</label>
+                  <input className={`${input} text-right tabular-nums`} inputMode="decimal" value={num} placeholder="1,800" onChange={(e) => set({ amount: joinAmount(e.target.value, cur) })} />
+                </div>
+                <div>
+                  <label className={lbl}>Currency</label>
+                  <select className={input} value={cur} onChange={(e) => set({ amount: joinAmount(num, e.target.value as "ILS" | "USD") })}>
+                    <option value="ILS">ILS ₪</option>
+                    <option value="USD">USD $</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={lbl}>Status</label>
+                  <select className={input} value={inv.status} onChange={(e) => set({ status: e.target.value as Invoice["status"] })}>
+                    <option value="paid">Paid</option><option value="due">Due</option><option value="overdue">Overdue</option>
+                  </select>
+                </div>
+                <div className="col-span-2 md:col-span-4"><Text label="Description (optional)" value={inv.desc} onChange={(desc) => set({ desc })} /></div>
+              </div>
+            );
+          }} />
+      </Group>
+
       <Group title="Dashboard" hint="The Dashboard is an auto quick-view (plan, money left, next post, top result). You just set a one-line headline and a few optional health bars.">
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
         <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
@@ -496,67 +557,6 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
               <div className="col-span-2 md:col-span-4"><Text label="Description" value={c.desc} onChange={(desc) => set({ desc })} area /></div>
             </div>
           )} />
-      </Group>
-
-      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
-        {linkedToNotion && (
-          <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-relaxed">
-            Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b>{" "}
-            come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving
-            here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
-          <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patch({ finance: { ...data.finance, monthlyFee, progress: data.finance?.progress ?? 0 } })} placeholder="e.g. 1,800 ILS" />
-          <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, brandingFee } })} placeholder="e.g. 2,500 ILS" />
-          <Text label="Total agreed" value={data.finance?.totalAgreed ?? ""} onChange={(totalAgreed) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, totalAgreed } })} placeholder="e.g. 2,425 ILS" />
-          <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesFee } })} placeholder="e.g. 30 ILS / day" />
-          <div>
-            <label className={lbl}>Money left · auto</label>
-            <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
-          </div>
-        </div>
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-1">
-            <span className={lbl + " mb-0"}>Paid · auto</span>
-            <span className="text-sm font-bold tabular-nums text-neutral-900">{fin.paidPct}%</span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
-            <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
-          </div>
-          <p className="text-[11px] text-neutral-400 mt-1 tabular-nums">
-            {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
-            {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
-          </p>
-        </div>
-        <label className={lbl}>Payment history</label>
-        <Rows<Invoice> items={data.invoices} onChange={(invoices) => patch({ invoices })} blank={{ cycle: "", desc: "", amount: "", status: "paid" }} addLabel="Add payment"
-          render={(inv, set) => {
-            const { num, cur } = splitAmount(inv.amount);
-            return (
-              <div className="grid grid-cols-2 md:grid-cols-[1fr_120px_96px_110px] gap-3 pr-16 items-end">
-                <div className="col-span-2 md:col-span-1"><Text label="Cycle" value={inv.cycle} onChange={(cycle) => set({ cycle })} placeholder="Cycle 01 · Feb → Mar" /></div>
-                <div>
-                  <label className={lbl}>Amount</label>
-                  <input className={`${input} text-right tabular-nums`} inputMode="decimal" value={num} placeholder="1,800" onChange={(e) => set({ amount: joinAmount(e.target.value, cur) })} />
-                </div>
-                <div>
-                  <label className={lbl}>Currency</label>
-                  <select className={input} value={cur} onChange={(e) => set({ amount: joinAmount(num, e.target.value as "ILS" | "USD") })}>
-                    <option value="ILS">ILS ₪</option>
-                    <option value="USD">USD $</option>
-                  </select>
-                </div>
-                <div>
-                  <label className={lbl}>Status</label>
-                  <select className={input} value={inv.status} onChange={(e) => set({ status: e.target.value as Invoice["status"] })}>
-                    <option value="paid">Paid</option><option value="due">Due</option><option value="overdue">Overdue</option>
-                  </select>
-                </div>
-                <div className="col-span-2 md:col-span-4"><Text label="Description (optional)" value={inv.desc} onChange={(desc) => set({ desc })} /></div>
-              </div>
-            );
-          }} />
       </Group>
 
       <Group title="Documents" hint="Proposal, agreement, etc. Upload a PDF (or image) or paste a link — clients can open / download these.">
