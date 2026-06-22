@@ -85,7 +85,7 @@ async function recordDepositPayment(input: {
 }) {
   if (!(input.amount > 0)) return;
   const currency = invoiceCurrency(input.items);
-  const { id: payId } = await recordInvoicePayment({
+  const { id: payId, number: payNumber } = await recordInvoicePayment({
     invoiceId: input.invoiceId,
     clientSlug: input.slug,
     amount: input.amount,
@@ -100,6 +100,7 @@ async function recordDepositPayment(input: {
     label: input.label,
     currency,
     dueDate: input.dueDate || null,
+    ref: payNumber,
   });
 }
 
@@ -240,7 +241,7 @@ export async function recordPaymentAction(formData: FormData) {
   const inv = await getInvoice(id);
   if (inv && amount > 0) {
     const currency = invoiceCurrency(inv.items);
-    const { id: payId } = await recordInvoicePayment({
+    const { id: payId, number: payNumber } = await recordInvoicePayment({
       invoiceId: id,
       clientSlug: slug,
       amount,
@@ -263,6 +264,7 @@ export async function recordPaymentAction(formData: FormData) {
       dueDate: inv.due_date,
       allocation: allocation.length ? allocation : null,
       paidOn: paidOn || undefined,
+      ref: payNumber,
     });
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
