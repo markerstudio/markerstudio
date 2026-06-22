@@ -77,6 +77,6 @@ jobs:
 
             > Unsigned build: the first launch is blocked by macOS. Open
             > **System Settings -> Privacy & Security**, then click **Open Anyway**.
-          releaseDraft: true
+          releaseDraft: false
           prerelease: false
           args: --target universal-apple-darwin
