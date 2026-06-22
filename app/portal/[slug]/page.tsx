@@ -3,8 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { clientInvoiceFinanceIls, clientStoriesFinanceIls } from "@/lib/invoices";
-import { amountLabelToIls } from "@/lib/money";
+import { clientFacingMoney } from "@/lib/clientFinance";
 import { getLiveNotionClient } from "@/lib/notion";
 import { getLiveMetaAnalysis } from "@/lib/meta";
 import { isDbEnabled, getSql } from "@/lib/db";
@@ -81,43 +80,17 @@ export default async function PortalPage({ params }: { params: { slug: string } 
     }
   }
 
-  // Client-facing money is the COMBINED figure — marketing/branding + stories —
-  // so a 1,800 invoice split 1,000 stories / 800 marketing never reads as "800
-  // left". How we combine depends on where the marketing money lives:
-  //   • Linked to Notion: Notion OWNS the marketing/branding balance (the block
-  //     above already set it). We only ADD the app's stories on top — never
-  //     replace Notion's number — so a Notion-driven client is never clobbered.
-  //   • Not linked: everything lives in the app's own invoices (which already
-  //     include the stories lines), so we use that combined figure directly.
+  // Client-facing money is the COMBINED figure (marketing/branding + stories),
+  // computed once in lib/clientFinance so the dashboard and the statement always
+  // show the same number. A 1,800 invoice split 1,000 stories / 800 marketing
+  // therefore never reads as "800 left".
   if (isDbEnabled()) {
     try {
+      const money = await clientFacingMoney(client);
       const d = client.data;
-      if (d.notionPageId) {
-        const stories = await clientStoriesFinanceIls(client.id, client.slug);
-        if (stories.billedIls > 0) {
-          const markerLeft = amountLabelToIls(d.plan?.balance || "");
-          const combinedLeft = markerLeft + stories.openIls;
-          d.plan = { ...d.plan, balance: `${combinedLeft.toLocaleString("en-US")} ILS` };
-          // Fold the stories side into Paid %. Reconstruct Marker's paid/total
-          // from Notion's balance + progress (clean when 0<p<100), then combine.
-          if (!d.finance) d.finance = { monthlyFee: "", progress: 0 };
-          const p = Math.max(0, Math.min(100, d.finance.progress || 0));
-          // Reconstruct Marker's paid from (left, progress%). Clamp it: near
-          // p=100 the ratio explodes, so cap at 100× the balance (≈99% paid) to
-          // keep the combined % sane. Money-left above is exact regardless.
-          const markerPaid = p > 0 && p < 100 ? Math.min(markerLeft * 100, (markerLeft * p) / (100 - p)) : 0;
-          const total = markerPaid + markerLeft + stories.billedIls;
-          const paid = markerPaid + stories.collectedIls;
-          if (total > 0) d.finance.progress = Math.max(0, Math.min(100, Math.round((paid / total) * 100)));
-        }
-      } else {
-        const appFin = await clientInvoiceFinanceIls(client.id);
-        if (appFin.count > 0) {
-          d.plan = { ...d.plan, balance: `${appFin.openIls.toLocaleString("en-US")} ILS` };
-          if (!d.finance) d.finance = { monthlyFee: "", progress: 0 };
-          d.finance.progress = appFin.totalIls > 0 ? Math.round((appFin.paidIls / appFin.totalIls) * 100) : d.finance.progress;
-        }
-      }
+      d.plan = { ...d.plan, balance: money.balanceLabel };
+      if (!d.finance) d.finance = { monthlyFee: "", progress: 0 };
+      d.finance.progress = money.progress;
     } catch {
       /* keep the Notion / saved figures */
     }

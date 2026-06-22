@@ -46,16 +46,24 @@ export default async function PartnerPage() {
     .filter((x) => x.amount > 0);
 
   // ---- Month buckets -------------------------------------------------------
+  // Build month keys ("YYYY-MM") from LOCAL date parts. `paid_on` can come back
+  // from the driver as a Date object (not a string), and toISOString() shifts a
+  // local-midnight date into the previous month for east-of-UTC zones — both of
+  // which silently mis-bucketed every payment, leaving the chart empty.
   const now = new Date();
-  const ym = (d: Date) => d.toISOString().slice(0, 7);
-  const ymNow = ym(now);
-  const ymLast = ym(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+  const ymKey = (v: unknown): string => {
+    if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) return v.slice(0, 7);
+    const d = v instanceof Date ? v : new Date(String(v ?? ""));
+    return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const ymNow = ymKey(now);
+  const ymLast = ymKey(new Date(now.getFullYear(), now.getMonth() - 1, 1));
 
   const byMonth = new Map<string, Bucket>();
   const thisMonthByClient = new Map<string, Bucket>();
   const allTime = blank();
   for (const { p, amount } of collected) {
-    const k = String(p.paid_on).slice(0, 7);
+    const k = ymKey(p.paid_on);
     const b = byMonth.get(k) || blank();
     addTo(b, p.currency, amount);
     byMonth.set(k, b);
@@ -72,7 +80,7 @@ export default async function PartnerPage() {
   // Last 6 months, oldest → newest, for the mini bar chart (ILS only).
   const months = Array.from({ length: 6 }, (_, i) => {
     const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
-    const k = ym(d);
+    const k = ymKey(d);
     return { key: k, label: d.toLocaleDateString("en-US", { month: "short" }), b: byMonth.get(k) || blank() };
   });
   const maxMonth = Math.max(1, ...months.map((m) => m.b.ils));
@@ -137,14 +145,15 @@ export default async function PartnerPage() {
       {/* ---- 6-month trend ---- */}
       <div className="bg-white border border-neutral-200 rounded-xl p-5">
         <h2 className="font-bold tracking-tight mb-4">Collected — last 6 months</h2>
-        <div className="flex items-end gap-3 h-32">
+        <div className="flex items-end gap-3">
           {months.map((m) => (
             <div key={m.key} className="flex-1 flex flex-col items-center gap-1.5">
-              <div className="text-[11px] font-semibold tabular-nums text-neutral-500">{m.b.ils > 0 ? Math.round(m.b.ils).toLocaleString("en-US") : ""}</div>
-              <div className="w-full bg-neutral-100 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
+              <div className="h-4 text-[11px] font-semibold tabular-nums text-neutral-500">{m.b.ils > 0 ? Math.round(m.b.ils).toLocaleString("en-US") : ""}</div>
+              {/* Fixed-height track so the inner bar's % has something to fill. */}
+              <div className="w-full bg-neutral-100 rounded-md overflow-hidden flex items-end" style={{ height: 96 }}>
                 <div
                   className={`w-full rounded-md ${m.key === ymNow ? "bg-orange" : "bg-charcoal/70"}`}
-                  style={{ height: `${Math.max(m.b.ils > 0 ? 6 : 0, (m.b.ils / maxMonth) * 100)}%` }}
+                  style={{ height: `${m.b.ils > 0 ? Math.max(6, (m.b.ils / maxMonth) * 100) : 0}%` }}
                 />
               </div>
               <div className={`text-[11px] ${m.key === ymNow ? "font-bold text-orange-deep" : "text-neutral-400"}`}>{m.label}</div>

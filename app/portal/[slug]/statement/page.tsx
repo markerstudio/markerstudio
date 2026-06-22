@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { listClientInvoices, invoiceGrandTotal, amountLabelToIls } from "@/lib/invoices";
+import { clientFacingMoney } from "@/lib/clientFinance";
 import StatementDocument, { type StatementRow } from "@/components/docs/StatementDocument";
 
 export const dynamic = "force-dynamic";
@@ -75,6 +76,17 @@ export default async function StatementPage({ params }: { params: { slug: string
     rows.sort((a, b) => (a.date < b.date ? 1 : -1));
   }
 
+  // Summary totals come from the SAME combined calculation as the portal
+  // dashboard (lib/clientFinance) so the two screens never disagree. The rows
+  // above remain the itemised history. Fall back to the row totals if the
+  // combined read fails.
+  let money: Awaited<ReturnType<typeof clientFacingMoney>> | null = null;
+  try {
+    money = await clientFacingMoney(client);
+  } catch {
+    money = null;
+  }
+
   return (
     <main style={{ background: "#33312e", minHeight: "100vh" }}>
       <StatementDocument
@@ -82,10 +94,10 @@ export default async function StatementPage({ params }: { params: { slug: string
         clientSlug={client.slug}
         rows={rows}
         summary={{
-          totalBilled,
-          totalPaid,
-          totalOpen,
-          balance: client.data.plan?.balance || "",
+          totalBilled: money ? money.totalIls : totalBilled,
+          totalPaid: money ? money.paidIls : totalPaid,
+          totalOpen: money ? money.openIls : totalOpen,
+          balance: money ? money.balanceLabel : client.data.plan?.balance || "",
           monthlyFee: client.data.finance?.monthlyFee || "",
           currency: "ILS",
         }}
