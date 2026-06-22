@@ -17,13 +17,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   return { title: client ? `${client.name} · Portal` : "Portal", robots: { index: false, follow: false } };
 }
 
-export default async function PortalPage({
-  params,
-  searchParams,
-}: {
-  params: { slug: string };
-  searchParams: { edit?: string };
-}) {
+export default async function PortalPage({ params }: { params: { slug: string } }) {
   const s = await getSession();
   if (!s) redirect("/login");
 
@@ -48,10 +42,8 @@ export default async function PortalPage({
     );
   }
 
-  // Portal is view-only. Editing a client's content lives in Settings
+  // Portal is view-only. Editing a client's content lives in admin Settings
   // (/admin/clients/[slug]/edit) — the in-portal editor was removed.
-  const canEdit = false;
-  const editing = false;
 
   // Auto-refresh finance/plan from Notion on view (cached ~5 min). Only overwrite
   // fields Notion actually returned, so a partial read never wipes saved data —
@@ -97,7 +89,7 @@ export default async function PortalPage({
   //     replace Notion's number — so a Notion-driven client is never clobbered.
   //   • Not linked: everything lives in the app's own invoices (which already
   //     include the stories lines), so we use that combined figure directly.
-  if (!editing && isDbEnabled()) {
+  if (isDbEnabled()) {
     try {
       const d = client.data;
       if (d.notionPageId) {
@@ -110,7 +102,10 @@ export default async function PortalPage({
           // from Notion's balance + progress (clean when 0<p<100), then combine.
           if (!d.finance) d.finance = { monthlyFee: "", progress: 0 };
           const p = Math.max(0, Math.min(100, d.finance.progress || 0));
-          const markerPaid = p > 0 && p < 100 ? (markerLeft * p) / (100 - p) : 0;
+          // Reconstruct Marker's paid from (left, progress%). Clamp it: near
+          // p=100 the ratio explodes, so cap at 100× the balance (≈99% paid) to
+          // keep the combined % sane. Money-left above is exact regardless.
+          const markerPaid = p > 0 && p < 100 ? Math.min(markerLeft * 100, (markerLeft * p) / (100 - p)) : 0;
           const total = markerPaid + markerLeft + stories.billedIls;
           const paid = markerPaid + stories.collectedIls;
           if (total > 0) d.finance.progress = Math.max(0, Math.min(100, Math.round((paid / total) * 100)));
@@ -132,7 +127,7 @@ export default async function PortalPage({
   // token stays here, never reaching the client component) and merged into the
   // Analysis tab. Cached ~15 min; falls back silently to the saved metrics.
   let metaLive = false;
-  if (!editing && isDbEnabled() && client.data.analysis) {
+  if (isDbEnabled() && client.data.analysis) {
     const meta = await getLiveMetaAnalysis(client.id);
     if (meta && (meta.organic.length || meta.campaigns.length)) {
       metaLive = true;
@@ -178,7 +173,7 @@ export default async function PortalPage({
           </div>
         </div>
       )}
-      <PortalView client={client} canEdit={canEdit} initialEdit={editing} metaLive={metaLive} />
+      <PortalView client={client} metaLive={metaLive} />
     </>
   );
 }
