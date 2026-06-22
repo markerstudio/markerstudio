@@ -416,6 +416,19 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
             <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
           </div>
         </div>
+        <label className="flex items-start gap-3 text-sm mb-5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <input
+            type="checkbox"
+            className="custom-checkbox mt-0.5"
+            checked={!!data.finance?.storiesActive}
+            onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesActive: e.target.checked } })}
+          />
+          <span className="leading-relaxed">
+            <b>This client has stories</b> (Ramzi). Turning this on connects them to <b>Ramzi&apos;s portal</b>, where he
+            tracks the stories work and what&apos;s been collected. Stories money stays on the client&apos;s invoice and in
+            the client&apos;s combined total, but is never Marker income or synced to Notion.
+          </span>
+        </label>
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1">
             <span className={lbl + " mb-0"}>Paid · auto</span>

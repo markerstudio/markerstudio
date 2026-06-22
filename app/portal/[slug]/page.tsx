@@ -3,6 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
+import { clientInvoiceFinanceIls } from "@/lib/invoices";
 import { getLiveNotionClient } from "@/lib/notion";
 import { getLiveMetaAnalysis } from "@/lib/meta";
 import { isDbEnabled } from "@/lib/db";
@@ -70,6 +71,26 @@ export default async function PortalPage({
         brandingFee: live.brandingFee || d.finance?.brandingFee || "",
       };
       if (live.invoices.length) d.invoices = live.invoices;
+    }
+  }
+
+  // Client-facing money is the COMBINED figure — marketing/branding + stories —
+  // taken from the app's own invoices, which carry every line. Notion stays the
+  // internal Marker-only books (stories are dropped there on sync); here we show
+  // the client the full total so a 1,800 invoice split 1,000 stories / 800
+  // marketing never reads as "800 left". Falls back to the Notion/saved figures
+  // when the client has no app invoices yet.
+  if (!editing && isDbEnabled()) {
+    try {
+      const appFin = await clientInvoiceFinanceIls(client.id);
+      if (appFin.count > 0) {
+        const d = client.data;
+        d.plan = { ...d.plan, balance: `${appFin.openIls.toLocaleString("en-US")} ILS` };
+        if (!d.finance) d.finance = { monthlyFee: "", progress: 0 };
+        d.finance.progress = appFin.totalIls > 0 ? Math.round((appFin.paidIls / appFin.totalIls) * 100) : d.finance.progress;
+      }
+    } catch {
+      /* keep the Notion / saved figures */
     }
   }
 

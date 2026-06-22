@@ -2,8 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, canSeePartner } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
-import { getClients } from "@/lib/clients";
+import { getClients, hasStories } from "@/lib/clients";
 import { listAllPayments, ramziAmountOf, type Payment } from "@/lib/payments";
+import { addStoriesTaskAction, setStoriesTaskStatusAction, deleteStoriesTaskAction } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +50,9 @@ export default async function PartnerPage() {
     .map(([slug, v]) => ({ slug, name: nameBySlug.get(slug) || slug, ...v }))
     .sort((a, b) => b.ils + b.usd - (a.ils + a.usd));
 
+  // Every client connected to Ramzi for stories (explicit toggle) — shown with
+  // their work list so Ramzi knows what to do, even before any money is paid.
+  const storiesClients = clients.filter((c) => hasStories(c.data));
   const ramziClients = clients.filter((c) => c.data?.owner === "ramzi");
   const recent: { p: Payment; amount: number }[] = collected.slice(0, 12);
   const totalIls = totalsByCurrency.get("ILS") || 0;
@@ -79,6 +83,99 @@ export default async function PartnerPage() {
           <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{ramziClients.length}</div>
           <div className="text-xs text-neutral-400">walled off from other admins</div>
         </div>
+      </div>
+
+      {/* Stories — connected clients & Ramzi's work list */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-5">
+        <h2 className="font-bold tracking-tight mb-1">Stories — clients &amp; work</h2>
+        <p className="text-xs text-neutral-500 mb-4">
+          Every client connected to you for stories. Track what to produce and see what&apos;s been collected. Connect a
+          client by turning on <b>“This client has stories”</b> in their setup.
+        </p>
+        {storiesClients.length === 0 ? (
+          <p className="text-sm text-neutral-400 py-6 text-center">
+            No clients connected for stories yet. Turn on “This client has stories” in a client&apos;s setup.
+          </p>
+        ) : (
+          <div className="space-y-5">
+            {storiesClients.map((c) => {
+              const collected = byClient.get(c.slug) || { ils: 0, usd: 0, count: 0 };
+              const tasks = c.data.storiesTasks || [];
+              const fee = c.data.finance?.storiesFee || "";
+              return (
+                <div key={c.slug} className="rounded-lg border border-neutral-200 p-4">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-neutral-900 truncate">{c.name || c.slug}</div>
+                      <div className="text-[11px] text-neutral-500">
+                        {fee ? `Fee ${fee}` : "No stories fee set"}
+                        {" · "}
+                        Collected{" "}
+                        {collected.ils > 0 ? money(collected.ils, "ILS") : "0 ILS"}
+                        {collected.usd > 0 ? ` · ${money(collected.usd, "USD")}` : ""}
+                      </div>
+                    </div>
+                    <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange shrink-0">
+                      Open client →
+                    </Link>
+                  </div>
+
+                  {/* Work list */}
+                  {tasks.length > 0 && (
+                    <ul className="mt-3 space-y-1.5">
+                      {tasks.map((t) => (
+                        <li key={t.id} className="flex items-center gap-2 flex-wrap">
+                          <span className={`flex-1 min-w-0 text-sm ${t.status === "done" ? "text-neutral-400 line-through" : "text-neutral-800"}`}>
+                            {t.title}
+                            {t.due ? <span className="text-[11px] text-neutral-400"> · due {t.due}</span> : null}
+                          </span>
+                          <form action={setStoriesTaskStatusAction} className="inline-flex rounded-md border border-neutral-200 overflow-hidden">
+                            <input type="hidden" name="slug" value={c.slug} />
+                            <input type="hidden" name="id" value={t.id} />
+                            {(["todo", "doing", "done"] as const).map((s) => (
+                              <button
+                                key={s}
+                                name="status"
+                                value={s}
+                                className={`px-2 py-1 text-[11px] font-semibold capitalize ${
+                                  t.status === s ? "bg-charcoal text-white" : "bg-white text-neutral-500 hover:text-orange"
+                                }`}
+                              >
+                                {s === "todo" ? "To do" : s}
+                              </button>
+                            ))}
+                          </form>
+                          <form action={deleteStoriesTaskAction}>
+                            <input type="hidden" name="slug" value={c.slug} />
+                            <input type="hidden" name="id" value={t.id} />
+                            <button className="px-1.5 text-xs text-neutral-300 hover:text-red-500" title="Remove">✕</button>
+                          </form>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* Add a task */}
+                  <form action={addStoriesTaskAction} className="mt-3 flex items-center gap-2 flex-wrap">
+                    <input type="hidden" name="slug" value={c.slug} />
+                    <input
+                      name="title"
+                      required
+                      placeholder="Add stories work — e.g. 5 daily stories this week"
+                      className="flex-1 min-w-[12rem] rounded-md border border-neutral-200 px-3 py-1.5 text-sm focus:border-orange focus:outline-none"
+                    />
+                    <input
+                      name="due"
+                      type="date"
+                      className="rounded-md border border-neutral-200 px-2 py-1.5 text-sm text-neutral-600 focus:border-orange focus:outline-none"
+                    />
+                    <button className="rounded-md bg-orange px-3 py-1.5 text-sm font-semibold text-white hover:bg-orange-deep">Add</button>
+                  </form>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Stories collected, by client */}
