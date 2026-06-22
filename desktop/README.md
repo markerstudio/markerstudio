@@ -75,7 +75,11 @@ shows a warning, so users must right-click the app → **Open** once. Fine for a
 small internal team.
 
 For a clean, warning-free install you need an **Apple Developer ID** ($99/yr).
-Add these as repo secrets and the workflow signs + notarizes automatically:
+Add these as repo secrets **and** uncomment the `APPLE_*` env block in
+`.github/workflows/desktop-release.yml` (it's left commented by default — when
+those vars are present but empty, tauri-action tries to import an empty
+certificate and the build fails). With the secrets set and the block enabled,
+the workflow signs + notarizes automatically:
 
 | Secret | What it is |
 |---|---|
