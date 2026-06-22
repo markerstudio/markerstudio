@@ -36,6 +36,10 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
   const preset = initialId != null ? invoices.find((v) => v.id === initialId) : undefined;
   const [id, setId] = useState<number | "">(preset ? preset.id : "");
   const [alloc, setAlloc] = useState<string[]>(preset ? defaultAlloc(preset) : []);
+  // Currency starts from the invoice's inferred currency but is editable — the
+  // "$" heuristic can misread a mixed/USD invoice, and this is what's written to
+  // Notion, so the admin gets the final say.
+  const [currency, setCurrency] = useState<"ILS" | "USD">(preset ? preset.currency : "ILS");
   const inv = invoices.find((v) => v.id === id);
 
   function selectInvoice(value: string) {
@@ -44,6 +48,7 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
     const o = invoices.find((x) => x.id === v);
     if (!o) return setAlloc([]);
     setAlloc(defaultAlloc(o));
+    setCurrency(o.currency);
   }
 
   const groups = Array.from(new Set(invoices.map((v) => v.clientName))).sort();
@@ -59,6 +64,7 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
       <input type="hidden" name="slug" value={inv?.clientSlug || ""} />
       <input type="hidden" name="back" value="/admin/invoices" />
       <input type="hidden" name="amount" value={total} />
+      <input type="hidden" name="currency" value={currency} />
       <input type="hidden" name="allocation" value={JSON.stringify(allocationPayload)} />
 
       <div>
@@ -107,11 +113,11 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
 
           <div className="flex items-center justify-between border-t border-neutral-100 pt-3 text-sm">
             <span className="font-semibold text-neutral-900">Total payment</span>
-            <span className="font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US")} {inv.currency}</span>
+            <span className="font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US")} {currency}</span>
           </div>
           {ramziTotal > 0 && (
             <p className="text-xs text-orange-deep -mt-2">
-              {ramziTotal.toLocaleString("en-US")} {inv.currency} of this is Ramzi&apos;s (stories) — collected for him, kept out of Marker income &amp; Notion.
+              {ramziTotal.toLocaleString("en-US")} {currency} of this is Ramzi&apos;s (stories) — collected for him, kept out of Marker income &amp; Notion.
             </p>
           )}
 
@@ -119,6 +125,13 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Date</label>
               <input type="date" name="paidOn" className={field} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Currency</label>
+              <select value={currency} onChange={(e) => setCurrency(e.target.value as "ILS" | "USD")} className={field}>
+                <option value="ILS">ILS ₪</option>
+                <option value="USD">USD $</option>
+              </select>
             </div>
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Method</label>
@@ -135,6 +148,15 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
               <input name="note" className={`${field} w-full`} placeholder="e.g. June stories + plan" />
             </div>
           </div>
+
+          <label className="flex items-start gap-2.5 text-sm text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md px-3 py-2.5">
+            <input type="checkbox" name="toNotion" defaultChecked value="on" className="custom-checkbox mt-0.5" />
+            <span>
+              <b>Also add to Notion records.</b> Writes the Marker (marketing/branding) part of this payment to the Notion
+              Income database, in the currency above. Stories stay out of Notion (collected for Ramzi). Uncheck if it&apos;s
+              already in Notion.
+            </span>
+          </label>
 
           <button disabled={total <= 0} className="bg-green-600 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-green-700 transition-colors disabled:opacity-50">
             Record payment &amp; create receipt

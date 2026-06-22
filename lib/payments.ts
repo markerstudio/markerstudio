@@ -130,6 +130,20 @@ export async function listInvoicePayments(invoiceId: number): Promise<Payment[]>
   }
 }
 
+// Every payment recorded for one client, newest first.
+export async function listClientPayments(slug: string, limit = 1000): Promise<Payment[]> {
+  try {
+    await ensurePaymentsTable();
+    return (await getSql()`
+      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation, created_at,
+             notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
+      FROM invoice_payments WHERE client_slug = ${slug} ORDER BY paid_on DESC, id DESC LIMIT ${limit}
+    `) as unknown as Payment[];
+  } catch {
+    return [];
+  }
+}
+
 // Every recorded payment, newest first — for the partner (Ramzi) roll-up.
 export async function listAllPayments(limit = 1000): Promise<Payment[]> {
   try {

@@ -6,6 +6,13 @@ import { SignJWT, jwtVerify } from "jose";
 
 export const SESSION_COOKIE = "marker_session";
 
+// How long a sign-in lasts before re-authentication is required. Kept generous
+// (30 days) so the studio and clients — and the desktop app — stay signed in
+// between visits instead of logging in each time. The cookie's max-age and the
+// JWT's own expiry are set to the same window so neither expires before the other.
+const SESSION_DAYS = 30;
+const SESSION_SECONDS = 60 * 60 * 24 * SESSION_DAYS;
+
 // The studio owner's account. It can never be removed, and it's the only one
 // allowed to add or remove admin users. Override with SUPERADMIN_EMAIL if the
 // address ever changes.
@@ -62,7 +69,7 @@ export async function createSession(user: SessionUser): Promise<void> {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime("7d")
+    .setExpirationTime(`${SESSION_DAYS}d`)
     .sign(secret());
 
   cookies().set(SESSION_COOKIE, token, {
@@ -70,7 +77,7 @@ export async function createSession(user: SessionUser): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 60 * 60 * 24 * 7,
+    maxAge: SESSION_SECONDS,
   });
 }
 

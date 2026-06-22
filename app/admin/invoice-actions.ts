@@ -239,6 +239,14 @@ export async function recordPaymentAction(formData: FormData) {
   const paidOn = String(formData.get("paidOn") || "").trim();
   const note = String(formData.get("note") || "").trim();
   const allocation = parseAllocation(formData.get("allocation"));
+  // Currency is chosen on the form (defaulting to the invoice's inferred
+  // currency) so a USD/ILS invoice that the "$" heuristic gets wrong can be
+  // corrected at record time — it drives both the receipt and the Notion row.
+  const currencyRaw = String(formData.get("currency") || "").trim().toUpperCase();
+  // "Also add to Notion records" — a checkbox (checked by default in the form),
+  // so a present value means sync, absent means the admin unchecked it. Lets a
+  // payment that's already in Notion (or shouldn't go there) skip the mirror.
+  const toNotion = formData.get("toNotion") === "on";
   const inv = await getInvoice(id);
   // A partner-only admin (Ramzi) may record payments only on their own clients.
   if (inv && isPartnerOnly(session)) {
@@ -246,7 +254,7 @@ export async function recordPaymentAction(formData: FormData) {
     if (c?.data?.owner !== "ramzi") redirect("/admin/partner");
   }
   if (inv && amount > 0) {
-    const currency = invoiceCurrency(inv.items);
+    const currency = currencyRaw === "USD" || currencyRaw === "ILS" ? (currencyRaw as "ILS" | "USD") : invoiceCurrency(inv.items);
     const { id: payId, number: payNumber } = await recordInvoicePayment({
       invoiceId: id,
       clientSlug: slug,
@@ -258,20 +266,23 @@ export async function recordPaymentAction(formData: FormData) {
       allocation: allocation.length ? allocation : undefined,
     });
     await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
-    // Mirror into Notion and record whether it stuck; a failure here is saved on
-    // the payment and retried by the reconciler, never silently dropped.
-    await syncPaymentToNotion({
-      payId,
-      slug,
-      amount,
-      items: inv.items,
-      label: `${inv.number} payment`,
-      currency,
-      dueDate: inv.due_date,
-      allocation: allocation.length ? allocation : null,
-      paidOn: paidOn || undefined,
-      ref: payNumber,
-    });
+    // Mirror into Notion (unless the admin opted out) and record whether it
+    // stuck; a failure here is saved on the payment and retried by the
+    // reconciler, never silently dropped.
+    if (toNotion) {
+      await syncPaymentToNotion({
+        payId,
+        slug,
+        amount,
+        items: inv.items,
+        label: `${inv.number} payment`,
+        currency,
+        dueDate: inv.due_date,
+        allocation: allocation.length ? allocation : null,
+        paidOn: paidOn || undefined,
+        ref: payNumber,
+      });
+    }
     revalidatePath(`/portal/${slug}`);
     revalidatePath("/admin/invoices");
     revalidatePath("/admin");
