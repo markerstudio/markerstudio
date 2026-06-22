@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getSession, canSeePartner } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { getClients, hasStories } from "@/lib/clients";
+import { clientStoriesFinanceIls } from "@/lib/invoices";
 import { listAllPayments, ramziAmountOf, type Payment } from "@/lib/payments";
 import { addStoriesTaskAction, setStoriesTaskStatusAction, deleteStoriesTaskAction } from "./actions";
 
@@ -11,6 +12,14 @@ export const dynamic = "force-dynamic";
 function money(n: number, currency: string) {
   const v = Math.round(n).toLocaleString("en-US");
   return currency === "USD" ? `$${v}` : `${v} ILS`;
+}
+
+type Bucket = { ils: number; usd: number; count: number };
+const blank = (): Bucket => ({ ils: 0, usd: 0, count: 0 });
+function addTo(b: Bucket, currency: string, amount: number) {
+  if (currency === "USD") b.usd += amount;
+  else b.ils += amount;
+  b.count++;
 }
 
 export default async function PartnerPage() {
@@ -36,61 +45,145 @@ export default async function PartnerPage() {
     .map((p) => ({ p, amount: ramziAmountOf(p) }))
     .filter((x) => x.amount > 0);
 
-  const totalsByCurrency = new Map<string, number>();
-  const byClient = new Map<string, { ils: number; usd: number; count: number }>();
+  // ---- Month buckets -------------------------------------------------------
+  const now = new Date();
+  const ym = (d: Date) => d.toISOString().slice(0, 7);
+  const ymNow = ym(now);
+  const ymLast = ym(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+
+  const byMonth = new Map<string, Bucket>();
+  const thisMonthByClient = new Map<string, Bucket>();
+  const allTime = blank();
   for (const { p, amount } of collected) {
-    totalsByCurrency.set(p.currency, (totalsByCurrency.get(p.currency) || 0) + amount);
-    const b = byClient.get(p.client_slug) || { ils: 0, usd: 0, count: 0 };
-    if (p.currency === "USD") b.usd += amount;
-    else b.ils += amount;
-    b.count++;
-    byClient.set(p.client_slug, b);
+    const k = String(p.paid_on).slice(0, 7);
+    const b = byMonth.get(k) || blank();
+    addTo(b, p.currency, amount);
+    byMonth.set(k, b);
+    addTo(allTime, p.currency, amount);
+    if (k === ymNow) {
+      const cb = thisMonthByClient.get(p.client_slug) || blank();
+      addTo(cb, p.currency, amount);
+      thisMonthByClient.set(p.client_slug, cb);
+    }
   }
-  const clientRows = Array.from(byClient.entries())
-    .map(([slug, v]) => ({ slug, name: nameBySlug.get(slug) || slug, ...v }))
-    .sort((a, b) => b.ils + b.usd - (a.ils + a.usd));
+  const mNow = byMonth.get(ymNow) || blank();
+  const mLast = byMonth.get(ymLast) || blank();
+
+  // Last 6 months, oldest → newest, for the mini bar chart (ILS only).
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+    const k = ym(d);
+    return { key: k, label: d.toLocaleDateString("en-US", { month: "short" }), b: byMonth.get(k) || blank() };
+  });
+  const maxMonth = Math.max(1, ...months.map((m) => m.b.ils));
 
   // Every client connected to Ramzi for stories (explicit toggle) — shown with
   // their work list so Ramzi knows what to do, even before any money is paid.
   const storiesClients = clients.filter((c) => hasStories(c.data));
   const ramziClients = clients.filter((c) => c.data?.owner === "ramzi");
+
+  // Stories money per connected client (billed vs collected, all in ILS) — the
+  // "open" figures roll up into the Outstanding card.
+  const storiesFinance = new Map<string, { billedIls: number; collectedIls: number; openIls: number }>();
+  await Promise.all(
+    storiesClients.map(async (c) => storiesFinance.set(c.slug, await clientStoriesFinanceIls(c.id, c.slug)))
+  );
+  const outstandingIls = Array.from(storiesFinance.values()).reduce((s, v) => s + v.openIls, 0);
+
+  const thisMonthRows = Array.from(thisMonthByClient.entries())
+    .map(([slug, v]) => ({ slug, name: nameBySlug.get(slug) || slug, ...v }))
+    .sort((a, b) => b.ils + b.usd - (a.ils + a.usd));
+
   const recent: { p: Payment; amount: number }[] = collected.slice(0, 12);
-  const totalIls = totalsByCurrency.get("ILS") || 0;
-  const totalUsd = totalsByCurrency.get("USD") || 0;
+  const monthLabel = now.toLocaleDateString("en-US", { month: "long", year: "numeric" });
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Ramzi</h1>
         <p className="text-sm text-neutral-500 mt-0.5">
-          Stories money collected on Ramzi&apos;s behalf and his own clients. Private — visible only to Ramzi and the super admin.
+          Your stories month at a glance — {monthLabel}. Private, visible only to you and the super admin.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* ---- This month at a glance ---- */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-charcoal text-white rounded-xl px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-white/60">Collected for Ramzi</div>
-          <div className="mt-2 text-3xl font-extrabold tracking-tight tabular-nums text-orange">{money(totalIls, "ILS")}</div>
-          {totalUsd > 0 && <div className="mt-1 text-sm text-white/70 tabular-nums">+ {money(totalUsd, "USD")}</div>}
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-white/60">Collected this month</div>
+          <div className="mt-2 text-3xl font-extrabold tracking-tight tabular-nums text-orange">{money(mNow.ils, "ILS")}</div>
+          {mNow.usd > 0 && <div className="mt-1 text-sm text-white/70 tabular-nums">+ {money(mNow.usd, "USD")}</div>}
+          <div className="text-[11px] text-white/50 mt-1">{mNow.count} payment{mNow.count === 1 ? "" : "s"}</div>
         </div>
         <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Clients paying stories</div>
-          <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{clientRows.length}</div>
-          <div className="text-xs text-neutral-400">{collected.length} payment{collected.length === 1 ? "" : "s"} total</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Last month</div>
+          <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{money(mLast.ils, "ILS")}</div>
+          {mLast.usd > 0 && <div className="mt-1 text-sm text-neutral-500 tabular-nums">+ {money(mLast.usd, "USD")}</div>}
+          <div className="text-[11px] text-neutral-400 mt-1">
+            {mLast.ils === 0 ? "—" : mNow.ils >= mLast.ils ? `▲ ${money(mNow.ils - mLast.ils, "ILS")} vs last` : `▼ ${money(mLast.ils - mNow.ils, "ILS")} vs last`}
+          </div>
         </div>
         <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Ramzi&apos;s own clients</div>
-          <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{ramziClients.length}</div>
-          <div className="text-xs text-neutral-400">walled off from other admins</div>
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Outstanding stories</div>
+          <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{money(outstandingIls, "ILS")}</div>
+          <div className="text-[11px] text-neutral-400 mt-1">billed but not yet collected</div>
         </div>
+        <div className="bg-white border border-neutral-200 rounded-xl px-5 py-4">
+          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Stories clients</div>
+          <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{storiesClients.length}</div>
+          <div className="text-[11px] text-neutral-400 mt-1">{ramziClients.length} own client{ramziClients.length === 1 ? "" : "s"} · {money(allTime.ils, "ILS")} all-time</div>
+        </div>
+      </div>
+
+      {/* ---- 6-month trend ---- */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-5">
+        <h2 className="font-bold tracking-tight mb-4">Collected — last 6 months</h2>
+        <div className="flex items-end gap-3 h-32">
+          {months.map((m) => (
+            <div key={m.key} className="flex-1 flex flex-col items-center gap-1.5">
+              <div className="text-[11px] font-semibold tabular-nums text-neutral-500">{m.b.ils > 0 ? Math.round(m.b.ils).toLocaleString("en-US") : ""}</div>
+              <div className="w-full bg-neutral-100 rounded-md overflow-hidden flex items-end" style={{ height: "100%" }}>
+                <div
+                  className={`w-full rounded-md ${m.key === ymNow ? "bg-orange" : "bg-charcoal/70"}`}
+                  style={{ height: `${Math.max(m.b.ils > 0 ? 6 : 0, (m.b.ils / maxMonth) * 100)}%` }}
+                />
+              </div>
+              <div className={`text-[11px] ${m.key === ymNow ? "font-bold text-orange-deep" : "text-neutral-400"}`}>{m.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ---- This month — by client ---- */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-5">
+        <h2 className="font-bold tracking-tight mb-3">This month — by client</h2>
+        {thisMonthRows.length === 0 ? (
+          <p className="text-sm text-neutral-400 py-6 text-center">Nothing collected yet this month.</p>
+        ) : (
+          <ul className="divide-y divide-neutral-100">
+            {thisMonthRows.map((r) => (
+              <li key={r.slug} className="py-2.5 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-neutral-900 truncate">{r.name}</div>
+                  <div className="text-[11px] text-neutral-500">{r.count} payment{r.count === 1 ? "" : "s"}</div>
+                </div>
+                <span className="tabular-nums text-sm font-bold text-neutral-900">
+                  {r.ils > 0 ? money(r.ils, "ILS") : ""}
+                  {r.ils > 0 && r.usd > 0 ? " · " : ""}
+                  {r.usd > 0 ? money(r.usd, "USD") : ""}
+                </span>
+                <Link href={`/admin/clients/${r.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">→</Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* Stories — connected clients & Ramzi's work list */}
       <div className="bg-white border border-neutral-200 rounded-xl p-5">
         <h2 className="font-bold tracking-tight mb-1">Stories — clients &amp; work</h2>
         <p className="text-xs text-neutral-500 mb-4">
-          Every client connected to you for stories. Track what to produce and see what&apos;s been collected. Connect a
-          client by turning on <b>“This client has stories”</b> in their setup.
+          Every client connected to you for stories. Track what to produce and see what&apos;s billed vs collected. Connect
+          a client by turning on <b>“This client has stories”</b> in their setup.
         </p>
         {storiesClients.length === 0 ? (
           <p className="text-sm text-neutral-400 py-6 text-center">
@@ -99,7 +192,7 @@ export default async function PartnerPage() {
         ) : (
           <div className="space-y-5">
             {storiesClients.map((c) => {
-              const collected = byClient.get(c.slug) || { ils: 0, usd: 0, count: 0 };
+              const sf = storiesFinance.get(c.slug) || { billedIls: 0, collectedIls: 0, openIls: 0 };
               const tasks = c.data.storiesTasks || [];
               const fee = c.data.finance?.storiesFee || "";
               return (
@@ -108,11 +201,9 @@ export default async function PartnerPage() {
                     <div className="min-w-0">
                       <div className="text-sm font-bold text-neutral-900 truncate">{c.name || c.slug}</div>
                       <div className="text-[11px] text-neutral-500">
-                        {fee ? `Fee ${fee}` : "No stories fee set"}
-                        {" · "}
-                        Collected{" "}
-                        {collected.ils > 0 ? money(collected.ils, "ILS") : "0 ILS"}
-                        {collected.usd > 0 ? ` · ${money(collected.usd, "USD")}` : ""}
+                        {fee ? `Fee ${fee} · ` : ""}
+                        Collected {money(sf.collectedIls, "ILS")} of {money(sf.billedIls, "ILS")}
+                        {sf.openIls > 0 ? ` · ${money(sf.openIls, "ILS")} open` : ""}
                       </div>
                     </div>
                     <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange shrink-0">
@@ -175,31 +266,6 @@ export default async function PartnerPage() {
               );
             })}
           </div>
-        )}
-      </div>
-
-      {/* Stories collected, by client */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <h2 className="font-bold tracking-tight mb-3">Stories collected — by client</h2>
-        {clientRows.length === 0 ? (
-          <p className="text-sm text-neutral-400 py-6 text-center">Nothing collected for Ramzi yet. Add a Stories line to an invoice and record the payment.</p>
-        ) : (
-          <ul className="divide-y divide-neutral-100">
-            {clientRows.map((r) => (
-              <li key={r.slug} className="py-2.5 flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-neutral-900 truncate">{r.name}</div>
-                  <div className="text-[11px] text-neutral-500">{r.count} payment{r.count === 1 ? "" : "s"}</div>
-                </div>
-                <span className="tabular-nums text-sm font-bold text-neutral-900">
-                  {r.ils > 0 ? money(r.ils, "ILS") : ""}
-                  {r.ils > 0 && r.usd > 0 ? " · " : ""}
-                  {r.usd > 0 ? money(r.usd, "USD") : ""}
-                </span>
-                <Link href={`/admin/clients/${r.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">→</Link>
-              </li>
-            ))}
-          </ul>
         )}
       </div>
 
