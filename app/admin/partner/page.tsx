@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSession, canSeePartner } from "@/lib/auth";
+import { getSession, canSeePartner, isSuperAdmin } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
 import { getClients, hasStories } from "@/lib/clients";
 import { listInvoices, isRamziLine, amountLabelToIls } from "@/lib/invoices";
@@ -136,11 +136,18 @@ export default async function PartnerPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Ramzi</h1>
-        <p className="text-sm text-neutral-500 mt-0.5">
-          Your stories month at a glance — {monthLabel}. Private, visible only to you and the super admin.
-        </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Ramzi</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">
+            Your stories month at a glance — {monthLabel}. Private, visible only to you and the super admin.
+          </p>
+        </div>
+        {isSuperAdmin(user) && (
+          <Link href="/admin/backfill" className="text-xs font-semibold text-neutral-400 hover:text-orange shrink-0">
+            Stories backfill →
+          </Link>
+        )}
       </div>
 
       {/* ---- This month at a glance ---- */}
