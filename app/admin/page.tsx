@@ -58,9 +58,15 @@ async function FinanceCard() {
   if (!fin) return null;
   return (
     <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold tracking-tight">Money &amp; debts</h2>
-        <Link href="/admin/finance" className="text-xs font-semibold text-neutral-500 hover:text-orange">Full analysis →</Link>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div>
+          <h2 className="font-bold tracking-tight">The books — from Notion</h2>
+          <p className="text-xs text-neutral-500 mt-0.5">
+            Live from your Budget Tracker — the source of truth. The cards up top track what you&apos;ve{" "}
+            <b>invoiced in the app</b>, so the two won&apos;t always match.
+          </p>
+        </div>
+        <Link href="/admin/finance" className="text-xs font-semibold text-neutral-500 hover:text-orange whitespace-nowrap shrink-0">Full analysis →</Link>
       </div>
       <div className="grid sm:grid-cols-3 gap-4">
         <div className="rounded-lg bg-neutral-50 px-4 py-3">
@@ -177,7 +183,7 @@ export default async function AdminDashboard() {
             accent: true,
           },
           {
-            label: "Overdue",
+            label: "Overdue invoices",
             value: d.overdueCount ? fmtMoney(d.overdueTotal) : "None",
             note: d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule",
             href: "/admin/invoices?f=overdue",
