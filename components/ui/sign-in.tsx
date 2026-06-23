@@ -1,7 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { PasskeyLoginButton } from "@/components/auth/PasskeyLoginButton";
+
+// Remember the last email used to sign in (not sensitive — just the address) so
+// the field is pre-filled next time and people don't retype it on every visit.
+const LAST_EMAIL_KEY = "marker:lastEmail";
 
 // Adapted from a 21st.dev sign-in component to Marker Studio: brand colours
 // (orange/charcoal/cream), wired to a server action via `action`, and with the
@@ -59,6 +64,18 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   action,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+
+  // Pre-fill the remembered email once, on the client, after hydration.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(LAST_EMAIL_KEY);
+      if (saved) setEmail(saved);
+    } catch {
+      /* localStorage unavailable (private mode) — no prefill, no harm */
+    }
+  }, []);
+
   // Tile the client logos so the grid always fills the tall panel.
   const tiledLogos =
     heroLogos.length > 0
@@ -87,7 +104,26 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               <div className="animate-element animate-delay-400">
                 <label className="text-sm font-medium text-charcoal-60">Email address</label>
                 <GlassInputWrapper>
-                  <input name="email" type="email" required autoComplete="email" placeholder="you@brand.com" className="w-full bg-transparent text-sm p-4 rounded-xl focus:outline-none text-ink" />
+                  <input
+                    name="email"
+                    type="email"
+                    required
+                    // `username` (not `email`) is what macOS Keychain / Apple
+                    // Passwords and other managers pair with the password field
+                    // below to offer to save and autofill the login.
+                    autoComplete="username"
+                    value={email}
+                    onChange={(e) => {
+                      setEmail(e.target.value);
+                      try {
+                        localStorage.setItem(LAST_EMAIL_KEY, e.target.value);
+                      } catch {
+                        /* ignore */
+                      }
+                    }}
+                    placeholder="you@brand.com"
+                    className="w-full bg-transparent text-sm p-4 rounded-xl focus:outline-none text-ink"
+                  />
                 </GlassInputWrapper>
               </div>
 
@@ -115,6 +151,9 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 Sign in
               </button>
             </form>
+
+            {/* Biometric sign-in (self-hides where passkeys aren't supported). */}
+            <PasskeyLoginButton />
           </div>
         </div>
       </section>

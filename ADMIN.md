@@ -98,3 +98,31 @@ metric is skipped, never fatal) and falls back to the manually-entered metrics.
 Set `META_GRAPH_VERSION` to override the API version. Implemented and
 type-checked here, but verify against your live Pages — tell me which metrics
 you want surfaced and I'll tune the mapping.
+
+## Sign-in: saved email, password autofill & Face ID / Touch ID
+
+Three sign-in improvements (all on the shared `/login` screen):
+
+- **Email is remembered.** The last email used to sign in is saved in the
+  browser's `localStorage` and pre-filled next time, so nobody retypes it on
+  every visit. Sessions already last 30 days (`lib/auth.ts`), so a normal
+  refresh keeps you signed in.
+- **Apple Passwords / Keychain.** The email field is marked
+  `autocomplete="username"` and the password field `current-password`, the pair
+  macOS (and 1Password/Chrome/etc.) look for to offer to **save** and
+  **autofill** the login — including inside the Mac app's window.
+- **Biometric sign-in (passkeys).** Anyone — admin or client — can add a
+  **passkey** from **Face ID / Touch ID** in the header (admin) or the portal
+  sidebar (clients), which opens `/account/security`. After that the login
+  screen shows **“Sign in with Face ID / Touch ID.”** The device's biometric
+  unlocks a private key that never leaves it; we only store the public key in
+  the `webauthn_credentials` table (created automatically on first use).
+  Password sign-in stays as the fallback.
+
+WebAuthn’s domain (`rpID`) and origin are derived from the request, so this
+works on `localhost` in dev and on `marker.ps` in production; override with
+`WEBAUTHN_RP_ID` / `WEBAUTHN_ORIGIN` if ever needed. Passkeys require
+`DATABASE_URL`; without it the page explains they're unavailable and password
+login is unaffected. Built and type-checked here — verify the biometric prompt
+on a real Touch ID / Face ID device, since that can't be exercised in the build
+sandbox.

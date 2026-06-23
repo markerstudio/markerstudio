@@ -26,6 +26,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                   View site ↗
                 </Link>
                 <span className="text-neutral-400 truncate hidden sm:inline">{user.email}</span>
+                <Link href="/account/security" className="text-neutral-500 hover:text-neutral-900 whitespace-nowrap">
+                  Face ID / Touch ID
+                </Link>
                 <form action={logout}>
                   <button className="text-neutral-700 hover:text-orange font-medium whitespace-nowrap">Sign out</button>
                 </form>

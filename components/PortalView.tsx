@@ -163,6 +163,9 @@ export default function PortalView({
             <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
             <button className={lang === "ar" ? "on" : ""} onClick={() => setLang("ar")}>ع</button>
           </div>
+          <a href="/account/security" className="ms-side__signout" style={{ display: "block", textAlign: "center", textDecoration: "none" }}>
+            {ui("Face ID / Touch ID", "بصمة الوجه / اللمس")}
+          </a>
           <form action={logout}>
             <button className="ms-side__signout">{ui("Sign out", "خروج")}</button>
           </form>
