@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Shown by macOS when the app asks for Face ID / Touch ID on launch.
+       Required for the biometric prompt; Tauri merges this into the bundled
+       Info.plist when building the .app/.dmg on macOS. -->
+  <key>NSFaceIDUsageDescription</key>
+  <string>Marker Studio uses Face ID or Touch ID to unlock the app.</string>
+</dict>
+</plist>

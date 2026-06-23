@@ -13,7 +13,11 @@ export function PasskeyLoginButton() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setSupported(typeof window !== "undefined" && !!window.PublicKeyCredential);
+    // Inside the native Mac app the WKWebView can't run web passkeys (unless the
+    // app is signed + associated with the domain), and the app already gates
+    // launch behind Touch ID / Face ID — so hide this to avoid a dead button.
+    const inDesktopApp = typeof window !== "undefined" && (window as { __MARKER_DESKTOP__?: boolean }).__MARKER_DESKTOP__ === true;
+    setSupported(typeof window !== "undefined" && !!window.PublicKeyCredential && !inDesktopApp);
   }, []);
 
   if (!supported) return null;
