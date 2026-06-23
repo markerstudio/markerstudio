@@ -10,6 +10,7 @@ export function AddPasskeyButton() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const supported = typeof window !== "undefined" && !!window.PublicKeyCredential;
+  const inDesktopApp = typeof window !== "undefined" && (window as { __MARKER_DESKTOP__?: boolean }).__MARKER_DESKTOP__ === true;
 
   async function add() {
     setError(null);
@@ -47,6 +48,15 @@ export function AddPasskeyButton() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (inDesktopApp) {
+    return (
+      <p className="rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm text-neutral-600">
+        The Mac app already unlocks with your Mac’s <strong>Touch ID / Face ID</strong> each time you open it — no setup
+        needed here. To add a passkey for signing in from a <em>browser</em>, open this page in Safari or Chrome.
+      </p>
+    );
   }
 
   if (!supported) {

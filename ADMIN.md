@@ -111,13 +111,20 @@ Three sign-in improvements (all on the shared `/login` screen):
   `autocomplete="username"` and the password field `current-password`, the pair
   macOS (and 1Password/Chrome/etc.) look for to offer to **save** and
   **autofill** the login — including inside the Mac app's window.
-- **Biometric sign-in (passkeys).** Anyone — admin or client — can add a
-  **passkey** from **Face ID / Touch ID** in the header (admin) or the portal
-  sidebar (clients), which opens `/account/security`. After that the login
-  screen shows **“Sign in with Face ID / Touch ID.”** The device's biometric
-  unlocks a private key that never leaves it; we only store the public key in
-  the `webauthn_credentials` table (created automatically on first use).
-  Password sign-in stays as the fallback.
+- **Biometric sign-in.** Two complementary paths:
+  - **In a browser (Safari/Chrome):** add a **passkey** from **Face ID / Touch
+    ID** in the header (admin) or portal sidebar (clients) → `/account/security`.
+    The login screen then shows **“Sign in with Face ID / Touch ID.”** The
+    biometric unlocks a private key that never leaves the device; we only store
+    the public key in `webauthn_credentials` (created on first use). Password
+    sign-in stays as the fallback.
+  - **In the Mac app:** the app itself is **locked behind the Mac's Touch ID /
+    Face ID on every launch** (native, in `desktop/src-tauri/src/lib.rs`) — the
+    window stays hidden until the device owner authenticates. Web passkeys are
+    hidden inside the app (the WKWebView can't use them unless the app is
+    code-signed and domain-associated), so the native unlock is the biometric
+    there. If the Mac has no biometrics enrolled, the app opens normally rather
+    than locking anyone out. See `desktop/README.md`.
 
 WebAuthn’s domain (`rpID`) and origin are derived from the request, so this
 works on `localhost` in dev and on `marker.ps` in production; override with
