@@ -6,6 +6,9 @@ import { getClients, hasStories } from "@/lib/clients";
 import { listInvoices, isRamziLine, amountLabelToIls } from "@/lib/invoices";
 import { APPROX_USD_ILS } from "@/lib/money";
 import { listAllPayments, ramziAmountOf, type Payment } from "@/lib/payments";
+import { listModelingSessions } from "@/lib/modelingSessions";
+import ModelingSessionForm from "@/components/admin/ModelingSessionForm";
+import { deleteModelingSessionAction } from "./modeling-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -37,7 +40,12 @@ export default async function PartnerPage() {
     );
   }
 
-  const [clients, payments, invoices] = await Promise.all([getClients(), listAllPayments(), listInvoices()]);
+  const [clients, payments, invoices, modeling] = await Promise.all([
+    getClients(),
+    listAllPayments(),
+    listInvoices(),
+    listModelingSessions(),
+  ]);
   const nameBySlug = new Map(clients.map((c) => [c.slug, c.name || c.slug]));
 
   // Stories collected for Ramzi across every client, by payment.
@@ -76,6 +84,17 @@ export default async function PartnerPage() {
   }
   const mNow = byMonth.get(ymNow) || blank();
   const mLast = byMonth.get(ymLast) || blank();
+
+  // ---- Modeling sessions (Ramzi's own, kept apart from stories) -------------
+  // His private modeling ledger: total earned all-time and this month, split by
+  // currency. Counts only toward his money — never Marker's books or Notion.
+  const modelAll = blank();
+  const modelMonth = blank();
+  for (const s of modeling) {
+    const amount = Number(s.amount) || 0;
+    addTo(modelAll, s.currency, amount);
+    if (ymKey(s.session_date) === ymNow) addTo(modelMonth, s.currency, amount);
+  }
 
   // Last 6 months, oldest → newest, for the mini bar chart (ILS only).
   const months = Array.from({ length: 6 }, (_, i) => {
@@ -176,6 +195,63 @@ export default async function PartnerPage() {
           <div className="mt-2 text-3xl font-extrabold tabular-nums text-neutral-900">{storiesClients.length}</div>
           <div className="text-[11px] text-neutral-400 mt-1">{ramziClients.length} own client{ramziClients.length === 1 ? "" : "s"} · {money(allTime.ils, "ILS")} all-time</div>
         </div>
+      </div>
+
+      {/* ---- Modeling sessions — Ramzi's own work with Marker ---- */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-5">
+        <div className="flex items-start justify-between gap-3 flex-wrap mb-1">
+          <div>
+            <h2 className="font-bold tracking-tight">Modeling sessions</h2>
+            <p className="text-xs text-neutral-500 mt-0.5">
+              Your own modeling work — log a session and what you earned. Private to you, counts only toward your money.
+            </p>
+          </div>
+          <div className="text-right">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Earned this month</div>
+            <div className="text-xl font-extrabold tabular-nums text-orange-deep">
+              {money(modelMonth.ils, "ILS")}
+              {modelMonth.usd > 0 ? ` · ${money(modelMonth.usd, "USD")}` : ""}
+            </div>
+            <div className="text-[11px] text-neutral-400 mt-0.5">
+              {money(modelAll.ils, "ILS")}
+              {modelAll.usd > 0 ? ` · ${money(modelAll.usd, "USD")}` : ""} all-time · {modelAll.count} session{modelAll.count === 1 ? "" : "s"}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-lg border border-neutral-200 bg-neutral-50 p-4">
+          <ModelingSessionForm />
+        </div>
+
+        {modeling.length === 0 ? (
+          <p className="text-sm text-neutral-400 py-6 text-center">No modeling sessions logged yet. Add your first one above.</p>
+        ) : (
+          <ul className="mt-2 divide-y divide-neutral-100">
+            {modeling.map((s) => (
+              <li key={s.id} className="py-2.5 flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-semibold text-neutral-900 truncate">{s.name}</div>
+                  <div className="text-[11px] text-neutral-500">
+                    {new Date(s.session_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {s.note ? ` · ${s.note}` : ""}
+                  </div>
+                </div>
+                <span className="tabular-nums text-sm font-bold text-neutral-900">{money(Number(s.amount) || 0, s.currency)}</span>
+                <form action={deleteModelingSessionAction}>
+                  <input type="hidden" name="id" value={s.id} />
+                  <button
+                    type="submit"
+                    className="text-xs font-semibold text-neutral-300 hover:text-red-600"
+                    aria-label={`Remove ${s.name}`}
+                    title="Remove session"
+                  >
+                    ✕
+                  </button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {/* ---- 6-month trend ---- */}
