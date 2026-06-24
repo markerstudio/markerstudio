@@ -229,6 +229,59 @@ async function getIncomeRefProp(): Promise<string | null> {
   return _incomeRefProp;
 }
 
+// Is this payment ALREADY in the Income DB — typically because the admin added
+// it to Notion by hand after the automatic sync failed? The reconciler asks this
+// before re-pushing a payment whose local state still reads "pending": if the
+// money is already booked for this client on this pay date, pushing again would
+// double it (exactly how a hand-entered payment gets duplicated and the client's
+// "Money Left" drops below the truth).
+//
+// Conservative on purpose. It matches on client + pay date + currency and only
+// reports "present" when the existing rows already cover the amount this payment
+// would write — and it can't see a hand-entered row stamped with no Ref any other
+// way, since a manual row carries none of our tracking. Returns the matched page
+// ids so the payment can be linked to the rows that already exist. On any read
+// failure it returns "not present" so a genuine gap is never left unfilled.
+export async function incomeAlreadyRecorded(input: {
+  clientPageId: string;
+  payDate: string; // ISO yyyy-mm-dd
+  currency: "ILS" | "USD";
+  expected: number; // the Marker amount this payment would write to Notion
+  ignorePageIds?: string[]; // rows from a prior failed attempt — archived, not counted
+}): Promise<{ present: boolean; pageIds: string[] }> {
+  if (!process.env.NOTION_TOKEN || !input.clientPageId || !(input.expected > 0)) {
+    return { present: false, pageIds: [] };
+  }
+  try {
+    const q = await notionPost(`/v1/databases/${INCOME_DB}/query`, {
+      filter: {
+        and: [
+          { property: "Clients Database", relation: { contains: input.clientPageId } },
+          { property: "Pay Date", date: { equals: input.payDate.slice(0, 10) } },
+        ],
+      },
+      page_size: 100,
+    });
+    const ignore = new Set(input.ignorePageIds || []);
+    const field = input.currency === "USD" ? "USD" : "ILS";
+    let sum = 0;
+    const pageIds: string[] = [];
+    for (const r of q.results || []) {
+      if (!r?.id || ignore.has(r.id)) continue;
+      const n = r.properties?.[field]?.number;
+      if (typeof n === "number" && n > 0) {
+        sum += n;
+        pageIds.push(r.id as string);
+      }
+    }
+    // Existing rows for this client+date already cover the amount → it's booked.
+    // Half-unit slack absorbs the per-line rounding the sync itself applies.
+    return { present: pageIds.length > 0 && sum + 0.5 >= input.expected, pageIds };
+  } catch {
+    return { present: false, pageIds: [] };
+  }
+}
+
 // Archive any existing Income rows already stamped with this receipt ref, so a
 // re-sync replaces rather than duplicates. Best-effort.
 async function archiveIncomeByRef(refProp: string, ref: string): Promise<void> {
