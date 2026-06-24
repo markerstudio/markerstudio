@@ -104,6 +104,25 @@ export default function PortalView({
   if (topMetric) autoStats.push({ label: topMetric.label || ui("Top result", "أبرز نتيجة"), value: topMetric.value || topMetric.after || "—", sub: topMetric.delta || "" });
   if (d.analysis?.paid?.spend) autoStats.push({ label: ui("Ad spend", "الإنفاق الإعلاني"), value: d.analysis.paid.spend });
   if (d.finance?.brandingFee) autoStats.push({ label: ui("Branding fee", "رسوم الهوية"), value: d.finance.brandingFee });
+
+  // Photography — the client only sees shoots when the studio shared them.
+  const photo = d.photo;
+  const shootsShared = !!photo?.showToClient;
+  const sessions = shootsShared ? [...(photo?.sessions ?? [])].sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
+  const shots = shootsShared ? photo?.shots ?? [] : [];
+  const hasShoots = sessions.length > 0 || shots.length > 0;
+  const sessionStatusLabel: Record<string, { en: string; ar: string; cls: string }> = {
+    planned: { en: "Planned", ar: "مُخطّط", cls: "" },
+    confirmed: { en: "Confirmed", ar: "مؤكّد", cls: "ms-portal-pill--blue" },
+    shot: { en: "Shot", ar: "تم التصوير", cls: "ms-portal-pill--blue" },
+    delivered: { en: "Delivered", ar: "تم التسليم", cls: "ms-portal-pill--green" },
+  };
+  const fmtShootDate = (iso: string) => {
+    if (!iso) return "";
+    const dt = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(dt.getTime()) ? iso : dt.toLocaleDateString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" });
+  };
+  const shotsDone = shots.filter((t) => t.status === "done").length;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const up = (fn: (c: any) => void) => setData((prev) => { const c = JSON.parse(JSON.stringify(prev)); fn(c); return c; });
 
@@ -366,6 +385,57 @@ export default function PortalView({
                 )}
               </div>
             </div>
+
+            {/* Photo sessions — only when the studio shared shoots with the client. */}
+            {!edit && shootsShared && hasShoots && (
+              <div style={{ marginTop: 36 }}>
+                <div className="ms-section__header">
+                  <div>
+                    <span className="ms-section__eyebrow">{ui("Photo sessions", "جلسات التصوير")}</span>
+                    <h2 className="ms-section__title">{ui("Your shoots", "جلساتك")}</h2>
+                  </div>
+                  {shots.length > 0 && (
+                    <span className="ms-portal-pill">{shotsDone}/{shots.length} {ui("shots ready", "لقطة جاهزة")}</span>
+                  )}
+                </div>
+
+                {sessions.length > 0 && (
+                  <div style={{ display: "grid", gap: 12, marginTop: 8 }}>
+                    {sessions.map((s, i) => {
+                      const st = sessionStatusLabel[s.status] ?? sessionStatusLabel.planned;
+                      return (
+                        <div key={i} className="ms-pcard">
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                            <div>
+                              <div className="ms-portal-mini">{fmtShootDate(s.date)}{s.time ? ` · ${s.time}` : ""}</div>
+                              <div style={{ fontWeight: 700, marginTop: 4 }}>{s.title || ui("Shoot", "جلسة")}</div>
+                              {s.location && <div className="ms-pmuted" style={{ marginTop: 2 }}>{s.location}</div>}
+                            </div>
+                            <span className={`ms-portal-pill ${st.cls}`}>{ui(st.en, st.ar)}</span>
+                          </div>
+                          {tr(s.brief) && <p className="ms-pmuted" style={{ marginTop: 10 }}>{tr(s.brief)}</p>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {shots.length > 0 && (
+                  <div className="ms-pcard" style={{ marginTop: 12 }}>
+                    <span className="ms-section__eyebrow">{ui("Shot list", "قائمة اللقطات")}</span>
+                    <ul style={{ listStyle: "none", padding: 0, margin: "10px 0 0" }}>
+                      {shots.map((t, i) => (
+                        <li key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 0", borderTop: i ? "1px solid var(--marker-line, #eee)" : "none" }}>
+                          <span aria-hidden style={{ color: t.status === "done" ? "var(--marker-orange, #FF9100)" : "#bbb" }}>{t.status === "done" ? "✓" : "○"}</span>
+                          <span style={{ flex: 1, textDecoration: t.status === "done" ? "line-through" : "none", opacity: t.status === "done" ? 0.6 : 1 }}>{t.title}</span>
+                          {t.status === "doing" && <span className="ms-portal-pill ms-portal-pill--blue">{ui("In progress", "قيد التنفيذ")}</span>}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </section>
       )}

@@ -47,8 +47,24 @@ export async function middleware(req: NextRequest) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
+    const photographerEmails = (process.env.PHOTOGRAPHER_EMAILS || "ameer@marker.ps")
+      .toLowerCase()
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
     const partnerOnly = !!email && partnerEmails.includes(email) && email !== superEmail;
-    if (partnerOnly) {
+    // A photographer who isn't also the super admin or a partner is confined to
+    // the photographer portal only (mirrors isPhotographerOnly in lib/auth).
+    const photographerOnly =
+      !!email && photographerEmails.includes(email) && email !== superEmail && !partnerEmails.includes(email);
+    if (photographerOnly) {
+      if (!pathname.startsWith("/admin/photographer")) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/admin/photographer";
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    } else if (partnerOnly) {
       // /admin/partner is their home (lists their clients). Their own client
       // sub-pages (/admin/clients/<slug>/edit, /admin/clients/new) are allowed —
       // ownership is enforced on those pages. They may also record payments

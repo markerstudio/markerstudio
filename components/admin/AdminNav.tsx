@@ -12,17 +12,24 @@ export default function AdminNav({
   unreadApplications,
   showPartner = false,
   partnerOnly = false,
+  showPhotographer = false,
+  photographerOnly = false,
 }: {
   unreadInquiries: number;
   unreadApplications: number;
   showPartner?: boolean;
   partnerOnly?: boolean;
+  showPhotographer?: boolean;
+  photographerOnly?: boolean;
 }) {
   const pathname = usePathname();
 
-  // Partner-only accounts (Ramzi) see just their own area.
-  const groups: Item[][] = partnerOnly
-    ? [[{ href: "/admin/partner", label: "Ramzi" }]]
+  // Photographer-only accounts (Ameer) see just their own portal.
+  const groups: Item[][] = photographerOnly
+    ? [[{ href: "/admin/photographer", label: "Photography" }]]
+    : partnerOnly
+    ? // Partner-only accounts (Ramzi) see just their own area.
+      [[{ href: "/admin/partner", label: "Ramzi" }]]
     : // Grouped into clusters so 12 flat tabs read as a handful of scannable areas:
       // Overview · Clients & work · Documents · Money · Intake · System.
       [
@@ -30,6 +37,7 @@ export default function AdminNav({
     [
       { href: "/admin/clients", label: "Clients" },
       { href: "/admin/projects", label: "Projects" },
+      ...(showPhotographer ? [{ href: "/admin/photographer", label: "Photography" } as Item] : []),
       { href: "/admin/accounts", label: "Accounts" },
     ],
     [
