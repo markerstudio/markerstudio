@@ -10,7 +10,7 @@ import {
   getInvoice, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
   type InvoiceItem, type LineKind,
 } from "@/lib/invoices";
-import { createIncomePaymentLines, notionArchivePage, NotionSyncError } from "@/lib/notion";
+import { createIncomePaymentLines, notionArchivePage, incomeAlreadyRecorded, NotionSyncError } from "@/lib/notion";
 import {
   ensurePaymentsTable, listUnsyncedPayments, markPaymentSynced, markPaymentSyncFailed,
   type AllocationLine,
@@ -82,6 +82,13 @@ export type SyncPaymentInput = {
   // Income page ids written by a previous (failed) attempt — archived first so a
   // re-sync never doubles the payment in the books.
   priorPageIds?: string[] | null;
+  // Set by the reconciler (re-push path). Before writing, confirm the payment
+  // isn't ALREADY in Notion — e.g. the admin added it by hand after the first
+  // sync failed. Without this check, re-pushing a hand-entered payment doubles it
+  // in the books and drops the client's "Money Left" below the truth. The
+  // first-time write (recordPaymentAction) leaves this off: a brand-new payment
+  // is never already there, and skipping the extra query keeps that path fast.
+  verifyExisting?: boolean;
 };
 
 // Mirror one payment into Notion and persist the outcome on the payment row.
@@ -99,6 +106,26 @@ export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void
   for (const id of input.priorPageIds || []) await notionArchivePage(id);
 
   const lines = buildIncomeLines(input.amount, input.items, input.label, input.allocation);
+
+  // Re-push path: if the money is already booked in Notion for this client and
+  // date (most often a row the admin added by hand when the first sync failed),
+  // don't write it again — that's exactly how a payment gets duplicated and the
+  // client's "Money Left" reads low. Adopt the existing rows and mark synced.
+  if (input.verifyExisting) {
+    const expected = lines.reduce((s, l) => s + l.amount, 0);
+    const existing = await incomeAlreadyRecorded({
+      clientPageId: pageId,
+      payDate: input.paidOn || new Date().toISOString().slice(0, 10),
+      currency: input.currency,
+      expected,
+      ignorePageIds: input.priorPageIds || [],
+    });
+    if (existing.present) {
+      await markPaymentSynced(input.payId, existing.pageIds);
+      return;
+    }
+  }
+
   try {
     const created = await createIncomePaymentLines({
       clientPageId: pageId,
@@ -188,6 +215,9 @@ export async function reconcilePendingNotionPayments(limit = 20): Promise<number
         paidOn: typeof p.paid_on === "string" ? p.paid_on.slice(0, 10) : undefined,
         ref: p.number || undefined,
         priorPageIds: p.notion_page_ids,
+        // This is the re-push path — check Notion for a hand-entered (or
+        // otherwise untracked) copy before writing, so we never double a payment.
+        verifyExisting: true,
       });
       processed++;
     }
