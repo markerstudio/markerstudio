@@ -55,6 +55,38 @@ export type StoriesTask = { id: string; title: string; status: "todo" | "doing" 
 // A downloadable brand deliverable (final logo, post export, guideline PDF…).
 // Lives alongside the proposal/agreement docs but is framed as a creative asset.
 export type AssetItem = { title: string; type: string; url: string; size?: string; at?: string };
+
+// --- Photography (Ameer & co.) --------------------------------------------
+// A scheduled shoot for the client. Lives on the client so the photographer
+// portal can show the photographer exactly when and what to shoot, and so the
+// client can (optionally) see their own shoot schedule. `brief` is the bilingual
+// direction — what to capture, mood, references.
+export type PhotoSessionStatus = "planned" | "confirmed" | "shot" | "delivered";
+export type PhotoSession = {
+  date: string; // ISO yyyy-mm-dd
+  time?: string; // free text, e.g. "14:00" or "Afternoon"
+  location?: string;
+  title: string; // what the shoot is for
+  brief?: LocalizedText; // direction / what to capture
+  status: PhotoSessionStatus;
+};
+// One line of the photo-session to-do list (the "shot list") the photographer
+// works through. Mirrors the social-post feedback model: the studio writes it in
+// client settings, the photographer ticks items off from their portal.
+export type PhotoTaskStatus = "todo" | "doing" | "done";
+export type PhotoTask = { title: string; status: PhotoTaskStatus; due?: string; note?: string };
+// The photography block on a client. `active` connects the client to the
+// photographer portal (like storiesActive connects to Ramzi). The two share
+// toggles are independent and both default off: sharePlan pushes the Marker plan
+// to the photographer for context; showToClient reveals the shoot schedule and
+// to-do in the client's own portal.
+export type ClientPhoto = {
+  active?: boolean; // connected to the photographer portal (Ameer sees this client)
+  sharePlan?: boolean; // also push the Marker plan to the photographer
+  showToClient?: boolean; // show shoots + to-do in the client's own portal
+  sessions?: PhotoSession[];
+  shots?: PhotoTask[]; // the photo-session to-do list ("shot list")
+};
 // One entry in the portal activity feed. `kind` drives the icon/accent; copy is
 // bilingual. Studio-authored notes and client actions (approvals, signatures)
 // both land here so the dashboard shows a live history.
@@ -135,6 +167,7 @@ export type ClientData = {
     brandingLeft?: string;
   };
   documents: DocItem[];
+  photo?: ClientPhoto; // photography — shoot schedule + to-do shared with the photographer (and optionally the client)
   storiesTasks?: StoriesTask[]; // Ramzi's stories work list for this client (managed from the partner portal)
   assets?: AssetItem[]; // downloadable brand deliverables (logos, exports, guidelines)
   updates?: ActivityItem[]; // portal activity feed — studio notes + client actions
@@ -245,6 +278,14 @@ export function hasStories(data: ClientData | undefined | null): boolean {
   return !!data?.finance?.storiesActive;
 }
 
+// A client is "connected to the photographer" when the Photography switch is on.
+// Drives the photographer portal: any such client shows up there with its shoot
+// schedule and shot to-do, so Ameer (and any other photographer) sees exactly
+// what to shoot — independent of Marker's marketing or Ramzi's stories work.
+export function hasPhotography(data: ClientData | undefined | null): boolean {
+  return !!data?.photo?.active;
+}
+
 // Read–mutate–write a client's JSONB data in one place. Loads the current data,
 // lets the caller mutate it, and persists the whole object back. Used for small
 // targeted edits (e.g. Ramzi's stories tasks) that don't go through the big
@@ -274,6 +315,7 @@ export function blankClientData(): ClientData {
     invoices: [],
     finance: { monthlyFee: "", progress: 0, brandingFee: "" },
     documents: [],
+    photo: { active: false, sharePlan: false, showToClient: false, sessions: [], shots: [] },
     assets: [],
     updates: [],
     notionDbId: "",

@@ -50,6 +50,38 @@ export function isPartnerOnly(user: { email?: string | null } | null | undefined
   return isPartner(user) && !isSuperAdmin(user);
 }
 
+// Photographer accounts (e.g. Ameer Shaheen — the main photographer, but not the
+// only one). Set PHOTOGRAPHER_EMAILS to a comma-separated list. Email-based like
+// the partner accounts so no schema/role migration is needed to stand the
+// photographer portal up. Unlike the partner area, the photographer portal is
+// visible to EVERY admin (see canSeePhotographer) — only the photographers
+// themselves are confined to it.
+export const PHOTOGRAPHER_EMAILS = (process.env.PHOTOGRAPHER_EMAILS || "ameer@marker.ps")
+  .toLowerCase()
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+export function isPhotographer(user: { email?: string | null } | null | undefined): boolean {
+  return !!user?.email && PHOTOGRAPHER_EMAILS.includes(user.email.toLowerCase());
+}
+
+// Who may see the photographer area: every admin (Elias, Maram, …) plus the
+// photographers. Differs from the partner area on purpose — the studio wants all
+// admins to see the shoot schedule. Partner-only accounts (Ramzi) are still
+// walled into their own area and don't get it.
+export function canSeePhotographer(user: { email?: string | null } | null | undefined): boolean {
+  return !isPartnerOnly(user) || isPhotographer(user);
+}
+
+// A photographer who is NOT also the super admin / a partner (e.g. Ameer). These
+// accounts are confined to the photographer portal only — they never see
+// Marker's dashboard, finance, clients, or the partner area. Enforced in
+// middleware (route allowlist) plus the page guard.
+export function isPhotographerOnly(user: { email?: string | null } | null | undefined): boolean {
+  return isPhotographer(user) && !isSuperAdmin(user) && !isPartner(user);
+}
+
 export type Role = "admin" | "client";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 

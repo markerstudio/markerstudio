@@ -55,6 +55,43 @@ The first user is created by `/api/setup`. To add more, either insert into the
   flow above was implemented and type-checked but verified against Postgres only
   in your environment. Ping me if anything errors on first setup.
 
+## Photographer portal (Ameer & co.)
+
+A shared portal for the studio's photographers — **Ameer Shaheen** is the main
+one, but it supports more than one. It lives at **`/admin/photographer`** and,
+unlike the partner (Ramzi) area, it's **visible to every admin** — only the
+photographers themselves are confined to it.
+
+### How the connection works
+
+Each client carries a **Plan & Shoots** section in their settings
+(`Admin → Clients → (client) → Plan & Shoots`). It has:
+
+- **Photography** switch — connects the client to the photographer portal. When
+  on, the client's shoot schedule and shot list show up at `/admin/photographer`.
+- **Shoot schedule** — dated sessions (date, time, location, title, bilingual
+  brief, status: planned → confirmed → shot → delivered).
+- **Shot list** — the photo-session to-do (title, status: to do → in progress →
+  done, optional due + note).
+- **Send the plan to the photographer** — toggle (default off) that also shares
+  the client's Marker plan on the photographer portal for context. Off keeps the
+  plan **Marker-only**.
+- **Show shoots in the client's portal** — toggle (default off) that reveals the
+  schedule + shot list to the **client** too, on their portal's **Plan** tab.
+
+On `/admin/photographer`, the photographer sees upcoming shoots across all
+connected clients and each client's schedule + shot list, and can **tap a status
+chip to advance it** (e.g. mark a shot Done) — that updates instantly for the
+studio and, where shared, the client.
+
+### Giving Ameer a login
+
+Roles are **email-based** (no schema migration). Add a normal admin user with
+Ameer's email, then list that address in **`PHOTOGRAPHER_EMAILS`** (comma-
+separated; defaults to `ameer@marker.ps`). A photographer who isn't also the
+super admin / a partner is automatically confined to `/admin/photographer`
+(enforced in `middleware.ts` + the page guard). See `.env.example`.
+
 ## Meta (Facebook + Instagram) live data
 
 Each client's portal Analysis tab can show **live** Instagram + Facebook
