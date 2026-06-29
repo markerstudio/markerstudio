@@ -11,7 +11,11 @@ import { amountLabelToIls } from "@/lib/money";
 export type LocalizedText = { en: string; ar: string };
 export type Invoice = { cycle: string; desc: string; amount: string; status: "paid" | "due" | "overdue" };
 export type SocialItem = { title: string; desc: string; tag?: string };
-export type SocialContentType = "post" | "story" | "reel";
+export type SocialContentType = "post" | "story" | "reel" | "carousel";
+// Production pipeline for a content item — from idea to published. Distinct from
+// `status` (kept for the client portal's planned/scheduled/posted pills); `status`
+// is derived from `stage` on edit so the portal stays meaningful.
+export type ContentStage = "idea" | "shoot" | "edit" | "scheduled" | "posted";
 // A note left on a social post — by the studio or the client — so approvals
 // carry a short conversation instead of a bare status flip.
 export type SocialComment = { by: string; role: "studio" | "client"; text: string; at: string };
@@ -28,6 +32,15 @@ export type SocialPost = {
   brief?: string;
   approval?: "pending" | "approved" | "changes";
   comments?: SocialComment[];
+  // Content production pipeline + richer authoring fields (admin Plan & Content).
+  stage?: ContentStage;
+  fromShot?: string; // back-link to the PhotoTask (shot) this was scheduled from
+  mediaUrl?: string; // thumbnail / asset (carried over from the shot)
+  mediaKind?: "image" | "video";
+  caption?: string;
+  hook?: string;
+  hashtags?: string;
+  cta?: string;
 };
 export type TimelinePhase = { phase: string; duration?: string; detail?: string };
 // One analytics stat: the number, an optional change badge, and what it means
@@ -75,7 +88,19 @@ export type PhotoSession = {
 // works through. Mirrors the social-post feedback model: the studio writes it in
 // client settings, the photographer ticks items off from their portal.
 export type PhotoTaskStatus = "todo" | "doing" | "done";
-export type PhotoTask = { id?: string; title: string; status: PhotoTaskStatus; due?: string; note?: string };
+// A shot is also a planned content piece: it carries a content `type` and, once
+// captured, an uploaded photo/reel (`mediaUrl`). The Plan & Content surface lets it
+// be dragged onto the calendar to schedule a linked post.
+export type PhotoTask = {
+  id?: string;
+  title: string;
+  status: PhotoTaskStatus;
+  due?: string;
+  note?: string;
+  type?: SocialContentType;
+  mediaUrl?: string;
+  mediaKind?: "image" | "video";
+};
 // The photography block on a client. `active` connects the client to the
 // photographer portal (like storiesActive connects to Ramzi). The two share
 // toggles are independent and both default off: sharePlan pushes the Marker plan
