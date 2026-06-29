@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import DashboardTab from "./DashboardTab";
 import PlanShootsTab from "./PlanShootsTab";
+import DeliverablesTab from "./DeliverablesTab";
 import SocialTab from "./SocialTab";
 import AnalysisTab from "./AnalysisTab";
 import FinanceTab from "./FinanceTab";
@@ -13,6 +14,7 @@ import type { Client, ClientData } from "@/lib/clients";
 const TABS = [
   ["dashboard", "Dashboard"],
   ["plan", "Plan & Shoots"],
+  ["deliverables", "Deliverables"],
   ["social", "Social"],
   ["analysis", "Analysis"],
   ["finance", "Finance"],
@@ -82,6 +84,7 @@ export default function ClientEditor({
       <div className="min-w-0">
         {tab === "dashboard" && <DashboardTab slug={slug} data={data} patch={patch} />}
         {tab === "plan" && <PlanShootsTab slug={slug} data={data} patch={patch} />}
+        {tab === "deliverables" && <DeliverablesTab slug={slug} data={data} />}
         {tab === "social" && <SocialTab slug={slug} data={data} patch={patch} />}
         {tab === "analysis" && <AnalysisTab slug={slug} data={data} patch={patch} client={client} apiEnabled={apiEnabled} />}
         {tab === "finance" && <FinanceTab slug={slug} data={data} patch={patch} linkedToNotion={linkedToNotion} invoicesSlot={invoicesSlot} />}

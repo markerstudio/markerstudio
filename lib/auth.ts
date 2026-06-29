@@ -82,6 +82,13 @@ export function isPhotographerOnly(user: { email?: string | null } | null | unde
   return isPhotographer(user) && !isSuperAdmin(user) && !isPartner(user);
 }
 
+// Who may see the Deliverables area (the smart to-do list): every regular admin.
+// Partner-only (Ramzi) and photographer-only (Ameer) accounts are confined to
+// their own areas and don't get it.
+export function canSeeDeliverables(user: { email?: string | null } | null | undefined): boolean {
+  return !isPartnerOnly(user) && !isPhotographerOnly(user);
+}
+
 export type Role = "admin" | "client";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 

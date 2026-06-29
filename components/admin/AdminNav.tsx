@@ -14,6 +14,7 @@ export default function AdminNav({
   partnerOnly = false,
   showPhotographer = false,
   photographerOnly = false,
+  showDeliverables = false,
 }: {
   unreadInquiries: number;
   unreadApplications: number;
@@ -21,6 +22,7 @@ export default function AdminNav({
   partnerOnly?: boolean;
   showPhotographer?: boolean;
   photographerOnly?: boolean;
+  showDeliverables?: boolean;
 }) {
   const pathname = usePathname();
 
@@ -36,6 +38,7 @@ export default function AdminNav({
     [{ href: "/admin", label: "Dashboard" }],
     [
       { href: "/admin/clients", label: "Clients" },
+      ...(showDeliverables ? [{ href: "/admin/deliverables", label: "Deliverables" } as Item] : []),
       { href: "/admin/projects", label: "Projects" },
       ...(showPhotographer ? [{ href: "/admin/photographer", label: "Photography" } as Item] : []),
       { href: "/admin/accounts", label: "Accounts" },
