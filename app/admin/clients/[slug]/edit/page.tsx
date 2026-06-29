@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getSession, isPartnerOnly } from "@/lib/auth";
-import ClientForm from "@/components/admin/ClientForm";
+import ClientEditor from "@/components/admin/editor/ClientEditor";
 import InviteList from "@/components/admin/InviteList";
 import OnboardingBriefActions from "@/components/admin/OnboardingBriefActions";
 import InvoiceEditor from "@/components/admin/InvoiceEditor";
@@ -11,7 +11,6 @@ import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-a
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
 import { getMetaConnectionInfo, metaAppConfigured } from "@/lib/meta";
 import { isAiEnabled } from "@/lib/ai";
-import AiAnalysisPanel from "@/components/admin/AiAnalysisPanel";
 import { getProjects } from "@/lib/projects";
 import { getSql } from "@/lib/db";
 import { createClientUser, deleteClientUser, deleteClient, createInvite, syncNotion, syncNotionClient, createInNotion, setClientArchived, mergeOnboardingIntoClient } from "../../../actions";
@@ -131,7 +130,7 @@ export default async function EditClientPage({
   searchParams,
 }: {
   params: { slug: string };
-  searchParams: { ok?: string; error?: string; undo?: string; restored?: string; undoError?: string };
+  searchParams: { ok?: string; error?: string; undo?: string; restored?: string; undoError?: string; tab?: string };
 }) {
   const client = await getClient(params.slug);
   if (!client) notFound();
@@ -220,6 +219,306 @@ export default async function EditClientPage({
     ? MSG[searchParams.error]
     : null;
 
+  // ---- Server-rendered slots fed into the tabbed editor --------------------
+
+  // Documents tab: proposal & agreement builders.
+  const docsSlot = (
+    <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+      <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
+      <p className="text-sm text-neutral-500 mb-5">
+        Both are paged, bilingual documents prepared in their builders. They only appear on the client&apos;s portal once sent.
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {(
+          [
+            { label: "Proposal", doc: client.data.proposal, doneLabel: "Accepted", builder: `/admin/proposals/${client.slug}`, view: `/portal/${client.slug}/proposal` },
+            { label: "Agreement", doc: client.data.agreement, doneLabel: "Signed", builder: `/admin/agreements/${client.slug}`, view: `/portal/${client.slug}/agreement` },
+          ] as const
+        ).map((x) => (
+          <div key={x.label} className="border border-neutral-200 rounded-lg p-4">
+            <div className="font-semibold text-sm mb-2">
+              {x.label}{" "}
+              {x.doc?.acceptedAt ? (
+                <span className="ml-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">{x.doneLabel}</span>
+              ) : x.doc?.published ? (
+                <span className="ml-1 text-xs font-semibold text-orange-deep bg-orange-50 rounded-full px-2 py-0.5">Sent</span>
+              ) : (
+                <span className="ml-1 text-xs font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">Draft</span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <Link href={x.builder} className="bg-charcoal text-white font-semibold rounded-md px-3.5 py-2 text-sm hover:bg-ink transition-colors">Open builder →</Link>
+              <Link href={x.view} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">Client view ↗</Link>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  // Finance tab: auto-numbered invoices + the invoice editor.
+  const invoicesSlot = (
+    <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+      <h2 className="font-bold mb-1">Invoices</h2>
+      <p className="text-sm text-neutral-500 mb-4">Auto-numbered (INV-{new Date().getFullYear()}-NNN). They appear in the client&apos;s portal under Invoices.</p>
+
+      {monthlyFee && (
+        <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-orange/40 bg-orange-50/50 px-4 py-3 mb-4">
+          <div className="text-sm">
+            <div className="font-semibold text-neutral-900">This client&apos;s month is due</div>
+            <div className="text-neutral-600">Monthly fee from Notion: <b>{monthlyFee}</b>{client.data.plan?.end ? ` · cycle ends ${client.data.plan.end}` : ""}</div>
+          </div>
+          <form action={createInvoiceFromNotion}>
+            <input type="hidden" name="slug" value={client.slug} />
+            <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Draft monthly invoice</button>
+          </form>
+        </div>
+      )}
+
+      {clientInvoices.length > 0 && (
+        <div className="divide-y divide-neutral-100 mb-5">
+          {clientInvoices.map((inv) => {
+            const rate = Number(inv.vat_rate) || 0;
+            const total = invoiceGrandTotal(inv.items, rate);
+            const paid = Number(inv.paid_amount) || 0;
+            const left = Math.max(0, total - paid);
+            return (
+              <div key={inv.id} className="flex items-center gap-3 py-2.5 flex-wrap">
+                <div className="flex-1 min-w-[140px]">
+                  <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="font-mono text-sm font-semibold text-neutral-800 hover:text-orange">{inv.number}</a>
+                  <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{rate > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
+                </div>
+                <span className="tabular-nums text-sm font-semibold text-neutral-900 text-right">
+                  {total.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                  {paid > 0 && <span className="block text-xs font-medium text-orange-deep">{left.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</span>}
+                </span>
+                <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
+                {inv.status !== "paid" && (
+                  <a href={`/admin/payments/new?invoice=${inv.id}`} className="text-xs font-semibold text-green-700 hover:text-green-800">+ Payment</a>
+                )}
+                <a href={`/admin/invoices/${inv.id}/edit`} className="text-xs font-medium text-neutral-600 hover:text-orange">Edit</a>
+                <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
+                <form action={deleteInvoiceAction}>
+                  <input type="hidden" name="slug" value={client.slug} />
+                  <input type="hidden" name="id" value={inv.id} />
+                  <ConfirmButton message={`Delete invoice ${inv.number}? You'll get a chance to undo right after.`} className="text-xs font-medium text-neutral-300 hover:text-red-600">Delete</ConfirmButton>
+                </form>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      <InvoiceEditor slug={client.slug} seed={(client.data.pricing?.items || []).length ? client.data.pricing!.items : seededPricing} storiesFee={client.data.finance?.storiesFee || ""} />
+    </div>
+  );
+
+  // Settings tab: onboarding, access, integrations, danger zone.
+  const sectionHead = (text: string) => <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">{text}</h2>;
+  const settingsSlot = (
+    <div className="space-y-6">
+      {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
+        <div className="text-sm rounded-md px-4 py-3 border text-green-700 bg-green-50 border-green-200 space-y-1">
+          {client.data.proposal?.acceptedAt && <div>✓ Proposal accepted on {new Date(client.data.proposal.acceptedAt).toLocaleString("en-GB")}.</div>}
+          {client.data.agreement?.acceptedAt && <div>✓ Agreement e-signed by <b>{client.data.agreement.signedName}</b> on {new Date(client.data.agreement.acceptedAt).toLocaleString("en-GB")}.</div>}
+        </div>
+      )}
+
+      {brief && <OnboardingBriefPanel brief={brief} />}
+      {brief && <OnboardingBriefActions brief={brief} />}
+
+      {brief && others.length > 0 && (
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="font-bold mb-1">Connect to an existing portal</h2>
+          <p className="text-sm text-neutral-500 mb-4">Already manage this brand? Move this onboarding&apos;s login and brief onto an existing portal — this draft is then removed.</p>
+          <form action={mergeOnboardingIntoClient} className="flex items-end gap-3 flex-wrap">
+            <input type="hidden" name="fromSlug" value={client.slug} />
+            <div className="flex-1 min-w-[220px]">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Existing portal</label>
+              <select name="toSlug" required className={inputCls}>
+                <option value="">Choose a portal…</option>
+                {others.map((c) => (<option key={c.slug} value={c.slug}>{c.name} (/{c.slug})</option>))}
+              </select>
+            </div>
+            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Connect →</button>
+          </form>
+        </div>
+      )}
+
+      {sectionHead("Access")}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="font-bold mb-1">Client logins</h2>
+          <p className="text-sm text-neutral-500 mb-4">People who can sign in and see only this portal.</p>
+          <div className="divide-y divide-neutral-100 mb-5">
+            {logins.map((u) => (
+              <div key={u.id} className="flex items-center gap-3 py-2.5">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{u.name}</div>
+                  <div className="text-xs text-neutral-500 truncate">{u.email}</div>
+                </div>
+                <form action={deleteClientUser}>
+                  <input type="hidden" name="id" value={u.id} />
+                  <input type="hidden" name="slug" value={client.slug} />
+                  <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Remove</button>
+                </form>
+              </div>
+            ))}
+            {logins.length === 0 && <div className="py-3 text-sm text-neutral-500">No client logins yet.</div>}
+          </div>
+          <form action={createClientUser} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
+            <input type="hidden" name="slug" value={client.slug} />
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Name</label>
+              <input name="name" className={inputCls} placeholder="Client contact" />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Email</label>
+              <input name="email" type="email" required autoComplete="off" className={inputCls} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Password</label>
+              <input name="password" type="password" required minLength={8} autoComplete="new-password" className={inputCls} />
+            </div>
+            <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors h-[38px]">Add login</button>
+          </form>
+        </div>
+
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <div className="flex items-center justify-between gap-3 mb-1">
+            <h2 className="font-bold">Invite links</h2>
+            <form action={createInvite}>
+              <input type="hidden" name="slug" value={client.slug} />
+              <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Create invite</button>
+            </form>
+          </div>
+          <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
+          <InviteList invites={invites} slug={client.slug} />
+        </div>
+      </div>
+
+      {sectionHead("Integrations")}
+      <div className="grid lg:grid-cols-2 gap-6 items-start">
+        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="font-bold mb-1">Notion sync</h2>
+          <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
+
+          {!client.data.notionPageId && (
+            <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 mb-4">
+              <div className="font-semibold text-sm mb-1">Not linked to Notion yet</div>
+              <p className="text-xs text-neutral-600 mb-3">Onboarding portals aren&apos;t added to Notion automatically. Create the client&apos;s <b>Clients Database</b> page and <b>Budget Tracker</b> source (attached to the debt table) and link it here in one click — then pull the record below to fill plan &amp; finance.</p>
+              <form action={createInNotion}>
+                <input type="hidden" name="slug" value={client.slug} />
+                <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors h-[38px]">Create in Notion</button>
+              </form>
+            </div>
+          )}
+
+          <div className="border border-neutral-200 rounded-lg p-4 mb-4">
+            <div className="font-semibold text-sm mb-1">Linked Notion page (Clients Database)</div>
+            <p className="text-xs text-neutral-500 mb-3">This is where the <b>Plan &amp; finance</b> shown at the top of the page comes from. Once linked, use <b>Refresh from Notion</b> up top to re-pull. Paste a different Clients Database page below to link or change it.</p>
+            <form action={syncNotionClient} className="flex items-end gap-3 flex-wrap">
+              <input type="hidden" name="slug" value={client.slug} />
+              <div className="flex-1 min-w-[240px]">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Clients Database page URL or ID</label>
+                <input name="notionPageId" defaultValue={client.data.notionPageId || ""} className={inputCls} placeholder="https://www.notion.so/…" />
+              </div>
+              <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">{client.data.notionPageId ? "Re-link & pull" : "Link & pull"}</button>
+            </form>
+          </div>
+
+          <div className="border border-neutral-200 rounded-lg p-4">
+            <div className="font-semibold text-sm mb-1">Content calendar → social posts</div>
+            <p className="text-xs text-neutral-500 mb-3">Paste a Notion <b>content-calendar database</b>. Maps Date → day, Title → post, and Platform / Status if present.</p>
+            <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
+              <input type="hidden" name="slug" value={client.slug} />
+              <div className="flex-1 min-w-[240px]">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Content calendar database URL or ID</label>
+                <input name="notionDbId" defaultValue={client.data.notionDbId || ""} className={inputCls} placeholder="https://www.notion.so/…?v=…" />
+              </div>
+              <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull calendar</button>
+            </form>
+          </div>
+        </div>
+
+        <details className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm" {...(metaInfo?.hasToken ? { open: true } : {})}>
+          <summary className="flex items-center justify-between gap-3 cursor-pointer select-none">
+            <span className="font-bold">Live data · Facebook &amp; Instagram</span>
+            {metaInfo?.hasToken ? (
+              <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Connected</span>
+            ) : (
+              <span className="text-xs font-medium text-neutral-400">Optional</span>
+            )}
+          </summary>
+          <p className="text-sm text-neutral-500 mt-3 mb-5">Connect the client&apos;s Facebook Page + Instagram so the portal&apos;s Analysis tab shows live reach, views, followers, and ad-campaign performance — refreshed automatically. The token is stored securely and never shown to the client. Until you connect this, the Analysis tab uses the numbers you type in.</p>
+
+          {metaAppConfigured() ? (
+            <>
+              <div className="flex items-center gap-3 flex-wrap">
+                <a href={`/api/meta/connect?slug=${client.slug}`} className="inline-flex items-center gap-2 bg-[#1877F2] text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-[#0f6ae0] transition-colors">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
+                  {metaInfo?.hasToken ? "Reconnect with Facebook" : "Continue with Facebook"}
+                </a>
+                {metaInfo?.hasToken && (
+                  <form action={syncMetaNow}>
+                    <input type="hidden" name="slug" value={client.slug} />
+                    <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Pull from Meta</button>
+                  </form>
+                )}
+                {metaInfo?.hasToken && (
+                  <form action={disconnectMeta}>
+                    <input type="hidden" name="slug" value={client.slug} />
+                    <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Disconnect</button>
+                  </form>
+                )}
+              </div>
+              {metaInfo?.hasToken && (
+                <p className="text-xs text-neutral-500 mt-3">
+                  Page <b>{metaInfo.fbPageId || "—"}</b>
+                  {metaInfo.igUserId ? <> · Instagram <b>{metaInfo.igUserId}</b></> : null}
+                  {metaInfo.adAccountId ? <> · Ads <b>act_{metaInfo.adAccountId}</b></> : null}
+                </p>
+              )}
+              <details className="mt-4">
+                <summary className="text-sm font-medium text-neutral-600 cursor-pointer hover:text-neutral-900">Enter IDs manually instead</summary>
+                <div className="mt-3">{metaManualForm}</div>
+              </details>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4">Set <code>META_APP_ID</code> and <code>META_APP_SECRET</code> to enable one-click “Continue with Facebook”. Until then, connect by pasting IDs + a token:</p>
+              {metaManualForm}
+            </>
+          )}
+        </details>
+      </div>
+
+      {sectionHead("Danger zone")}
+      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold mb-1">{client.data.archived ? "Archived" : "Archive client"}</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          {client.data.archived
+            ? "This client is archived — hidden from the active list and the client can't open their portal. Everything is kept; restore it anytime."
+            : "Hide this client from the active list and block their portal access, without deleting anything. Use it for a dropped or changed-mind prospect you may want back. Restore anytime."}
+        </p>
+        <form action={setClientArchived}>
+          <input type="hidden" name="slug" value={client.slug} />
+          <input type="hidden" name="archived" value={client.data.archived ? "" : "1"} />
+          <button className="border border-neutral-300 text-neutral-700 font-semibold rounded-md px-5 py-2.5 text-sm hover:border-neutral-400 hover:bg-neutral-50 transition-colors">{client.data.archived ? "Restore client" : "Archive client"}</button>
+        </form>
+      </div>
+
+      <div className="bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
+        <h2 className="font-bold mb-1 text-red-700">Delete</h2>
+        <p className="text-sm text-neutral-500 mb-4">Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.</p>
+        <form action={deleteClient}>
+          <input type="hidden" name="slug" value={client.slug} />
+          <ConfirmButton message={`Delete ${client.name || client.slug} and their portal, including all client logins? You'll get an Undo option right after.`} className="border border-red-300 text-red-600 font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-red-600 hover:border-red-600 hover:text-white transition-colors">Delete this client…</ConfirmButton>
+        </form>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-5xl space-y-6">
       <Link href="/admin/clients" className="inline-flex items-center gap-1 text-sm text-neutral-500 hover:text-neutral-900">← All clients</Link>
@@ -284,8 +583,8 @@ export default async function EditClientPage({
               </form>
             </div>
           ) : (
-            <a href="#sec-integrations" className="text-sm font-semibold text-orange hover:text-orange-deep whitespace-nowrap">
-              Set up Notion link ↓
+            <a href={`/admin/clients/${client.slug}/edit?tab=settings`} className="text-sm font-semibold text-orange hover:text-orange-deep whitespace-nowrap">
+              Set up Notion link →
             </a>
           )}
         </div>
@@ -318,7 +617,7 @@ export default async function EditClientPage({
         ) : (
           <p className="text-sm text-neutral-600">
             Not linked to Notion yet. Plan &amp; finance live in your Notion Budget Tracker — set up the link under{" "}
-            <a href="#sec-integrations" className="font-semibold text-orange hover:text-orange-deep">Integrations</a> below.
+            <a href={`/admin/clients/${client.slug}/edit?tab=settings`} className="font-semibold text-orange hover:text-orange-deep">Settings → Integrations</a>.
           </p>
         )}
       </div>
@@ -331,390 +630,16 @@ export default async function EditClientPage({
 
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={`/admin/clients/${client.slug}/edit`} />
 
-      <div className="lg:grid lg:grid-cols-[190px_1fr] lg:gap-8 lg:items-start">
-        <nav className="hidden lg:flex lg:flex-col gap-1 lg:sticky lg:top-24">
-          {(
-            [
-              ["sec-docs", "Documents & invoices"],
-              ["sec-brand", "Portal content"],
-              ["sec-access", "Access"],
-              ["sec-integrations", "Integrations"],
-              ["sec-ai", "AI analysis"],
-              ["sec-danger", "Danger zone"],
-            ] as const
-          ).map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="rounded-lg px-3 py-2 text-sm font-medium text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 transition-colors">
-              {label}
-            </a>
-          ))}
-        </nav>
-        <div className="space-y-6 min-w-0">
-
-      {brief && (client.data.proposal?.acceptedAt || client.data.agreement?.acceptedAt) && (
-        <div className="text-sm rounded-md px-4 py-3 mb-6 border text-green-700 bg-green-50 border-green-200 space-y-1">
-          {client.data.proposal?.acceptedAt && (
-            <div>✓ Proposal accepted on {new Date(client.data.proposal.acceptedAt).toLocaleString("en-GB")}.</div>
-          )}
-          {client.data.agreement?.acceptedAt && (
-            <div>
-              ✓ Agreement e-signed by <b>{client.data.agreement.signedName}</b> on {new Date(client.data.agreement.acceptedAt).toLocaleString("en-GB")}.
-            </div>
-          )}
-        </div>
-      )}
-
-      {brief && <OnboardingBriefPanel brief={brief} />}
-
-      {brief && <OnboardingBriefActions brief={brief} />}
-
-      <h2 id="sec-docs" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Documents &amp; invoices</h2>
-      {client && (
-        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold mb-1">Proposal &amp; agreement</h2>
-          <p className="text-sm text-neutral-500 mb-5">
-            Both are paged, bilingual documents prepared in their builders. They only appear on the client&apos;s portal once sent.
-          </p>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            {(
-              [
-                {
-                  label: "Proposal",
-                  doc: client.data.proposal,
-                  doneLabel: "Accepted",
-                  builder: `/admin/proposals/${client.slug}`,
-                  view: `/portal/${client.slug}/proposal`,
-                },
-                {
-                  label: "Agreement",
-                  doc: client.data.agreement,
-                  doneLabel: "Signed",
-                  builder: `/admin/agreements/${client.slug}`,
-                  view: `/portal/${client.slug}/agreement`,
-                },
-              ] as const
-            ).map((x) => (
-              <div key={x.label} className="border border-neutral-200 rounded-lg p-4">
-                <div className="font-semibold text-sm mb-2">
-                  {x.label}{" "}
-                  {x.doc?.acceptedAt ? (
-                    <span className="ml-1 text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">{x.doneLabel}</span>
-                  ) : x.doc?.published ? (
-                    <span className="ml-1 text-xs font-semibold text-orange-deep bg-orange-50 rounded-full px-2 py-0.5">Sent</span>
-                  ) : (
-                    <span className="ml-1 text-xs font-semibold text-neutral-500 bg-neutral-100 rounded-full px-2 py-0.5">Draft</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <Link href={x.builder} className="bg-charcoal text-white font-semibold rounded-md px-3.5 py-2 text-sm hover:bg-ink transition-colors">
-                    Open builder →
-                  </Link>
-                  <Link href={x.view} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">
-                    Client view ↗
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {client && (
-        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold mb-1">Invoices</h2>
-          <p className="text-sm text-neutral-500 mb-4">Auto-numbered (INV-{new Date().getFullYear()}-NNN). They appear in the client&apos;s portal under Invoices.</p>
-
-          {monthlyFee && (
-            <div className="flex items-center justify-between gap-3 flex-wrap rounded-lg border border-orange/40 bg-orange-50/50 px-4 py-3 mb-4">
-              <div className="text-sm">
-                <div className="font-semibold text-neutral-900">This client&apos;s month is due</div>
-                <div className="text-neutral-600">Monthly fee from Notion: <b>{monthlyFee}</b>{client.data.plan?.end ? ` · cycle ends ${client.data.plan.end}` : ""}</div>
-              </div>
-              <form action={createInvoiceFromNotion}>
-                <input type="hidden" name="slug" value={client.slug} />
-                <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Draft monthly invoice</button>
-              </form>
-            </div>
-          )}
-
-          {clientInvoices.length > 0 && (
-            <div className="divide-y divide-neutral-100 mb-5">
-              {clientInvoices.map((inv) => {
-                const rate = Number(inv.vat_rate) || 0;
-                const total = invoiceGrandTotal(inv.items, rate);
-                const paid = Number(inv.paid_amount) || 0;
-                const left = Math.max(0, total - paid);
-                return (
-                  <div key={inv.id} className="flex items-center gap-3 py-2.5 flex-wrap">
-                    <div className="flex-1 min-w-[140px]">
-                      <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="font-mono text-sm font-semibold text-neutral-800 hover:text-orange">{inv.number}</a>
-                      <span className="ml-2 text-xs text-neutral-400">{new Date(inv.issued_date).toLocaleDateString("en-GB")}{rate > 0 ? ` · +${inv.vat_rate}% VAT` : ""}</span>
-                    </div>
-                    <span className="tabular-nums text-sm font-semibold text-neutral-900 text-right">
-                      {total.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-                      {paid > 0 && <span className="block text-xs font-medium text-orange-deep">{left.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</span>}
-                    </span>
-                    <InvoiceStatusSelect id={inv.id} slug={client.slug} status={inv.status} />
-                    {inv.status !== "paid" && (
-                      <a href={`/admin/payments/new?invoice=${inv.id}`} className="text-xs font-semibold text-green-700 hover:text-green-800">+ Payment</a>
-                    )}
-                    <a href={`/admin/invoices/${inv.id}/edit`} className="text-xs font-medium text-neutral-600 hover:text-orange">Edit</a>
-                    <a href={`/portal/${client.slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-600 hover:text-orange">PDF ↗</a>
-                    <form action={deleteInvoiceAction}>
-                      <input type="hidden" name="slug" value={client.slug} />
-                      <input type="hidden" name="id" value={inv.id} />
-                      <ConfirmButton
-                        message={`Delete invoice ${inv.number}? You'll get a chance to undo right after.`}
-                        className="text-xs font-medium text-neutral-300 hover:text-red-600"
-                      >
-                        Delete
-                      </ConfirmButton>
-                    </form>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <InvoiceEditor slug={client.slug} seed={(client.data.pricing?.items || []).length ? client.data.pricing!.items : seededPricing} storiesFee={client.data.finance?.storiesFee || ""} />
-        </div>
-      )}
-
-      {brief && others.length > 0 && (
-        <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-          <h2 className="font-bold mb-1">Connect to an existing portal</h2>
-          <p className="text-sm text-neutral-500 mb-4">
-            Already manage this brand? Move this onboarding&apos;s login and brief onto an existing portal — this draft is then removed.
-          </p>
-          <form action={mergeOnboardingIntoClient} className="flex items-end gap-3 flex-wrap">
-            <input type="hidden" name="fromSlug" value={client.slug} />
-            <div className="flex-1 min-w-[220px]">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Existing portal</label>
-              <select name="toSlug" required className={inputCls}>
-                <option value="">Choose a portal…</option>
-                {others.map((c) => (
-                  <option key={c.slug} value={c.slug}>{c.name} (/{c.slug})</option>
-                ))}
-              </select>
-            </div>
-            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">
-              Connect →
-            </button>
-          </form>
-          <p className="text-xs text-neutral-500 mt-3">
-            To connect with a <b>Notion</b> client instead, use the Notion sync panel below — it stays available for this portal anytime.
-          </p>
-        </div>
-      )}
-
-      <h2 id="sec-brand" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Portal — what the client sees</h2>
-      <p className="text-sm text-neutral-500 px-1 -mt-3">Branding, colours, headlines and the content shown on the client&apos;s portal. This is presentation only — plan &amp; finance come from Notion (top of page).</p>
-      <ClientForm client={client} projectLogos={projectLogos} />
-
-      <h2 id="sec-access" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Access</h2>
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="font-bold mb-1">Client logins</h2>
-        <p className="text-sm text-neutral-500 mb-4">People who can sign in and see only this portal.</p>
-
-        <div className="divide-y divide-neutral-100 mb-5">
-          {logins.map((u) => (
-            <div key={u.id} className="flex items-center gap-3 py-2.5">
-              <div className="flex-1 min-w-0">
-                <div className="font-medium truncate">{u.name}</div>
-                <div className="text-xs text-neutral-500 truncate">{u.email}</div>
-              </div>
-              <form action={deleteClientUser}>
-                <input type="hidden" name="id" value={u.id} />
-                <input type="hidden" name="slug" value={client.slug} />
-                <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Remove</button>
-              </form>
-            </div>
-          ))}
-          {logins.length === 0 && <div className="py-3 text-sm text-neutral-500">No client logins yet.</div>}
-        </div>
-
-        <form action={createClientUser} className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
-          <input type="hidden" name="slug" value={client.slug} />
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Name</label>
-            <input name="name" className={inputCls} placeholder="Client contact" />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Email</label>
-            <input name="email" type="email" required autoComplete="off" className={inputCls} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Password</label>
-            <input name="password" type="password" required minLength={8} autoComplete="new-password" className={inputCls} />
-          </div>
-          <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors h-[38px]">
-            Add login
-          </button>
-        </form>
-      </div>
-
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between gap-3 mb-1">
-          <h2 className="font-bold">Invite links</h2>
-          <form action={createInvite}>
-            <input type="hidden" name="slug" value={client.slug} />
-            <button className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Create invite</button>
-          </form>
-        </div>
-        <p className="text-sm text-neutral-500 mb-4">Send a link to your client; they set their own password and get access — no need to type it for them.</p>
-        <InviteList invites={invites} slug={client.slug} />
-      </div>
-      </div>
-
-      <h2 id="sec-integrations" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">Integrations</h2>
-      <div className="grid lg:grid-cols-2 gap-6 items-start">
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="font-bold mb-1">Notion sync</h2>
-        <p className="text-sm text-neutral-500 mb-5">Pull live data from your Notion workspace. Share the relevant database/page with your Notion integration first.</p>
-
-        {!client.data.notionPageId && (
-          <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 mb-4">
-            <div className="font-semibold text-sm mb-1">Not linked to Notion yet</div>
-            <p className="text-xs text-neutral-600 mb-3">
-              Onboarding portals aren&apos;t added to Notion automatically. Create the client&apos;s <b>Clients Database</b> page and <b>Budget Tracker</b> source (attached to the debt table) and link it here in one click — then pull the record below to fill plan &amp; finance.
-            </p>
-            <form action={createInNotion}>
-              <input type="hidden" name="slug" value={client.slug} />
-              <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors h-[38px]">Create in Notion</button>
-            </form>
-          </div>
-        )}
-
-        <div className="border border-neutral-200 rounded-lg p-4 mb-4">
-          <div className="font-semibold text-sm mb-1">Linked Notion page (Clients Database)</div>
-          <p className="text-xs text-neutral-500 mb-3">
-            This is where the <b>Plan &amp; finance</b> shown at the top of the page comes from. Once linked, use{" "}
-            <b>Refresh from Notion</b> up top to re-pull. Paste a different Clients Database page below to link or change it.
-          </p>
-          <form action={syncNotionClient} className="flex items-end gap-3 flex-wrap">
-            <input type="hidden" name="slug" value={client.slug} />
-            <div className="flex-1 min-w-[240px]">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Clients Database page URL or ID</label>
-              <input name="notionPageId" defaultValue={client.data.notionPageId || ""} className={inputCls} placeholder="https://www.notion.so/…" />
-            </div>
-            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">
-              {client.data.notionPageId ? "Re-link & pull" : "Link & pull"}
-            </button>
-          </form>
-        </div>
-
-        <div className="border border-neutral-200 rounded-lg p-4">
-          <div className="font-semibold text-sm mb-1">Content calendar → social posts</div>
-          <p className="text-xs text-neutral-500 mb-3">Paste a Notion <b>content-calendar database</b>. Maps Date → day, Title → post, and Platform / Status if present.</p>
-          <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
-            <input type="hidden" name="slug" value={client.slug} />
-            <div className="flex-1 min-w-[240px]">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Content calendar database URL or ID</label>
-              <input name="notionDbId" defaultValue={client.data.notionDbId || ""} className={inputCls} placeholder="https://www.notion.so/…?v=…" />
-            </div>
-            <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors h-[38px]">Pull calendar</button>
-          </form>
-        </div>
-      </div>
-
-      <details className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm" {...(metaInfo?.hasToken ? { open: true } : {})}>
-        <summary className="flex items-center justify-between gap-3 cursor-pointer select-none">
-          <span className="font-bold">Live data · Facebook &amp; Instagram</span>
-          {metaInfo?.hasToken ? (
-            <span className="text-xs font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">Connected</span>
-          ) : (
-            <span className="text-xs font-medium text-neutral-400">Optional</span>
-          )}
-        </summary>
-        <p className="text-sm text-neutral-500 mt-3 mb-5">
-          Connect the client&apos;s Facebook Page + Instagram so the portal&apos;s Analysis tab shows live reach, views,
-          followers, and ad-campaign performance — refreshed automatically. The token is stored securely and never shown
-          to the client. Until you connect this, the Analysis tab uses the numbers you type in.
-        </p>
-
-        {metaAppConfigured() ? (
-          <>
-            <div className="flex items-center gap-3 flex-wrap">
-              <a href={`/api/meta/connect?slug=${client.slug}`} className="inline-flex items-center gap-2 bg-[#1877F2] text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-[#0f6ae0] transition-colors">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07C0 18.1 4.39 23.1 10.13 24v-8.44H7.08v-3.49h3.05V9.41c0-3.02 1.79-4.69 4.53-4.69 1.31 0 2.68.24 2.68.24v2.97h-1.51c-1.49 0-1.96.93-1.96 1.89v2.25h3.33l-.53 3.49h-2.8V24C19.61 23.1 24 18.1 24 12.07z"/></svg>
-                {metaInfo?.hasToken ? "Reconnect with Facebook" : "Continue with Facebook"}
-              </a>
-              {metaInfo?.hasToken && (
-                <form action={syncMetaNow}>
-                  <input type="hidden" name="slug" value={client.slug} />
-                  <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Pull from Meta</button>
-                </form>
-              )}
-              {metaInfo?.hasToken && (
-                <form action={disconnectMeta}>
-                  <input type="hidden" name="slug" value={client.slug} />
-                  <button className="text-sm font-medium text-neutral-400 hover:text-red-600">Disconnect</button>
-                </form>
-              )}
-            </div>
-            {metaInfo?.hasToken && (
-              <p className="text-xs text-neutral-500 mt-3">
-                Page <b>{metaInfo.fbPageId || "—"}</b>
-                {metaInfo.igUserId ? <> · Instagram <b>{metaInfo.igUserId}</b></> : null}
-                {metaInfo.adAccountId ? <> · Ads <b>act_{metaInfo.adAccountId}</b></> : null}
-              </p>
-            )}
-            <details className="mt-4">
-              <summary className="text-sm font-medium text-neutral-600 cursor-pointer hover:text-neutral-900">Enter IDs manually instead</summary>
-              <div className="mt-3">{metaManualForm}</div>
-            </details>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2 mb-4">
-              Set <code>META_APP_ID</code> and <code>META_APP_SECRET</code> to enable one-click “Continue with Facebook”. Until then, connect by pasting IDs + a token:
-            </p>
-            {metaManualForm}
-          </>
-        )}
-      </details>
-      </div>
-
-      <h2 id="sec-ai" className="scroll-mt-24 text-xs font-bold uppercase tracking-wider text-neutral-400 px-1 pt-2">AI analysis</h2>
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="font-bold mb-3">AI reading</h2>
-        <AiAnalysisPanel client={client} apiEnabled={isAiEnabled()} />
-      </div>
-
-      <div className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="font-bold mb-1">{client.data.archived ? "Archived" : "Archive client"}</h2>
-        <p className="text-sm text-neutral-500 mb-4">
-          {client.data.archived
-            ? "This client is archived — hidden from the active list and the client can't open their portal. Everything is kept; restore it anytime."
-            : "Hide this client from the active list and block their portal access, without deleting anything. Use it for a dropped or changed-mind prospect you may want back. Restore anytime."}
-        </p>
-        <form action={setClientArchived}>
-          <input type="hidden" name="slug" value={client.slug} />
-          <input type="hidden" name="archived" value={client.data.archived ? "" : "1"} />
-          <button className="border border-neutral-300 text-neutral-700 font-semibold rounded-md px-5 py-2.5 text-sm hover:border-neutral-400 hover:bg-neutral-50 transition-colors">
-            {client.data.archived ? "Restore client" : "Archive client"}
-          </button>
-        </form>
-      </div>
-
-      <div id="sec-danger" className="scroll-mt-24 bg-white border border-red-200 rounded-2xl p-6 shadow-sm">
-        <h2 className="font-bold mb-1 text-red-700">Danger zone</h2>
-        <p className="text-sm text-neutral-500 mb-4">
-          Deletes this portal and its client logins. You&apos;ll get a chance to undo right after.
-        </p>
-        <form action={deleteClient}>
-          <input type="hidden" name="slug" value={client.slug} />
-          <ConfirmButton
-            message={`Delete ${client.name || client.slug} and their portal, including all client logins? You'll get an Undo option right after.`}
-            className="border border-red-300 text-red-600 font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-red-600 hover:border-red-600 hover:text-white transition-colors"
-          >
-            Delete this client…
-          </ConfirmButton>
-        </form>
-      </div>
-        </div>
-      </div>
+      <ClientEditor
+        client={client}
+        projectLogos={projectLogos}
+        apiEnabled={isAiEnabled()}
+        linkedToNotion={!!client.data.notionPageId}
+        initialTab={searchParams.tab}
+        docsSlot={docsSlot}
+        invoicesSlot={invoicesSlot}
+        settingsSlot={settingsSlot}
+      />
     </div>
   );
 }
