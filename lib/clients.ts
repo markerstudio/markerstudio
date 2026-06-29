@@ -88,6 +88,30 @@ export type ClientPhoto = {
   sessions?: PhotoSession[];
   shots?: PhotoTask[]; // the photo-session to-do list ("shot list")
 };
+// --- Deliverables (smart to-do list) --------------------------------------
+// What the studio owes a client and by when. A status-advancing to-do list that
+// can be hand-authored or rule-generated from the plan cycle + proposal timeline
+// (see lib/deliverables.ts). Lives on the client (own JSONB key) so it can be
+// tracked per client, aggregated across clients ("what's due"), and optionally
+// shown to the client as a progress view. Mirrors the photography block.
+export type DeliverableStatus = "todo" | "doing" | "review" | "done";
+export type Deliverable = {
+  id?: string; // stable id — assigned on read/save; legacy rows fall back to index
+  title: string;
+  detail?: string;
+  due?: string; // ISO yyyy-mm-dd — generated from the timeline/cycle, or hand-set
+  status: DeliverableStatus;
+  kind?: "recurring" | "milestone";
+  source?: "manual" | "plan" | "timeline"; // provenance — drives dedupe on re-generate
+  cycle?: string; // recurring dedupe key, "YYYY-MM"
+  phaseKey?: string; // milestone dedupe key — the source timeline phase name
+};
+export type ClientDeliverables = {
+  active?: boolean; // tracked for this client (shows on the cross-client "what's due" view)
+  showToClient?: boolean; // reveal a progress view in the client's own portal
+  items?: Deliverable[];
+};
+
 // One entry in the portal activity feed. `kind` drives the icon/accent; copy is
 // bilingual. Studio-authored notes and client actions (approvals, signatures)
 // both land here so the dashboard shows a live history.
@@ -169,6 +193,7 @@ export type ClientData = {
   };
   documents: DocItem[];
   photo?: ClientPhoto; // photography — shoot schedule + to-do shared with the photographer (and optionally the client)
+  deliverables?: ClientDeliverables; // smart to-do list — what's owed and by when (own key; never in the form payload)
   storiesTasks?: StoriesTask[]; // Ramzi's stories work list for this client (managed from the partner portal)
   assets?: AssetItem[]; // downloadable brand deliverables (logos, exports, guidelines)
   updates?: ActivityItem[]; // portal activity feed — studio notes + client actions
@@ -356,6 +381,22 @@ export async function updatePhotoBlock(slug: string, mutate: (photo: ClientPhoto
   const photo = (rows[0].photo || {}) as ClientPhoto;
   mutate(photo);
   return savePhotoBlock(slug, photo);
+}
+
+// Deliverables block — same per-subtree pattern as photo, so the to-do list saves
+// independently of the rest of the client (no clobber across sections).
+export async function saveDeliverablesBlock(slug: string, deliverables: ClientDeliverables): Promise<boolean> {
+  return setClientDataPath(slug, "deliverables", deliverables);
+}
+
+export async function updateDeliverablesBlock(slug: string, mutate: (d: ClientDeliverables) => void): Promise<boolean> {
+  if (!isDbEnabled()) return false;
+  const sql = getSql();
+  const rows = (await sql`SELECT data->'deliverables' AS deliverables FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { deliverables: ClientDeliverables | null }[];
+  if (!rows[0]) return false;
+  const block = (rows[0].deliverables || {}) as ClientDeliverables;
+  mutate(block);
+  return saveDeliverablesBlock(slug, block);
 }
 
 // Empty portal content for a brand-new client.

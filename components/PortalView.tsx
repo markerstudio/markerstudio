@@ -123,6 +123,18 @@ export default function PortalView({
     return Number.isNaN(dt.getTime()) ? iso : dt.toLocaleDateString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" });
   };
   const shotsDone = shots.filter((t) => t.status === "done").length;
+
+  // Deliverables — the client only sees progress when the studio shared it.
+  const dlvShared = !!d.deliverables?.showToClient;
+  const dlvItems = dlvShared ? [...(d.deliverables?.items ?? [])].sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) : [];
+  const dlvDone = dlvItems.filter((x) => x.status === "done").length;
+  const dlvPct = dlvItems.length ? Math.round((dlvDone / dlvItems.length) * 100) : 0;
+  const dlvStatusLabel: Record<string, { en: string; ar: string; cls: string }> = {
+    todo: { en: "To do", ar: "قيد الانتظار", cls: "" },
+    doing: { en: "In progress", ar: "قيد التنفيذ", cls: "ms-portal-pill--blue" },
+    review: { en: "In review", ar: "قيد المراجعة", cls: "ms-portal-pill--blue" },
+    done: { en: "Delivered", ar: "تم التسليم", cls: "ms-portal-pill--green" },
+  };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const up = (fn: (c: any) => void) => setData((prev) => { const c = JSON.parse(JSON.stringify(prev)); fn(c); return c; });
 
@@ -434,6 +446,44 @@ export default function PortalView({
                     </ul>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Deliverables progress — only when the studio shared it. */}
+            {!edit && dlvShared && dlvItems.length > 0 && (
+              <div style={{ marginTop: 36 }}>
+                <div className="ms-section__header">
+                  <div>
+                    <span className="ms-section__eyebrow">{ui("Deliverables", "المخرجات")}</span>
+                    <h2 className="ms-section__title">{ui("Where we are", "أين وصلنا")}</h2>
+                  </div>
+                  <span className="ms-portal-pill">{dlvDone}/{dlvItems.length} {ui("delivered", "تم تسليمه")}</span>
+                </div>
+
+                <div className="ms-pcard" style={{ marginTop: 8 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                    <span className="ms-portal-mini">{ui("Progress", "نسبة الإنجاز")}</span>
+                    <span style={{ fontWeight: 800 }}>{dlvPct}%</span>
+                  </div>
+                  <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
+                    <div style={{ height: "100%", width: `${dlvPct}%`, background: "var(--marker-orange)", borderRadius: 999 }} />
+                  </div>
+                  <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0" }}>
+                    {dlvItems.map((it, i) => {
+                      const st = dlvStatusLabel[it.status] ?? dlvStatusLabel.todo;
+                      return (
+                        <li key={it.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i ? "1px solid var(--marker-line, #eee)" : "none" }}>
+                          <span aria-hidden style={{ color: it.status === "done" ? "var(--marker-orange, #FF9100)" : "#bbb" }}>{it.status === "done" ? "✓" : "○"}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, textDecoration: it.status === "done" ? "line-through" : "none", opacity: it.status === "done" ? 0.6 : 1 }}>{it.title}</div>
+                            {it.due && <div className="ms-pmuted" style={{ fontSize: 12 }}>{fmtShootDate(it.due)}</div>}
+                          </div>
+                          <span className={`ms-portal-pill ${st.cls}`}>{ui(st.en, st.ar)}</span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               </div>
             )}
           </div>
