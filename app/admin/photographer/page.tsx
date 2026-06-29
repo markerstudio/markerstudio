@@ -152,7 +152,7 @@ export default async function PhotographerPage() {
                   <div className="text-[11px] text-neutral-500">/{c.slug}</div>
                 </div>
                 {!photographer && (
-                  <Link href={`/admin/clients/${c.slug}/edit?tab=plan`} className="text-xs font-semibold text-neutral-400 hover:text-orange">
+                  <Link href={`/admin/clients/${c.slug}/edit?tab=content`} className="text-xs font-semibold text-neutral-400 hover:text-orange">
                     Edit shoots →
                   </Link>
                 )}

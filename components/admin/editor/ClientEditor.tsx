@@ -2,9 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import DashboardTab from "./DashboardTab";
-import PlanShootsTab from "./PlanShootsTab";
+import PlanContentTab from "./PlanContentTab";
 import DeliverablesTab from "./DeliverablesTab";
-import SocialTab from "./SocialTab";
 import AnalysisTab from "./AnalysisTab";
 import FinanceTab from "./FinanceTab";
 import DocumentsTab from "./DocumentsTab";
@@ -13,9 +12,8 @@ import type { Client, ClientData } from "@/lib/clients";
 
 const TABS = [
   ["dashboard", "Dashboard"],
-  ["plan", "Plan & Shoots"],
+  ["content", "Plan & Content"],
   ["deliverables", "Deliverables"],
-  ["social", "Social"],
   ["analysis", "Analysis"],
   ["finance", "Finance"],
   ["documents", "Documents"],
@@ -48,8 +46,10 @@ export default function ClientEditor({
 }) {
   const [data, setData] = useState<ClientData>(client.data);
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
-  const valid = TABS.some(([id]) => id === initialTab);
-  const [tab, setTab] = useState<TabId>(valid ? (initialTab as TabId) : "dashboard");
+  // Legacy deep links (?tab=plan / ?tab=social) now resolve to the merged tab.
+  const requested = initialTab === "plan" || initialTab === "social" ? "content" : initialTab;
+  const valid = TABS.some(([id]) => id === requested);
+  const [tab, setTab] = useState<TabId>(valid ? (requested as TabId) : "dashboard");
   const slug = client.slug;
 
   function go(id: TabId) {
@@ -83,9 +83,8 @@ export default function ClientEditor({
 
       <div className="min-w-0">
         {tab === "dashboard" && <DashboardTab slug={slug} data={data} patch={patch} />}
-        {tab === "plan" && <PlanShootsTab slug={slug} data={data} patch={patch} />}
+        {tab === "content" && <PlanContentTab slug={slug} data={data} />}
         {tab === "deliverables" && <DeliverablesTab slug={slug} data={data} />}
-        {tab === "social" && <SocialTab slug={slug} data={data} patch={patch} />}
         {tab === "analysis" && <AnalysisTab slug={slug} data={data} patch={patch} client={client} apiEnabled={apiEnabled} />}
         {tab === "finance" && <FinanceTab slug={slug} data={data} patch={patch} linkedToNotion={linkedToNotion} invoicesSlot={invoicesSlot} />}
         {tab === "documents" && <DocumentsTab slug={slug} data={data} patch={patch} docsSlot={docsSlot} />}
