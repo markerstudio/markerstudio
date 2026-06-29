@@ -17,6 +17,8 @@ import { setShotStatusById, setSessionStatusById } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+const SHOT_TYPE_LABEL: Record<string, string> = { post: "Post", story: "Story", reel: "Reel", carousel: "Carousel" };
+
 function fmtDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(`${iso}T00:00:00`);
@@ -209,8 +211,8 @@ export default async function PhotographerPage() {
                   ) : (
                     <ul className="space-y-2">
                       {shots.map((shot, idx) => (
-                        <li key={shot.id ?? idx} className="flex items-center gap-3">
-                          <div className="shrink-0">
+                        <li key={shot.id ?? idx} className="flex items-start gap-3 rounded-lg border border-neutral-100 p-2">
+                          <div className="shrink-0 pt-0.5">
                             <PhotographerStatusButton
                               slug={c.slug}
                               id={shot.id}
@@ -222,10 +224,25 @@ export default async function PhotographerPage() {
                               action={setShotStatusById}
                             />
                           </div>
+                          {shot.mediaUrl && (
+                            <a href={shot.mediaUrl} target="_blank" rel="noreferrer" className="shrink-0" title="Open reference media">
+                              {shot.mediaKind === "video" ? (
+                                // eslint-disable-next-line jsx-a11y/media-has-caption
+                                <video src={shot.mediaUrl} muted className="h-14 w-14 rounded-md object-cover border border-neutral-200 bg-neutral-100" />
+                              ) : (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={shot.mediaUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-neutral-200 bg-neutral-100" />
+                              )}
+                            </a>
+                          )}
                           <div className="flex-1 min-w-0">
-                            <div className={`text-sm ${shot.status === "done" ? "line-through text-neutral-400" : "text-neutral-900"} truncate`}>{shot.title}</div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-sm ${shot.status === "done" ? "line-through text-neutral-400" : "text-neutral-900 font-medium"}`}>{shot.title || "Shot"}</span>
+                              {shot.type && <span className="text-[10px] font-semibold uppercase tracking-wider rounded-full px-1.5 py-0.5 bg-neutral-100 text-neutral-500">{SHOT_TYPE_LABEL[shot.type] || shot.type}</span>}
+                              {shot.mediaUrl && <span className="text-[10px] font-semibold text-emerald-700">{shot.mediaKind === "video" ? "🎬 video" : "🖼 photo"}</span>}
+                            </div>
                             {(shot.due || shot.note) && (
-                              <div className="text-[11px] text-neutral-500 truncate">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
+                              <div className="text-[11px] text-neutral-500 mt-0.5">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
                             )}
                           </div>
                         </li>
