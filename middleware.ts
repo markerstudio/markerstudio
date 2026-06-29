@@ -27,7 +27,9 @@ export async function middleware(req: NextRequest) {
   // Older sessions (issued before roles existed) have no role claim — treat
   // those as admin so existing logins don't get locked out.
   const role = (payload.role as string | undefined) ?? "admin";
-  if (pathname.startsWith("/admin") && role !== "admin") {
+  // Only client accounts are bounced out of /admin. admin / photographer / partner
+  // all belong in the admin area (photographer & partner are then confined below).
+  if (pathname.startsWith("/admin") && role === "client") {
     const url = req.nextUrl.clone();
     url.pathname = "/portal";
     url.search = "";
@@ -52,11 +54,13 @@ export async function middleware(req: NextRequest) {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean);
-    const partnerOnly = !!email && partnerEmails.includes(email) && email !== superEmail;
+    // Role is the primary signal (set on the user when created); the email lists
+    // are kept as a fallback so the original env-configured accounts still work.
+    const partnerOnly = (role === "partner" || (!!email && partnerEmails.includes(email))) && email !== superEmail;
     // A photographer who isn't also the super admin or a partner is confined to
     // the photographer portal only (mirrors isPhotographerOnly in lib/auth).
     const photographerOnly =
-      !!email && photographerEmails.includes(email) && email !== superEmail && !partnerEmails.includes(email);
+      (role === "photographer" || (!!email && photographerEmails.includes(email))) && email !== superEmail && !partnerOnly;
     if (photographerOnly) {
       if (!pathname.startsWith("/admin/photographer")) {
         const url = req.nextUrl.clone();

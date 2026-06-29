@@ -32,8 +32,8 @@ export const PARTNER_EMAILS = (process.env.PARTNER_EMAILS || "ramzi@marker.ps")
   .map((s) => s.trim())
   .filter(Boolean);
 
-export function isPartner(user: { email?: string | null } | null | undefined): boolean {
-  return !!user?.email && PARTNER_EMAILS.includes(user.email.toLowerCase());
+export function isPartner(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  return user?.role === "partner" || (!!user?.email && PARTNER_EMAILS.includes(user.email.toLowerCase()));
 }
 
 // Who may see the partner (Ramzi) area: the partner themselves and the super
@@ -62,8 +62,8 @@ export const PHOTOGRAPHER_EMAILS = (process.env.PHOTOGRAPHER_EMAILS || "ameer@ma
   .map((s) => s.trim())
   .filter(Boolean);
 
-export function isPhotographer(user: { email?: string | null } | null | undefined): boolean {
-  return !!user?.email && PHOTOGRAPHER_EMAILS.includes(user.email.toLowerCase());
+export function isPhotographer(user: { email?: string | null; role?: string | null } | null | undefined): boolean {
+  return user?.role === "photographer" || (!!user?.email && PHOTOGRAPHER_EMAILS.includes(user.email.toLowerCase()));
 }
 
 // Who may see the photographer area: every admin (Elias, Maram, …) plus the
@@ -89,7 +89,7 @@ export function canSeeDeliverables(user: { email?: string | null } | null | unde
   return !isPartnerOnly(user) && !isPhotographerOnly(user);
 }
 
-export type Role = "admin" | "client";
+export type Role = "admin" | "client" | "photographer" | "partner";
 export type SessionUser = { id: number; email: string; name: string; role: Role; clientId: number | null };
 
 function secret(): Uint8Array {
