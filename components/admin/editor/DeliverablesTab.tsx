@@ -12,9 +12,17 @@ const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-5
 // row and editing/removing never scrambles focus (same strategy as PlanShootsEditor).
 const Row = memo(function Row({ item, onChange, onRemove }: { item: Deliverable; onChange: (id: string, patch: Partial<Deliverable>) => void; onRemove: (id: string) => void }) {
   const id = item.id!;
+  const isPending = !!(item.requestedByClient && item.pending);
   return (
-    <div className="border border-neutral-200 rounded-lg p-3 relative pr-16">
+    <div className={`border rounded-lg p-3 relative pr-16 ${isPending ? "border-amber-300 bg-amber-50/50" : "border-neutral-200"}`}>
       <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
+      {isPending && (
+        <div className="mb-3 flex items-center gap-2 flex-wrap">
+          <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">Client request · pending</span>
+          <button type="button" onClick={() => onChange(id, { pending: false })} className="text-[11px] font-semibold rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 hover:bg-emerald-100">Approve</button>
+          <button type="button" onClick={() => onRemove(id)} className="text-[11px] font-semibold rounded-full border border-neutral-300 text-neutral-500 px-2.5 py-0.5 hover:border-red-300 hover:text-red-600">Reject</button>
+        </div>
+      )}
       <div className="grid grid-cols-2 md:grid-cols-[1fr_150px_130px_130px] gap-3 items-end">
         <div>
           <label className={lbl}>Deliverable</label>
@@ -93,14 +101,18 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
         <legend className="px-2 -ml-2 font-bold">Deliverables</legend>
         <p className="text-xs text-neutral-400 mb-4">What you owe this client and by when. Generate dated to-dos from the plan cycle + proposal timeline, then track them here and on the cross-client board.</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-5">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
           <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
             <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.active} onChange={(e) => setToggle({ active: e.target.checked })} />
-            <span className="leading-relaxed"><b>Track deliverables</b> for this client. Shows them on the studio&apos;s <b>What&apos;s due</b> board across all clients.</span>
+            <span className="leading-relaxed"><b>Track deliverables</b> for this client. Shows them on the studio&apos;s <b>What&apos;s due</b> board.</span>
           </label>
           <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
             <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
-            <span className="leading-relaxed"><b>Show progress to the client.</b> Reveals a progress bar + deliverables list in the client&apos;s own portal. Off = internal only.</span>
+            <span className="leading-relaxed"><b>Show progress to the client.</b> Reveals a progress bar + list in the client&apos;s portal. Off = internal only.</span>
+          </label>
+          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.allowClientRequests} onChange={(e) => setToggle({ allowClientRequests: e.target.checked })} />
+            <span className="leading-relaxed"><b>Let the client request tasks.</b> They can submit a task with a date; it stays pending until you approve it here.</span>
           </label>
         </div>
 

@@ -9,6 +9,8 @@
 import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
+import { updateDeliverablesBlock } from "@/lib/clients";
+import { genId } from "@/lib/deliverables";
 import type { ActivityItem, ClientData, SocialPost } from "@/lib/clients";
 
 type Result = { ok: boolean; error?: string };
@@ -60,6 +62,35 @@ export async function setPostApproval(slug: string, index: number, approval: Soc
     return { ok: false, error: "db" };
   }
   revalidatePath(`/portal/${slug}`);
+  return { ok: true };
+}
+
+// A client (or the studio) submits a task request from the portal. It lands on the
+// client's deliverables block as a pending item until an admin approves it. Writes
+// only the deliverables subtree (jsonb_set) so it can't clobber other edits.
+export async function requestDeliverable(slug: string, input: { title: string; due?: string; detail?: string }): Promise<Result> {
+  const s = await getSession();
+  if (!s) return { ok: false, error: "unauthorized" };
+  const c = await loadClient(slug);
+  if (!c) return { ok: false, error: "not found" };
+  if (s.role === "client" && s.clientId !== c.id) return { ok: false, error: "forbidden" };
+  const data = (c.data || {}) as ClientData;
+  if (!data.deliverables?.allowClientRequests) return { ok: false, error: "requests off" };
+  const title = (input.title || "").trim();
+  if (!title) return { ok: false, error: "empty" };
+  const due = (input.due || "").trim();
+  const detail = (input.detail || "").trim();
+  const ok = await updateDeliverablesBlock(slug, (block) => {
+    block.active = block.active ?? true;
+    block.items = [
+      ...(block.items ?? []),
+      { id: genId(), title, due: due || undefined, detail: detail || undefined, status: "todo", kind: "milestone", source: "client", requestedByClient: true, pending: true },
+    ];
+  });
+  if (!ok) return { ok: false, error: "db" };
+  revalidatePath(`/portal/${slug}`);
+  revalidatePath("/admin/deliverables");
+  revalidatePath(`/admin/clients/${slug}/edit`);
   return { ok: true };
 }
 

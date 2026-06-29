@@ -102,13 +102,16 @@ export type Deliverable = {
   due?: string; // ISO yyyy-mm-dd — generated from the timeline/cycle, or hand-set
   status: DeliverableStatus;
   kind?: "recurring" | "milestone";
-  source?: "manual" | "plan" | "timeline"; // provenance — drives dedupe on re-generate
+  source?: "manual" | "plan" | "timeline" | "client"; // provenance — drives dedupe on re-generate
   cycle?: string; // recurring dedupe key, "YYYY-MM"
   phaseKey?: string; // milestone dedupe key — the source timeline phase name
+  requestedByClient?: boolean; // submitted from the client portal
+  pending?: boolean; // awaiting admin approval (only meaningful for client requests)
 };
 export type ClientDeliverables = {
   active?: boolean; // tracked for this client (shows on the cross-client "what's due" view)
   showToClient?: boolean; // reveal a progress view in the client's own portal
+  allowClientRequests?: boolean; // let the client submit task requests (pending until approved)
   items?: Deliverable[];
 };
 
