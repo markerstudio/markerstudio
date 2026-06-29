@@ -1,5 +1,5 @@
 import { getSql, isDbEnabled } from "@/lib/db";
-import { getSession, isSuperAdmin, SUPERADMIN_EMAIL } from "@/lib/auth";
+import { getSession, isSuperAdmin, isPartner, isPhotographer, SUPERADMIN_EMAIL } from "@/lib/auth";
 import { createUser, deleteUser } from "../actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
@@ -9,7 +9,14 @@ export const dynamic = "force-dynamic";
 const inputCls =
   "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 
-type U = { id: number; email: string; name: string; created_at: string };
+type U = { id: number; email: string; name: string; role: string | null; created_at: string };
+
+const ROLE_CHIP: Record<string, string> = {
+  Photographer: "bg-sky-100 text-sky-700",
+  Partner: "bg-violet-100 text-violet-700",
+};
+const roleLabel = (u: U): string =>
+  isSuperAdmin(u) ? "Superadmin" : isPartner(u) ? "Partner" : isPhotographer(u) ? "Photographer" : "Admin";
 
 const MESSAGES: Record<string, { text: string; ok?: boolean }> = {
   invalid: { text: "Enter a valid email and a password of at least 8 characters." },
@@ -31,7 +38,7 @@ export default async function UsersPage({
   let users: U[] = [];
   if (isDbEnabled()) {
     try {
-      users = (await getSql()`SELECT id, email, name, created_at FROM users WHERE role = 'admin' OR role IS NULL ORDER BY created_at ASC`) as unknown as U[];
+      users = (await getSql()`SELECT id, email, name, role, created_at FROM users WHERE role IN ('admin', 'photographer', 'partner') OR role IS NULL ORDER BY created_at ASC`) as unknown as U[];
     } catch {
       users = [];
     }
@@ -64,8 +71,10 @@ export default async function UsersPage({
             <div className="flex-1 min-w-0">
               <div className="font-semibold truncate">
                 {u.name}
-                {isSuperAdmin(u) && (
+                {isSuperAdmin(u) ? (
                   <span className="ml-2 align-middle text-[10px] font-bold uppercase tracking-wider bg-charcoal text-white rounded-full px-2 py-0.5">superadmin</span>
+                ) : roleLabel(u) !== "Admin" && (
+                  <span className={`ml-2 align-middle text-[10px] font-bold uppercase tracking-wider rounded-full px-2 py-0.5 ${ROLE_CHIP[roleLabel(u)] || "bg-neutral-100 text-neutral-600"}`}>{roleLabel(u)}</span>
                 )}
                 {me?.email === u.email && (
                   <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-orange">you</span>
@@ -108,6 +117,15 @@ export default async function UsersPage({
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Email</label>
             <input name="email" type="email" required autoComplete="off" className={inputCls} />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Role</label>
+            <select name="role" className={inputCls} defaultValue="admin">
+              <option value="admin">Admin — full access</option>
+              <option value="photographer">Photographer — only the Photography portal</option>
+              <option value="partner">Partner (Ramzi) — only their own area</option>
+            </select>
+            <p className="text-xs text-neutral-400 mt-1">A <b>Photographer</b> signs in straight to the Photography portal and sees nothing else.</p>
           </div>
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Password</label>

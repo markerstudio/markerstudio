@@ -472,13 +472,17 @@ export async function createUser(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const name = String(formData.get("name") || "").trim() || "Admin";
   const password = String(formData.get("password") || "");
+  // admin (full), photographer (confined to the photographer portal) or partner
+  // (confined to Ramzi's area). Anything else falls back to a full admin.
+  const wanted = String(formData.get("role") || "admin");
+  const role = wanted === "photographer" || wanted === "partner" ? wanted : "admin";
   if (!email || password.length < 8) redirect("/admin/users?error=invalid");
 
   const sql = getSql();
   const hash = await bcrypt.hash(password, 10);
   let duplicate = false;
   try {
-    await sql`INSERT INTO users (email, name, password_hash) VALUES (${email}, ${name}, ${hash})`;
+    await sql`INSERT INTO users (email, name, password_hash, role) VALUES (${email}, ${name}, ${hash}, ${role})`;
   } catch {
     duplicate = true; // unique-violation on email (or other write error)
   }
