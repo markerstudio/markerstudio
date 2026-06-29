@@ -521,12 +521,19 @@ export async function saveClient(formData: FormData) {
   } catch {
     redirect(`/admin/clients/${original || "new"}/edit?error=json`);
   }
-  const json = JSON.stringify(data);
   const sql = getSql();
 
   if (original) {
+    // The photo block is saved separately (per-section editor + photographer portal,
+    // via jsonb_set) and is intentionally stripped from this form's payload — so
+    // restore the live one here. A full-form save must never wipe or clobber a
+    // concurrent shoot edit or photographer status change.
+    const live = (await sql`SELECT data->'photo' AS photo FROM clients WHERE slug = ${original} LIMIT 1`) as unknown as { photo: unknown }[];
+    const merged = data as Record<string, unknown>;
+    if (live[0]?.photo != null) merged.photo = live[0].photo;
+    const mergedJson = JSON.stringify(merged);
     await sql`
-      UPDATE clients SET slug = ${slug}, name = ${name}, logo = ${logo}, color = ${color}, data = ${json}::jsonb, updated_at = now()
+      UPDATE clients SET slug = ${slug}, name = ${name}, logo = ${logo}, color = ${color}, data = ${mergedJson}::jsonb, updated_at = now()
       WHERE slug = ${original}
     `;
   } else {
@@ -553,7 +560,11 @@ export async function saveClient(formData: FormData) {
     `;
   }
   revalidatePath(`/portal/${slug}`);
-  if (original && original !== slug) revalidatePath(`/portal/${original}`);
+  revalidatePath(`/admin/clients/${slug}/edit`);
+  if (original && original !== slug) {
+    revalidatePath(`/portal/${original}`);
+    revalidatePath(`/admin/clients/${original}/edit`);
+  }
   redirect(`/admin/clients/${slug}/edit?ok=saved`);
 }
 

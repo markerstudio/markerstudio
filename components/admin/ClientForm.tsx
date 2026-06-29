@@ -6,7 +6,8 @@ import { saveClient } from "@/app/admin/actions";
 import { toCSV, fromCSV } from "@/lib/portalCsv";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
-import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type StoryCard, type MetricRow, type Campaign, type Invoice, type DocItem, type ClientPhoto, type PhotoSession, type PhotoTask } from "@/lib/clients";
+import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type StoryCard, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
+import PlanShootsEditor from "@/components/admin/editor/PlanShootsEditor";
 
 const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
 const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
@@ -165,11 +166,6 @@ function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T[]; onC
 export default function ClientForm({ client, projectLogos = [] }: { client?: Client; projectLogos?: { slug: string; name: string; logo: string }[] }) {
   const [data, setData] = useState<ClientData>(client?.data ?? blankClientData());
   const patch = (p: Partial<ClientData>) => setData((d) => ({ ...d, ...p }));
-  // Photography block — toggles + shoot schedule + shot to-do, shared with the
-  // photographer portal (and optionally the client). May be absent on older
-  // clients, so default to an empty block.
-  const photo: ClientPhoto = data.photo ?? {};
-  const patchPhoto = (p: Partial<ClientPhoto>) => patch({ photo: { ...photo, ...p } });
   // Money left & paid % are derived, never hand-typed. We persist the computed
   // figures into plan.balance / finance.progress so the portal reads them too.
   const fin = useMemo(() => computeClientFinance(data), [data]);
@@ -310,10 +306,17 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
     e.target.value = "";
   }
 
+  // The photo block is owned by the per-section Plan & Shoots editor (saved on its
+  // own via jsonb_set), so we strip it from this form's payload — a full-form save
+  // must never clobber a concurrent shoot edit or photographer status change.
+  // saveClient restores the live photo block from the DB on update.
+  const { photo: _photo, ...persistedNoPhoto } = persisted;
+  void _photo;
+
   return (
     <form ref={formRef} action={saveClient} className="space-y-6">
       {client && <input type="hidden" name="originalSlug" value={client.slug} />}
-      <input type="hidden" name="data" value={JSON.stringify(persisted)} />
+      <input type="hidden" name="data" value={JSON.stringify(persistedNoPhoto)} />
 
       <Group title="Identity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
@@ -407,79 +410,14 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           <Bi label="Plan note" value={data.plan.note} onChange={(note) => patch({ plan: { ...data.plan, note } })} area />
         </div>
 
-        {/* --- Photography (Ameer & co.) ------------------------------------ */}
-        <div className="rounded-xl border border-neutral-200 p-4">
-          <label className="flex items-start gap-3 text-sm">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.active} onChange={(e) => patchPhoto({ active: e.target.checked })} />
-            <span className="leading-relaxed">
-              <b>Photography</b> (Ameer). Turning this on connects the client to the <b>photographer portal</b>, where the
-              schedule and shot list below appear so the photographer knows exactly what to shoot.
-            </span>
-          </label>
-
-          {photo.active && (
-            <div className="mt-4 space-y-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-                  <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.sharePlan} onChange={(e) => patchPhoto({ sharePlan: e.target.checked })} />
-                  <span className="leading-relaxed"><b>Send the plan to the photographer.</b> Shares this client&apos;s plan (above) on the photographer portal for context. Off = the plan stays Marker-only.</span>
-                </label>
-                <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-                  <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.showToClient} onChange={(e) => patchPhoto({ showToClient: e.target.checked })} />
-                  <span className="leading-relaxed"><b>Show shoots in the client&apos;s portal.</b> Reveals the schedule &amp; shot list to the client too. Off = visible to Marker and the photographer only.</span>
-                </label>
-              </div>
-
-              <div>
-                <label className={lbl}>Shoot schedule</label>
-                <Rows<PhotoSession> items={photo.sessions ?? []} onChange={(sessions) => patchPhoto({ sessions })} blank={{ date: "", time: "", location: "", title: "", brief: { en: "", ar: "" }, status: "planned" }} addLabel="Add shoot"
-                  render={(s, set) => (
-                    <div className="pr-16">
-                      <div className="grid grid-cols-2 md:grid-cols-[140px_110px_1fr_130px] gap-3 items-end">
-                        <div>
-                          <label className={lbl}>Date</label>
-                          <input type="date" className={input} value={s.date} onChange={(e) => set({ date: e.target.value })} />
-                        </div>
-                        <Text label="Time" value={s.time ?? ""} onChange={(time) => set({ time })} placeholder="14:00" />
-                        <Text label="Title" value={s.title} onChange={(title) => set({ title })} placeholder="Product shoot — new menu" />
-                        <div>
-                          <label className={lbl}>Status</label>
-                          <select className={input} value={s.status} onChange={(e) => set({ status: e.target.value as PhotoSession["status"] })}>
-                            <option value="planned">Planned</option>
-                            <option value="confirmed">Confirmed</option>
-                            <option value="shot">Shot</option>
-                            <option value="delivered">Delivered</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="mt-3"><Text label="Location" value={s.location ?? ""} onChange={(location) => set({ location })} placeholder="Studio / on-site address" /></div>
-                      <div className="mt-3"><Bi label="Brief — what to capture" value={s.brief} onChange={(brief) => set({ brief })} area /></div>
-                    </div>
-                  )} />
-              </div>
-
-              <div>
-                <label className={lbl}>Shot list — the photo-session to-do</label>
-                <Rows<PhotoTask> items={photo.shots ?? []} onChange={(shots) => patchPhoto({ shots })} blank={{ title: "", status: "todo", due: "", note: "" }} addLabel="Add shot"
-                  render={(t, set) => (
-                    <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_140px] gap-3 pr-16 items-end">
-                      <Text label="Shot" value={t.title} onChange={(title) => set({ title })} placeholder="Hero shot — flat lay" />
-                      <div>
-                        <label className={lbl}>Status</label>
-                        <select className={input} value={t.status} onChange={(e) => set({ status: e.target.value as PhotoTask["status"] })}>
-                          <option value="todo">To do</option>
-                          <option value="doing">In progress</option>
-                          <option value="done">Done</option>
-                        </select>
-                      </div>
-                      <Text label="Due (optional)" value={t.due ?? ""} onChange={(due) => set({ due })} placeholder="Fri" />
-                      <div className="md:col-span-3"><Text label="Note (optional)" value={t.note ?? ""} onChange={(note) => set({ note })} /></div>
-                    </div>
-                  )} />
-              </div>
-            </div>
-          )}
-        </div>
+        {/* --- Photography (Ameer & co.) — its own per-section save -------- */}
+        {client ? (
+          <PlanShootsEditor slug={client.slug} initialPhoto={data.photo} />
+        ) : (
+          <div className="rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500">
+            <b>Photography</b> (Ameer) — save the client first, then add the shoot schedule and shot list here. Shoots save on their own, separately from the rest of the form.
+          </div>
+        )}
       </Group>
 
       <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
