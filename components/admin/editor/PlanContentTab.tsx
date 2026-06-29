@@ -6,7 +6,17 @@ import { ensurePhotoIds, genPhotoId } from "@/lib/photo";
 import SocialCalendar from "@/components/SocialCalendar";
 import ShotRail from "./ShotRail";
 import { input, lbl, Text, Bi } from "./fields";
-import type { ClientData, ClientPhoto, PhotoSession, SocialPost, LocalizedText } from "@/lib/clients";
+import { planContentPrompt } from "./aiPrompts";
+import type { ClientData, ClientPhoto, PhotoSession, SocialPost, SocialContentType, ContentStage, LocalizedText } from "@/lib/clients";
+
+const CTYPES: SocialContentType[] = ["post", "story", "reel", "carousel"];
+const CSTAGES: ContentStage[] = ["idea", "shoot", "edit", "scheduled", "posted"];
+const coerceType = (t: unknown): SocialContentType => (CTYPES.includes(t as SocialContentType) ? (t as SocialContentType) : "post");
+const coerceLT = (v: unknown): LocalizedText => {
+  if (typeof v === "string") return { en: v, ar: "" };
+  if (v && typeof v === "object") { const o = v as { en?: unknown; ar?: unknown }; return { en: String(o.en ?? ""), ar: String(o.ar ?? "") }; }
+  return { en: "", ar: "" };
+};
 
 // One shoot (session) row — memoised + id-keyed so typing re-renders only this row.
 const SessionRow = memo(function SessionRow({ session, onChange, onRemove }: { session: PhotoSession; onChange: (id: string, patch: Partial<PhotoSession>) => void; onRemove: (id: string) => void }) {
@@ -54,7 +64,53 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
   const [dirty, setDirty] = useState(false);
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState("");
+  const [aiCopied, setAiCopied] = useState(false);
+  const [aiPaste, setAiPaste] = useState("");
+  const [aiMsg, setAiMsg] = useState("");
   const mark = () => { setDirty(true); setMsg(""); };
+
+  function copyPrompt() {
+    navigator.clipboard?.writeText(planContentPrompt({ ...data, plan, photo, social: { headline, posts } }));
+    setAiCopied(true);
+    setTimeout(() => setAiCopied(false), 1800);
+  }
+
+  // Parse the AI's JSON reply and merge its sessions / shots / posts into the hub
+  // (append — existing items are kept). Tolerant of code fences and string briefs.
+  function applyAi() {
+    let obj: { sessions?: unknown; shots?: unknown; posts?: unknown };
+    try {
+      const raw = aiPaste.trim().replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/, "").trim();
+      obj = JSON.parse(raw);
+    } catch {
+      setAiMsg("Couldn't read that — paste the JSON the AI returned (it should start with “{”).");
+      return;
+    }
+    if (!obj || typeof obj !== "object") { setAiMsg("That isn't a JSON object — paste the { … } the AI returned."); return; }
+    let added = 0;
+    const newSessions: PhotoSession[] = Array.isArray(obj.sessions)
+      ? obj.sessions.filter((s): s is Record<string, unknown> => !!s && typeof s === "object").map((s) => ({ id: genPhotoId(), date: String(s.date ?? ""), time: String(s.time ?? ""), location: String(s.location ?? ""), title: String(s.title ?? ""), brief: coerceLT(s.brief), status: (["planned", "confirmed", "shot", "delivered"].includes(String(s.status)) ? String(s.status) : "planned") as PhotoSession["status"] })).filter((s) => s.title || s.date)
+      : [];
+    const newShots = Array.isArray(obj.shots)
+      ? obj.shots.filter((s): s is Record<string, unknown> => !!s && typeof s === "object").map((s) => ({ id: genPhotoId(), title: String(s.title ?? ""), status: "todo" as const, type: coerceType(s.type) })).filter((s) => s.title)
+      : [];
+    const newPosts: SocialPost[] = Array.isArray(obj.posts)
+      ? obj.posts.filter((p): p is Record<string, unknown> => !!p && typeof p === "object").map((p) => {
+          const stage = (CSTAGES.includes(String(p.stage) as ContentStage) ? String(p.stage) : "idea") as ContentStage;
+          return { date: String(p.date ?? ""), platform: String(p.platform ?? ""), title: String(p.title ?? ""), notes: "", status: (stage === "posted" ? "posted" : stage === "scheduled" ? "scheduled" : "planned") as SocialPost["status"], stage, type: coerceType(p.type), brief: String(p.brief ?? ""), caption: String(p.caption ?? ""), hook: String(p.hook ?? ""), hashtags: String(p.hashtags ?? ""), cta: String(p.cta ?? "") };
+        }).filter((p) => p.date || p.title)
+      : [];
+
+    if (newSessions.length || newShots.length) {
+      setPhoto((cur) => ({ ...cur, sessions: [...(cur.sessions ?? []), ...newSessions], shots: [...(cur.shots ?? []), ...newShots] }));
+      added += newSessions.length + newShots.length;
+    }
+    if (newPosts.length) { setPosts((cur) => [...cur, ...newPosts]); added += newPosts.length; }
+    if (!added) { setAiMsg("Parsed OK, but found no sessions / shots / posts to add."); return; }
+    mark();
+    setAiPaste("");
+    setAiMsg(`Filled ${added} item${added > 1 ? "s" : ""} ✓ — review on the calendar & rail, then Save.`);
+  }
 
   const patchPlan = (p: Partial<typeof plan>) => { setPlan((cur) => ({ ...cur, ...p })); mark(); };
   const setToggle = (p: Partial<ClientPhoto>) => { setPhoto((cur) => ({ ...cur, ...p })); mark(); };
@@ -152,6 +208,24 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
           </label>
         </div>
       </fieldset>
+
+      {/* AI fill — copy a prompt seeded with the current plan/shoots/posts, paste the reply. */}
+      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+        <h3 className="font-bold mb-1">✨ Fill the plan with AI</h3>
+        <p className="text-sm text-neutral-600 mb-3">
+          <b>1.</b> Copy the prompt (it already includes this client&apos;s plan, shoots &amp; posts).
+          <b> 2.</b> Paste it into ChatGPT / Claude, add your ideas where marked, run it.
+          <b> 3.</b> Paste the AI&apos;s JSON reply below and Apply — it fills the <b>shoot schedule, shot list, and calendar</b>. Then Save.
+        </p>
+        <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
+          {aiCopied ? "Copied ✓" : "Copy Plan & Content prompt"}
+        </button>
+        <textarea value={aiPaste} onChange={(e) => setAiPaste(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+        <div className="mt-2 flex items-center gap-3">
+          <button type="button" onClick={applyAi} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply</button>
+          {aiMsg && <span className="text-sm text-neutral-700">{aiMsg}</span>}
+        </div>
+      </div>
 
       {/* The hub: shoot schedule + shot rail (left) · content calendar (right) */}
       <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
