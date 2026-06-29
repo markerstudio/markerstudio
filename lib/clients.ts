@@ -63,6 +63,7 @@ export type AssetItem = { title: string; type: string; url: string; size?: strin
 // direction — what to capture, mood, references.
 export type PhotoSessionStatus = "planned" | "confirmed" | "shot" | "delivered";
 export type PhotoSession = {
+  id?: string; // stable id — assigned on read/save; legacy rows fall back to index
   date: string; // ISO yyyy-mm-dd
   time?: string; // free text, e.g. "14:00" or "Afternoon"
   location?: string;
@@ -74,7 +75,7 @@ export type PhotoSession = {
 // works through. Mirrors the social-post feedback model: the studio writes it in
 // client settings, the photographer ticks items off from their portal.
 export type PhotoTaskStatus = "todo" | "doing" | "done";
-export type PhotoTask = { title: string; status: PhotoTaskStatus; due?: string; note?: string };
+export type PhotoTask = { id?: string; title: string; status: PhotoTaskStatus; due?: string; note?: string };
 // The photography block on a client. `active` connects the client to the
 // photographer portal (like storiesActive connects to Ramzi). The two share
 // toggles are independent and both default off: sharePlan pushes the Marker plan
@@ -298,6 +299,47 @@ export async function updateClientData(slug: string, mutate: (d: ClientData) => 
   const data = (rows[0].data || {}) as ClientData;
   mutate(data);
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE slug = ${slug}`;
+}
+
+// Write ONE top-level key of a client's JSONB `data` in a single atomic statement
+// (jsonb_set merges against the live row, not a stale in-memory snapshot). This is
+// the per-section save primitive: two editors touching different keys — e.g. the
+// settings form (social/finance/…) and the photographer portal (photo) — can no
+// longer clobber each other. Same-key writes remain last-write-wins, bounded to
+// that subtree. Best-effort: a missing client / DB is a silent no-op.
+export async function setClientDataPath<K extends keyof ClientData>(
+  slug: string,
+  key: K,
+  value: ClientData[K],
+): Promise<boolean> {
+  if (!isDbEnabled()) return false;
+  const sql = getSql();
+  await sql`
+    UPDATE clients
+    SET data = jsonb_set(COALESCE(data, '{}'::jsonb), ARRAY[${key as string}]::text[], ${JSON.stringify(value)}::jsonb, true),
+        updated_at = now()
+    WHERE slug = ${slug}
+  `;
+  return true;
+}
+
+// Save just the photography block (shoot schedule + shot list + share toggles)
+// without touching the rest of the client. Used by the per-section Plan & Shoots
+// editor and (via updatePhotoBlock) the photographer portal status buttons.
+export async function savePhotoBlock(slug: string, photo: ClientPhoto): Promise<boolean> {
+  return setClientDataPath(slug, "photo", photo);
+}
+
+// Read–mutate–write only the photo subtree (one targeted status flip, etc.) and
+// persist it via jsonb_set so a concurrent settings save can't be clobbered.
+export async function updatePhotoBlock(slug: string, mutate: (photo: ClientPhoto) => void): Promise<boolean> {
+  if (!isDbEnabled()) return false;
+  const sql = getSql();
+  const rows = (await sql`SELECT data->'photo' AS photo FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { photo: ClientPhoto | null }[];
+  if (!rows[0]) return false;
+  const photo = (rows[0].photo || {}) as ClientPhoto;
+  mutate(photo);
+  return savePhotoBlock(slug, photo);
 }
 
 // Empty portal content for a brand-new client.

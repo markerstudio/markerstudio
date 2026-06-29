@@ -2,30 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, canSeePhotographer, isPhotographerOnly } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
-import { getClients, hasPhotography, type Client, type PhotoSession, type PhotoSessionStatus, type PhotoTaskStatus } from "@/lib/clients";
-import { setShotStatusAction, setSessionStatusAction } from "./actions";
+import { getClients, hasPhotography, type Client, type PhotoSession } from "@/lib/clients";
+import {
+  ensurePhotoIds,
+  SESSION_ORDER,
+  TASK_ORDER,
+  SESSION_LABEL,
+  TASK_LABEL,
+  SESSION_BADGE,
+  TASK_BADGE,
+} from "@/lib/photo";
+import PhotographerStatusButton from "@/components/admin/PhotographerStatusButton";
+import { setShotStatusById, setSessionStatusById } from "./actions";
 
 export const dynamic = "force-dynamic";
-
-// Status order + the "next" each form-button advances to (wraps around).
-const SESSION_ORDER: PhotoSessionStatus[] = ["planned", "confirmed", "shot", "delivered"];
-const TASK_ORDER: PhotoTaskStatus[] = ["todo", "doing", "done"];
-const nextSession = (s: PhotoSessionStatus) => SESSION_ORDER[(SESSION_ORDER.indexOf(s) + 1) % SESSION_ORDER.length];
-const nextTask = (s: PhotoTaskStatus) => TASK_ORDER[(TASK_ORDER.indexOf(s) + 1) % TASK_ORDER.length];
-
-const SESSION_BADGE: Record<PhotoSessionStatus, string> = {
-  planned: "text-neutral-600 bg-neutral-100 border-neutral-200",
-  confirmed: "text-sky-700 bg-sky-50 border-sky-200",
-  shot: "text-amber-700 bg-amber-50 border-amber-200",
-  delivered: "text-emerald-700 bg-emerald-50 border-emerald-200",
-};
-const TASK_BADGE: Record<PhotoTaskStatus, string> = {
-  todo: "text-neutral-600 bg-neutral-100 border-neutral-200",
-  doing: "text-amber-700 bg-amber-50 border-amber-200",
-  done: "text-emerald-700 bg-emerald-50 border-emerald-200",
-};
-const SESSION_LABEL: Record<PhotoSessionStatus, string> = { planned: "Planned", confirmed: "Confirmed", shot: "Shot", delivered: "Delivered" };
-const TASK_LABEL: Record<PhotoTaskStatus, string> = { todo: "To do", doing: "In progress", done: "Done" };
 
 function fmtDate(iso: string): string {
   if (!iso) return "—";
@@ -50,17 +40,21 @@ export default async function PhotographerPage() {
   }
 
   const clients = await getClients();
-  const photoClients = clients.filter((c) => hasPhotography(c.data));
+  // Connected clients, each with its photo block normalised so every shoot/shot
+  // carries a stable id the status buttons can target (index stays as fallback).
+  const photoClients = clients
+    .filter((c) => hasPhotography(c.data))
+    .map((c) => ({ client: c, photo: ensurePhotoIds(c.data.photo) }));
 
   const today = new Date().toISOString().slice(0, 10);
   const monthPrefix = today.slice(0, 7);
 
   // Flatten every shoot across connected clients, keep the client + its index so
-  // the status form can target it, then split into upcoming vs. past.
+  // the status button can target it, then split into upcoming vs. past.
   type Flat = { client: Client; session: PhotoSession; idx: number };
   const allSessions: Flat[] = [];
-  for (const c of photoClients) {
-    (c.data.photo?.sessions ?? []).forEach((session, idx) => allSessions.push({ client: c, session, idx }));
+  for (const { client, photo } of photoClients) {
+    (photo.sessions ?? []).forEach((session, idx) => allSessions.push({ client, session, idx }));
   }
   const upcoming = allSessions
     .filter((s) => s.session.date && s.session.date >= today && s.session.status !== "delivered")
@@ -68,7 +62,7 @@ export default async function PhotographerPage() {
 
   const shootsThisMonth = allSessions.filter((s) => s.session.date?.startsWith(monthPrefix)).length;
   const openShots = photoClients.reduce(
-    (n, c) => n + (c.data.photo?.shots ?? []).filter((t) => t.status !== "done").length,
+    (n, { photo }) => n + (photo.shots ?? []).filter((t) => t.status !== "done").length,
     0,
   );
 
@@ -109,7 +103,7 @@ export default async function PhotographerPage() {
         ) : (
           <ul className="divide-y divide-neutral-100">
             {upcoming.map(({ client, session, idx }) => (
-              <li key={`${client.slug}-${idx}`} className="py-3 flex items-center gap-3 flex-wrap">
+              <li key={`${client.slug}-${session.id ?? idx}`} className="py-3 flex items-center gap-3 flex-wrap">
                 <div className="w-20 shrink-0 text-center rounded-lg bg-neutral-50 border border-neutral-100 py-1.5">
                   <div className="text-[11px] font-semibold uppercase tracking-wider text-orange-deep">{fmtDate(session.date).split(" ")[0]}</div>
                   <div className="text-sm font-bold tabular-nums text-neutral-900">{fmtDate(session.date).replace(/^\S+\s/, "")}</div>
@@ -122,14 +116,16 @@ export default async function PhotographerPage() {
                     {session.location ? ` · ${session.location}` : ""}
                   </div>
                 </div>
-                <form action={setSessionStatusAction}>
-                  <input type="hidden" name="slug" value={client.slug} />
-                  <input type="hidden" name="idx" value={idx} />
-                  <input type="hidden" name="status" value={nextSession(session.status)} />
-                  <button type="submit" className={`text-[11px] font-semibold rounded-full border px-2.5 py-1 ${SESSION_BADGE[session.status]}`} title="Tap to advance status">
-                    {SESSION_LABEL[session.status]}
-                  </button>
-                </form>
+                <PhotographerStatusButton
+                  slug={client.slug}
+                  id={session.id}
+                  idx={idx}
+                  status={session.status}
+                  order={SESSION_ORDER}
+                  labels={SESSION_LABEL}
+                  badges={SESSION_BADGE}
+                  action={setSessionStatusById}
+                />
               </li>
             ))}
           </ul>
@@ -144,8 +140,7 @@ export default async function PhotographerPage() {
           </p>
         </div>
       ) : (
-        photoClients.map((c) => {
-          const photo = c.data.photo!;
+        photoClients.map(({ client: c, photo }) => {
           const sessions = photo.sessions ?? [];
           const shots = photo.shots ?? [];
           const sharePlan = !!photo.sharePlan;
@@ -157,7 +152,7 @@ export default async function PhotographerPage() {
                   <div className="text-[11px] text-neutral-500">/{c.slug}</div>
                 </div>
                 {!photographer && (
-                  <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-400 hover:text-orange">
+                  <Link href={`/admin/clients/${c.slug}/edit?tab=plan`} className="text-xs font-semibold text-neutral-400 hover:text-orange">
                     Edit shoots →
                   </Link>
                 )}
@@ -183,17 +178,19 @@ export default async function PhotographerPage() {
                   ) : (
                     <ul className="space-y-2">
                       {sessions.map((session, idx) => (
-                        <li key={idx} className="rounded-lg border border-neutral-200 p-3">
+                        <li key={session.id ?? idx} className="rounded-lg border border-neutral-200 p-3">
                           <div className="flex items-center justify-between gap-2">
                             <div className="text-sm font-semibold text-neutral-900">{fmtDate(session.date)}{session.time ? ` · ${session.time}` : ""}</div>
-                            <form action={setSessionStatusAction}>
-                              <input type="hidden" name="slug" value={c.slug} />
-                              <input type="hidden" name="idx" value={idx} />
-                              <input type="hidden" name="status" value={nextSession(session.status)} />
-                              <button type="submit" className={`text-[11px] font-semibold rounded-full border px-2.5 py-0.5 ${SESSION_BADGE[session.status]}`} title="Tap to advance status">
-                                {SESSION_LABEL[session.status]}
-                              </button>
-                            </form>
+                            <PhotographerStatusButton
+                              slug={c.slug}
+                              id={session.id}
+                              idx={idx}
+                              status={session.status}
+                              order={SESSION_ORDER}
+                              labels={SESSION_LABEL}
+                              badges={SESSION_BADGE}
+                              action={setSessionStatusById}
+                            />
                           </div>
                           <div className="text-sm text-neutral-700 mt-0.5">{session.title || "Shoot"}</div>
                           {session.location && <div className="text-[11px] text-neutral-500">{session.location}</div>}
@@ -212,15 +209,19 @@ export default async function PhotographerPage() {
                   ) : (
                     <ul className="space-y-2">
                       {shots.map((shot, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <form action={setShotStatusAction} className="shrink-0">
-                            <input type="hidden" name="slug" value={c.slug} />
-                            <input type="hidden" name="idx" value={idx} />
-                            <input type="hidden" name="status" value={nextTask(shot.status)} />
-                            <button type="submit" className={`text-[11px] font-semibold rounded-full border px-2.5 py-0.5 ${TASK_BADGE[shot.status]}`} title="Tap to advance status">
-                              {TASK_LABEL[shot.status]}
-                            </button>
-                          </form>
+                        <li key={shot.id ?? idx} className="flex items-center gap-3">
+                          <div className="shrink-0">
+                            <PhotographerStatusButton
+                              slug={c.slug}
+                              id={shot.id}
+                              idx={idx}
+                              status={shot.status}
+                              order={TASK_ORDER}
+                              labels={TASK_LABEL}
+                              badges={TASK_BADGE}
+                              action={setShotStatusById}
+                            />
+                          </div>
                           <div className="flex-1 min-w-0">
                             <div className={`text-sm ${shot.status === "done" ? "line-through text-neutral-400" : "text-neutral-900"} truncate`}>{shot.title}</div>
                             {(shot.due || shot.note) && (
