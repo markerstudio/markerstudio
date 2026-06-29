@@ -226,30 +226,29 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
         )}
       </div>
 
-      {/* The hub: shoot schedule + shot rail (left) · content calendar (right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-6 items-start">
-        <div className="space-y-6">
-          <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
-            <legend className="px-2 -ml-2 font-bold text-sm">Shoot schedule</legend>
-            <div className="space-y-3">
-              {sessions.length === 0 && <p className="text-sm text-neutral-400">No shoots scheduled.</p>}
-              {sessions.map((s) => <SessionRow key={s.id} session={s} onChange={changeSession} onRemove={removeSession} />)}
-              <button type="button" onClick={addSession} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shoot</button>
-            </div>
-          </fieldset>
+      {/* Shoot schedule + shot list — their own full-width row, side by side. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
+          <legend className="px-2 -ml-2 font-bold text-sm">Shoot schedule</legend>
+          <div className="space-y-3">
+            {sessions.length === 0 && <p className="text-sm text-neutral-400">No shoots scheduled.</p>}
+            {sessions.map((s) => <SessionRow key={s.id} session={s} onChange={changeSession} onRemove={removeSession} />)}
+            <button type="button" onClick={addSession} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shoot</button>
+          </div>
+        </fieldset>
 
-          <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
-            <legend className="px-2 -ml-2 font-bold text-sm">Shot list</legend>
-            <p className="text-xs text-neutral-400 mb-3">Drag a shot onto a calendar day to schedule it as a post.</p>
-            <ShotRail shots={photo.shots ?? []} onChange={setShots} />
-          </fieldset>
-        </div>
-
-        <fieldset className="bg-white border border-neutral-200 rounded-xl p-5 min-w-0">
-          <legend className="px-2 -ml-2 font-bold text-sm">Content calendar</legend>
-          <SocialCalendar posts={posts} editable lang="en" onChange={(p) => { setPosts(p); mark(); }} onDropShot={onDropShot} onNeedsShoot={onNeedsShoot} />
+        <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
+          <legend className="px-2 -ml-2 font-bold text-sm">Shot list</legend>
+          <p className="text-xs text-neutral-400 mb-3">Drag a shot onto a day in the calendar below to schedule it as a post.</p>
+          <ShotRail shots={photo.shots ?? []} onChange={setShots} />
         </fieldset>
       </div>
+
+      {/* Content calendar — full width on its own line. */}
+      <fieldset className="bg-white border border-neutral-200 rounded-xl p-5 min-w-0">
+        <legend className="px-2 -ml-2 font-bold text-sm">Content calendar</legend>
+        <SocialCalendar posts={posts} editable lang="en" onChange={(p) => { setPosts(p); mark(); }} onDropShot={onDropShot} onNeedsShoot={onNeedsShoot} />
+      </fieldset>
 
       <div className="flex items-center gap-3 sticky bottom-0 bg-neutral-100/95 backdrop-blur py-3">
         <button type="button" onClick={save} disabled={pending || !dirty} className="bg-orange text-white font-semibold rounded-md px-6 py-2.5 text-sm hover:bg-orange-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
