@@ -330,6 +330,22 @@ export async function savePhotoBlock(slug: string, photo: ClientPhoto): Promise<
   return setClientDataPath(slug, "photo", photo);
 }
 
+// Shallow-merge a partial ClientData into the live row (Postgres `||` merges
+// top-level keys). The per-section save primitive for the tabbed editor: a tab
+// sends only the keys it owns, so saving one section never overwrites another's
+// keys — or a concurrent photographer edit (the photo key isn't in the payload).
+export async function mergeClientData(slug: string, fields: Partial<ClientData>): Promise<boolean> {
+  if (!isDbEnabled()) return false;
+  const sql = getSql();
+  await sql`
+    UPDATE clients
+    SET data = COALESCE(data, '{}'::jsonb) || ${JSON.stringify(fields)}::jsonb,
+        updated_at = now()
+    WHERE slug = ${slug}
+  `;
+  return true;
+}
+
 // Read–mutate–write only the photo subtree (one targeted status flip, etc.) and
 // persist it via jsonb_set so a concurrent settings save can't be clobbered.
 export async function updatePhotoBlock(slug: string, mutate: (photo: ClientPhoto) => void): Promise<boolean> {
