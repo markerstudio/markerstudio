@@ -1,6 +1,56 @@
 import { toCSV } from "@/lib/portalCsv";
 import type { ClientData } from "@/lib/clients";
 
+// Prompt for the merged Plan & Content surface. Bakes in the client's plan + the
+// current shoots/shots/posts so the AI extends (not duplicates) them, leaving a
+// clearly-marked spot for the user's own ideas. The AI returns strict JSON that
+// applyPlanContentJson (PlanContentTab) merges into shoots, shot list, and calendar.
+export function planContentPrompt(data: ClientData): string {
+  const plan = data.plan;
+  const shots = (data.photo?.shots ?? []).map((s) => `- ${s.title}${s.type ? ` (${s.type})` : ""}`).join("\n") || "- (none yet)";
+  const sessions = (data.photo?.sessions ?? []).map((s) => `- ${s.date || "?"} ${s.title}`).join("\n") || "- (none yet)";
+  const posts = (data.social?.posts ?? []).map((p) => `- ${p.date || "?"} · ${p.type || "post"} · ${p.title}`).join("\n") || "- (none yet)";
+  return `You are a senior content strategist at Marker Studio® planning a month of CONTENT and the SHOOTS needed to produce it for a client. Return STRICT JSON only.
+
+CLIENT PLAN (context):
+- Plan: ${plan?.name || "—"}
+- Cycle: ${[plan?.start, plan?.end].filter(Boolean).join(" → ") || "ongoing"}
+- Note: ${plan?.note?.en || "—"}
+
+ALREADY PLANNED (extend and complement these — do NOT repeat them):
+Shoot schedule:
+${sessions}
+Shot list:
+${shots}
+Calendar posts:
+${posts}
+
+=== MY IDEAS / BRIEF FOR THIS MONTH (themes, products, campaigns, tone) ===
+[write what this month should achieve here]
+
+Return ONLY a JSON object with EXACTLY this shape (omit arrays you don't need):
+{
+  "sessions": [
+    { "date": "YYYY-MM-DD", "title": "Product shoot — new menu", "location": "Studio", "brief": { "en": "what to capture", "ar": "ماذا نصوّر" }, "status": "planned" }
+  ],
+  "shots": [
+    { "title": "Hero reel — flat lay", "type": "post|story|reel|carousel" }
+  ],
+  "posts": [
+    { "date": "YYYY-MM-DD", "type": "post|story|reel|carousel", "platform": "Instagram",
+      "title": "short hook/title", "hook": "scroll-stopping first line", "caption": "full caption",
+      "hashtags": "#one #two", "cta": "Book now", "brief": "type-specific direction (reel script / story frames / carousel slides)",
+      "stage": "idea|shoot|edit|scheduled|posted" }
+  ]
+}
+
+Rules:
+- Spread posts realistically across the cycle dates; vary type and platform.
+- A "shot" is something to capture on a shoot; create shots for posts that need original footage.
+- Use the date format and enum values EXACTLY as shown. Write captions/briefs like a human strategist.
+- Output ONLY the JSON object — no commentary, no code fences.`;
+}
+
 // AI prompt scoped to the ANALYTICS section only — built from the analysis rows
 // of the CSV so the AI returns just those, and we merge only analysis back in.
 export function analyticsPrompt(data: ClientData): string {
