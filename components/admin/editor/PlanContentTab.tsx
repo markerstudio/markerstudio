@@ -67,6 +67,8 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
   const [aiCopied, setAiCopied] = useState(false);
   const [aiPaste, setAiPaste] = useState("");
   const [aiMsg, setAiMsg] = useState("");
+  const [showDetails, setShowDetails] = useState(false);
+  const [showAi, setShowAi] = useState(false);
   const mark = () => { setDirty(true); setMsg(""); };
 
   function copyPrompt() {
@@ -172,59 +174,56 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
 
   return (
     <div className="space-y-6">
-      {/* The plan */}
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">The plan</legend>
-        <div className="flex items-center justify-end mb-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" className="custom-checkbox" checked={plan.active} onChange={(e) => patchPlan({ active: e.target.checked })} /> Active
-          </label>
+      {/* Slim header — name/cycle/active inline; plan details & AI fill behind toggles. */}
+      <div className="bg-white border border-neutral-200 rounded-xl p-4">
+        <div className="flex items-end gap-3 flex-wrap">
+          <div className="flex-1 min-w-[200px]">
+            <label className={lbl}>Plan</label>
+            <input className={input} value={plan.name} placeholder="Monthly social media management" onChange={(e) => patchPlan({ name: e.target.value })} />
+          </div>
+          <div className="w-24"><label className={lbl}>Start</label><input className={input} value={plan.start} placeholder="Feb 26" onChange={(e) => patchPlan({ start: e.target.value })} /></div>
+          <div className="w-24"><label className={lbl}>End</label><input className={input} value={plan.end} placeholder="ongoing" onChange={(e) => patchPlan({ end: e.target.value })} /></div>
+          <label className="flex items-center gap-2 text-sm h-[38px] whitespace-nowrap"><input type="checkbox" className="custom-checkbox" checked={plan.active} onChange={(e) => patchPlan({ active: e.target.checked })} /> Active</label>
+          <button type="button" onClick={() => setShowAi((v) => !v)} className="h-[38px] rounded-md bg-orange text-white font-semibold px-3.5 text-sm hover:bg-orange-deep transition-colors">✨ AI fill</button>
+          <button type="button" onClick={() => setShowDetails((v) => !v)} className="h-[38px] rounded-md border border-neutral-300 px-3.5 text-sm font-medium hover:bg-neutral-50">{showDetails ? "Hide details" : "Plan details"}</button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-4">
-          <Text label="Plan name" value={plan.name} onChange={(name) => patchPlan({ name })} placeholder="Monthly social media management" />
-          <Text label="Notion / plan link (optional)" value={plan.notionUrl ?? ""} onChange={(notionUrl) => patchPlan({ notionUrl })} placeholder="https://notion.so/…" />
-          <Text label="Start" value={plan.start} onChange={(start) => patchPlan({ start })} placeholder="Feb 26" />
-          <Text label="End" value={plan.end} onChange={(end) => patchPlan({ end })} placeholder="May 26 (blank = ongoing)" />
-        </div>
-        <Bi label="Plan note" value={plan.note} onChange={(note) => patchPlan({ note })} area />
-        <Bi label="Content plan headline" value={headline} onChange={(h) => { setHeadline(h); mark(); }} />
-      </fieldset>
 
-      {/* Photography sharing toggles */}
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Photography sharing</legend>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.active} onChange={(e) => setToggle({ active: e.target.checked })} />
-            <span className="leading-relaxed"><b>Photographer portal.</b> Connect this client so the photographer sees the schedule + shot list.</span>
-          </label>
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.sharePlan} onChange={(e) => setToggle({ sharePlan: e.target.checked })} />
-            <span className="leading-relaxed"><b>Share the plan</b> with the photographer for context.</span>
-          </label>
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
-            <span className="leading-relaxed"><b>Show shoots</b> in the client&apos;s own portal.</span>
-          </label>
-        </div>
-      </fieldset>
+        {showAi && (
+          <div className="mt-4 border-t border-neutral-100 pt-4">
+            <p className="text-sm text-neutral-600 mb-3">Copy the prompt (it already includes this plan + current shoots & posts), add your ideas in ChatGPT / Claude, then paste the JSON reply and Apply — it fills the shoot schedule, shot list, and calendar.</p>
+            <div className="flex items-center gap-3 flex-wrap mb-3">
+              <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">{aiCopied ? "Copied ✓" : "Copy prompt"}</button>
+              <button type="button" onClick={applyAi} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply paste</button>
+              {aiMsg && <span className="text-sm text-neutral-700">{aiMsg}</span>}
+            </div>
+            <textarea value={aiPaste} onChange={(e) => setAiPaste(e.target.value)} rows={4} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+          </div>
+        )}
 
-      {/* AI fill — copy a prompt seeded with the current plan/shoots/posts, paste the reply. */}
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h3 className="font-bold mb-1">✨ Fill the plan with AI</h3>
-        <p className="text-sm text-neutral-600 mb-3">
-          <b>1.</b> Copy the prompt (it already includes this client&apos;s plan, shoots &amp; posts).
-          <b> 2.</b> Paste it into ChatGPT / Claude, add your ideas where marked, run it.
-          <b> 3.</b> Paste the AI&apos;s JSON reply below and Apply — it fills the <b>shoot schedule, shot list, and calendar</b>. Then Save.
-        </p>
-        <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
-          {aiCopied ? "Copied ✓" : "Copy Plan & Content prompt"}
-        </button>
-        <textarea value={aiPaste} onChange={(e) => setAiPaste(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={applyAi} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply</button>
-          {aiMsg && <span className="text-sm text-neutral-700">{aiMsg}</span>}
-        </div>
+        {showDetails && (
+          <div className="mt-4 border-t border-neutral-100 pt-4 space-y-4">
+            <Text label="Notion / plan link (optional)" value={plan.notionUrl ?? ""} onChange={(notionUrl) => patchPlan({ notionUrl })} placeholder="https://notion.so/…" />
+            <Bi label="Plan note" value={plan.note} onChange={(note) => patchPlan({ note })} area />
+            <Bi label="Content plan headline" value={headline} onChange={(h) => { setHeadline(h); mark(); }} />
+            <div>
+              <span className={lbl}>Photography sharing</span>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.active} onChange={(e) => setToggle({ active: e.target.checked })} />
+                  <span className="leading-relaxed"><b>Photographer portal</b> — share schedule + shot list.</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.sharePlan} onChange={(e) => setToggle({ sharePlan: e.target.checked })} />
+                  <span className="leading-relaxed"><b>Share the plan</b> for context.</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                  <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
+                  <span className="leading-relaxed"><b>Show shoots</b> in the client&apos;s portal.</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* The hub: shoot schedule + shot rail (left) · content calendar (right) */}
