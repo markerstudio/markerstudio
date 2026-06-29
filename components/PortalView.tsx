@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useLang } from "@/lib/useLang";
 import { useRouter } from "next/navigation";
 import { logout } from "@/app/admin/actions";
-import { setPostApproval, addPostComment } from "@/app/portal-feedback-actions";
+import { setPostApproval, addPostComment, requestDeliverable } from "@/app/portal-feedback-actions";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
@@ -69,6 +69,11 @@ export default function PortalView({
   const [tab, setTab] = useState<string>("dashboard");
   const [data, setData] = useState<ClientData>(client.data);
   const [postBusy, setPostBusy] = useState<number | null>(null);
+  const [reqTitle, setReqTitle] = useState("");
+  const [reqDue, setReqDue] = useState("");
+  const [reqDetail, setReqDetail] = useState("");
+  const [reqBusy, setReqBusy] = useState(false);
+  const [reqMsg, setReqMsg] = useState("");
   const router = useRouter();
   // The portal is view-only — content is edited in admin client Settings. `edit`
   // stays a const so the shared view/edit field helpers below render read-only.
@@ -124,9 +129,12 @@ export default function PortalView({
   };
   const shotsDone = shots.filter((t) => t.status === "done").length;
 
-  // Deliverables — the client only sees progress when the studio shared it.
+  // Deliverables — the client sees progress when shared, and can request tasks
+  // when requests are enabled. Pending requests are excluded from the progress list.
   const dlvShared = !!d.deliverables?.showToClient;
-  const dlvItems = dlvShared ? [...(d.deliverables?.items ?? [])].sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) : [];
+  const dlvRequestsOn = !!d.deliverables?.allowClientRequests;
+  const dlvItems = dlvShared ? [...(d.deliverables?.items ?? [])].filter((x) => !x.pending).sort((a, b) => ((a.due || "9999") < (b.due || "9999") ? -1 : 1)) : [];
+  const myRequests = dlvRequestsOn ? (d.deliverables?.items ?? []).filter((x) => x.requestedByClient) : [];
   const dlvDone = dlvItems.filter((x) => x.status === "done").length;
   const dlvPct = dlvItems.length ? Math.round((dlvDone / dlvItems.length) * 100) : 0;
   const dlvStatusLabel: Record<string, { en: string; ar: string; cls: string }> = {
@@ -137,6 +145,25 @@ export default function PortalView({
   };
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const up = (fn: (c: any) => void) => setData((prev) => { const c = JSON.parse(JSON.stringify(prev)); fn(c); return c; });
+
+  async function submitRequest() {
+    const title = reqTitle.trim();
+    if (!title || reqBusy) return;
+    setReqBusy(true);
+    setReqMsg("");
+    const res = await requestDeliverable(client.slug, { title, due: reqDue, detail: reqDetail });
+    setReqBusy(false);
+    if (res.ok) {
+      up((c) => {
+        c.deliverables = c.deliverables || {};
+        c.deliverables.items = [...(c.deliverables.items ?? []), { id: `tmp_${Date.now()}`, title, due: reqDue || undefined, detail: reqDetail || undefined, status: "todo", kind: "milestone", source: "client", requestedByClient: true, pending: true }];
+      });
+      setReqTitle(""); setReqDue(""); setReqDetail("");
+      setReqMsg(ui("Request sent — pending approval.", "تم إرسال الطلب — بانتظار الموافقة."));
+    } else {
+      setReqMsg(ui("Couldn't send the request. Try again.", "تعذّر إرسال الطلب. حاول مرة أخرى."));
+    }
+  }
 
   // Inline editor: returns plain text in view mode, an input/textarea in edit
   // mode. A function (not a component) so React keeps input focus on re-render.
@@ -449,41 +476,83 @@ export default function PortalView({
               </div>
             )}
 
-            {/* Deliverables progress — only when the studio shared it. */}
-            {!edit && dlvShared && dlvItems.length > 0 && (
+            {/* Deliverables — progress (when shared) and/or task requests (when enabled). */}
+            {!edit && (dlvShared || dlvRequestsOn) && (
               <div style={{ marginTop: 36 }}>
                 <div className="ms-section__header">
                   <div>
                     <span className="ms-section__eyebrow">{ui("Deliverables", "المخرجات")}</span>
                     <h2 className="ms-section__title">{ui("Where we are", "أين وصلنا")}</h2>
                   </div>
-                  <span className="ms-portal-pill">{dlvDone}/{dlvItems.length} {ui("delivered", "تم تسليمه")}</span>
+                  {dlvShared && dlvItems.length > 0 && (
+                    <span className="ms-portal-pill">{dlvDone}/{dlvItems.length} {ui("delivered", "تم تسليمه")}</span>
+                  )}
                 </div>
 
-                <div className="ms-pcard" style={{ marginTop: 8 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-                    <span className="ms-portal-mini">{ui("Progress", "نسبة الإنجاز")}</span>
-                    <span style={{ fontWeight: 800 }}>{dlvPct}%</span>
+                {dlvShared && dlvItems.length > 0 && (
+                  <div className="ms-pcard" style={{ marginTop: 8 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                      <span className="ms-portal-mini">{ui("Progress", "نسبة الإنجاز")}</span>
+                      <span style={{ fontWeight: 800 }}>{dlvPct}%</span>
+                    </div>
+                    <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
+                      <div style={{ height: "100%", width: `${dlvPct}%`, background: "var(--marker-orange)", borderRadius: 999 }} />
+                    </div>
+                    <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0" }}>
+                      {dlvItems.map((it, i) => {
+                        const st = dlvStatusLabel[it.status] ?? dlvStatusLabel.todo;
+                        return (
+                          <li key={it.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i ? "1px solid var(--marker-line, #eee)" : "none" }}>
+                            <span aria-hidden style={{ color: it.status === "done" ? "var(--marker-orange, #FF9100)" : "#bbb" }}>{it.status === "done" ? "✓" : "○"}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, textDecoration: it.status === "done" ? "line-through" : "none", opacity: it.status === "done" ? 0.6 : 1 }}>{it.title}</div>
+                              {it.due && <div className="ms-pmuted" style={{ fontSize: 12 }}>{fmtShootDate(it.due)}</div>}
+                            </div>
+                            <span className={`ms-portal-pill ${st.cls}`}>{ui(st.en, st.ar)}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
                   </div>
-                  <div style={{ height: 6, background: "var(--marker-charcoal-10)", borderRadius: 999, overflow: "hidden", marginTop: 10 }}>
-                    <div style={{ height: "100%", width: `${dlvPct}%`, background: "var(--marker-orange)", borderRadius: 999 }} />
+                )}
+
+                {dlvRequestsOn && (
+                  <div className="ms-pcard" style={{ marginTop: 12 }}>
+                    <span className="ms-section__eyebrow">{ui("Request a task", "اطلب مهمة")}</span>
+                    <p className="ms-pmuted" style={{ marginTop: 4 }}>{ui("Need something specific? Send a request with a date — we'll review and confirm it.", "تحتاج شيئًا محددًا؟ أرسل طلبًا مع تاريخ — سنراجعه ونؤكده.")}</p>
+                    <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+                      <input value={reqTitle} onChange={(e) => setReqTitle(e.target.value)} placeholder={ui("What do you need?", "ما الذي تحتاجه؟")} style={{ width: "100%", border: "1px solid var(--marker-line, #e5e5e5)", borderRadius: 10, padding: "10px 12px", fontSize: 14, fontFamily: "inherit" }} />
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                        <input type="date" value={reqDue} onChange={(e) => setReqDue(e.target.value)} style={{ border: "1px solid var(--marker-line, #e5e5e5)", borderRadius: 10, padding: "10px 12px", fontSize: 14, fontFamily: "inherit" }} />
+                        <input value={reqDetail} onChange={(e) => setReqDetail(e.target.value)} placeholder={ui("Any details (optional)", "تفاصيل إضافية (اختياري)")} style={{ flex: 1, minWidth: 160, border: "1px solid var(--marker-line, #e5e5e5)", borderRadius: 10, padding: "10px 12px", fontSize: 14, fontFamily: "inherit" }} />
+                      </div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                        <button type="button" onClick={submitRequest} disabled={reqBusy || !reqTitle.trim()} className="ms-portal-pill ms-portal-pill--orange" style={{ border: "none", cursor: reqBusy || !reqTitle.trim() ? "not-allowed" : "pointer", opacity: reqBusy || !reqTitle.trim() ? 0.6 : 1 }}>
+                          {reqBusy ? ui("Sending…", "جارٍ الإرسال…") : ui("Send request", "إرسال الطلب")}
+                        </button>
+                        {reqMsg && <span className="ms-pmuted">{reqMsg}</span>}
+                      </div>
+                    </div>
+
+                    {myRequests.length > 0 && (
+                      <ul style={{ listStyle: "none", padding: 0, margin: "16px 0 0" }}>
+                        {myRequests.map((it, i) => {
+                          const label = it.pending ? ui("Pending approval", "بانتظار الموافقة") : it.status === "done" ? ui("Delivered", "تم التسليم") : ui("Approved", "تمت الموافقة");
+                          const cls = it.pending ? "" : it.status === "done" ? "ms-portal-pill--green" : "ms-portal-pill--blue";
+                          return (
+                            <li key={it.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i ? "1px solid var(--marker-line, #eee)" : "none" }}>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 600 }}>{it.title}</div>
+                                {it.due && <div className="ms-pmuted" style={{ fontSize: 12 }}>{fmtShootDate(it.due)}</div>}
+                              </div>
+                              <span className={`ms-portal-pill ${cls}`}>{label}</span>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
                   </div>
-                  <ul style={{ listStyle: "none", padding: 0, margin: "14px 0 0" }}>
-                    {dlvItems.map((it, i) => {
-                      const st = dlvStatusLabel[it.status] ?? dlvStatusLabel.todo;
-                      return (
-                        <li key={it.id ?? i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 0", borderTop: i ? "1px solid var(--marker-line, #eee)" : "none" }}>
-                          <span aria-hidden style={{ color: it.status === "done" ? "var(--marker-orange, #FF9100)" : "#bbb" }}>{it.status === "done" ? "✓" : "○"}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, textDecoration: it.status === "done" ? "line-through" : "none", opacity: it.status === "done" ? 0.6 : 1 }}>{it.title}</div>
-                            {it.due && <div className="ms-pmuted" style={{ fontSize: 12 }}>{fmtShootDate(it.due)}</div>}
-                          </div>
-                          <span className={`ms-portal-pill ${st.cls}`}>{ui(st.en, st.ar)}</span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
+                )}
               </div>
             )}
           </div>
