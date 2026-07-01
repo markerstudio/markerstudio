@@ -10,7 +10,7 @@ import {
   getInvoice, invoiceTotal, lineAmount, isRamziLine, inferKind, notionNameForKind,
   type InvoiceItem, type LineKind,
 } from "@/lib/invoices";
-import { createIncomePaymentLines, notionArchivePage, incomeAlreadyRecorded, NotionSyncError } from "@/lib/notion";
+import { createIncomePaymentLines, notionArchivePage, incomeAlreadyRecorded, isoDay, NotionSyncError } from "@/lib/notion";
 import {
   ensurePaymentsTable, listUnsyncedPayments, listClaimedNotionPageIds, markPaymentSynced, markPaymentSyncFailed,
   type AllocationLine,
@@ -120,7 +120,7 @@ export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void
     const claimed = await listClaimedNotionPageIds(input.payId);
     const existing = await incomeAlreadyRecorded({
       clientPageId: pageId,
-      payDate: input.paidOn || new Date().toISOString().slice(0, 10),
+      payDate: isoDay(input.paidOn) || new Date().toISOString().slice(0, 10),
       currency: input.currency,
       expected,
       ignorePageIds: [...(input.priorPageIds || []), ...claimed],
@@ -220,7 +220,10 @@ export async function reconcilePendingNotionPayments(limit = 20, opts?: { ignore
         currency: (p.currency as "ILS" | "USD") || "ILS",
         dueDate: inv?.due_date || null,
         allocation: p.allocation,
-        paidOn: typeof p.paid_on === "string" ? p.paid_on.slice(0, 10) : undefined,
+        // isoDay handles the driver returning DATE as a string or a JS Date —
+        // previously a Date here fell through to undefined and the re-pushed
+        // payment would have landed in Notion stamped with TODAY's date.
+        paidOn: isoDay(p.paid_on),
         ref: p.number || undefined,
         priorPageIds: p.notion_page_ids,
         // This is the re-push path — check Notion for a hand-entered (or

@@ -134,7 +134,7 @@ export async function createInvoice(input: {
 export async function listInvoices(): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
+    SELECT id, number, client_id, client_slug, issued_date::text AS issued_date, due_date::text AS due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices ORDER BY created_at DESC LIMIT 500
   `) as unknown as Invoice[];
 }
@@ -142,7 +142,7 @@ export async function listInvoices(): Promise<Invoice[]> {
 export async function listClientInvoices(clientId: number): Promise<Invoice[]> {
   const sql = getSql();
   return (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
+    SELECT id, number, client_id, client_slug, issued_date::text AS issued_date, due_date::text AS due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices WHERE client_id = ${clientId} ORDER BY created_at DESC
   `) as unknown as Invoice[];
 }
@@ -222,7 +222,7 @@ export async function clientStoriesFinanceIls(
 export async function getInvoice(id: number): Promise<Invoice | undefined> {
   const sql = getSql();
   const rows = (await sql`
-    SELECT id, number, client_id, client_slug, issued_date, due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
+    SELECT id, number, client_id, client_slug, issued_date::text AS issued_date, due_date::text AS due_date, items, note, status, source, vat_rate, paid_amount, archived_at, created_at
     FROM invoices WHERE id = ${id} LIMIT 1
   `) as unknown as Invoice[];
   return rows[0];

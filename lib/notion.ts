@@ -16,6 +16,18 @@ export function extractNotionId(s: string): string | null {
   return m ? m[0] : null;
 }
 
+// Normalise anything date-shaped to "YYYY-MM-DD" (what Notion's date properties
+// want). A Postgres DATE column surfaces as a string OR a JS Date depending on
+// the driver — calling .slice() on a Date object is exactly the crash that
+// silently broke the payment sync ("e.dueDate.slice is not a function"), so
+// every date that reaches a Notion payload must pass through here.
+export function isoDay(v: unknown): string | undefined {
+  if (!v) return undefined;
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? undefined : v.toISOString().slice(0, 10);
+  const s = String(v).slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : undefined;
+}
+
 // A Notion write that fails partway can leave some Income rows created. We carry
 // the ids that DID get written so a retry can archive them first and never
 // duplicate a payment in the books.
@@ -257,7 +269,7 @@ export async function incomeAlreadyRecorded(input: {
       filter: {
         and: [
           { property: "Clients Database", relation: { contains: input.clientPageId } },
-          { property: "Pay Date", date: { equals: input.payDate.slice(0, 10) } },
+          { property: "Pay Date", date: { equals: isoDay(input.payDate) || new Date().toISOString().slice(0, 10) } },
         ],
       },
       page_size: 100,
@@ -321,7 +333,8 @@ export async function createIncomePaymentLines(input: {
   const lines = (input.lines || []).filter((l) => l.amount > 0);
   if (!lines.length) return [];
   const created: string[] = [];
-  const payDate = (input.payDate || new Date().toISOString().slice(0, 10)).slice(0, 10);
+  const payDate = isoDay(input.payDate) || new Date().toISOString().slice(0, 10);
+  const dueDate = isoDay(input.dueDate);
   // Source — match the client's Budget Tracker source row (first one found).
   // Best-effort: a Source lookup failure must not abort the payment write.
   let sourceIds: string[] = [];
@@ -340,7 +353,7 @@ export async function createIncomePaymentLines(input: {
       "Pay Date": { date: { start: payDate } },
       "Clients Database": { relation: [{ id: input.clientPageId }] },
     };
-    if (input.dueDate) properties["Due Date"] = { date: { start: input.dueDate.slice(0, 10) } };
+    if (dueDate) properties["Due Date"] = { date: { start: dueDate } };
     // Amount + matching bank account, so the bank's running balance updates.
     if (input.currency === "USD") {
       properties.USD = { number: line.amount };
