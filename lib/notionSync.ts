@@ -12,7 +12,7 @@ import {
 } from "@/lib/invoices";
 import { createIncomePaymentLines, notionArchivePage, incomeAlreadyRecorded, NotionSyncError } from "@/lib/notion";
 import {
-  ensurePaymentsTable, listUnsyncedPayments, markPaymentSynced, markPaymentSyncFailed,
+  ensurePaymentsTable, listUnsyncedPayments, listClaimedNotionPageIds, markPaymentSynced, markPaymentSyncFailed,
   type AllocationLine,
 } from "@/lib/payments";
 import type { ClientData } from "@/lib/clients";
@@ -113,12 +113,17 @@ export async function syncPaymentToNotion(input: SyncPaymentInput): Promise<void
   // client's "Money Left" reads low. Adopt the existing rows and mark synced.
   if (input.verifyExisting) {
     const expected = lines.reduce((s, l) => s + l.amount, 0);
+    // Never adopt rows that already belong to ANOTHER payment — only a truly
+    // untracked (hand-entered) row may satisfy this payment. Without this, an
+    // unrelated same-day payment's rows could be adopted and this payment
+    // would be marked "synced" while never actually written.
+    const claimed = await listClaimedNotionPageIds(input.payId);
     const existing = await incomeAlreadyRecorded({
       clientPageId: pageId,
       payDate: input.paidOn || new Date().toISOString().slice(0, 10),
       currency: input.currency,
       expected,
-      ignorePageIds: input.priorPageIds || [],
+      ignorePageIds: [...(input.priorPageIds || []), ...claimed],
     });
     if (existing.present) {
       await markPaymentSynced(input.payId, existing.pageIds);
@@ -196,11 +201,14 @@ export async function cleanupReconcilerDuplicates(): Promise<number> {
 // recorded while Notion was down, or recorded before the client was linked).
 // Bounded per run and safe to call on a hot path — in steady state it's a single
 // cheap SELECT that returns nothing. Returns how many payments it processed.
-export async function reconcilePendingNotionPayments(limit = 20): Promise<number> {
+// ignoreAttemptCap is set by the admin's explicit "Re-sync payments" click: a
+// manual retry processes every pending payment, even ones the automatic path
+// has given up on.
+export async function reconcilePendingNotionPayments(limit = 20, opts?: { ignoreAttemptCap?: boolean }): Promise<number> {
   if (!isDbEnabled() || !process.env.NOTION_TOKEN) return 0;
   let processed = 0;
   try {
-    const pending = await listUnsyncedPayments(limit);
+    const pending = await listUnsyncedPayments(limit, { ignoreAttemptCap: !!opts?.ignoreAttemptCap });
     for (const p of pending) {
       const inv = await getInvoice(p.invoice_id);
       await syncPaymentToNotion({
