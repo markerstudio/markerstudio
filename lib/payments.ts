@@ -227,6 +227,69 @@ export async function markPaymentSyncFailed(id: number, pageIds: string[], error
   }
 }
 
+// Health of the payment→Notion mirror, for the admin to SEE (instead of a
+// silent failure). Every payment that should be in Notion but isn't: client is
+// linked to a Notion page, not Ramzi's, recorded in the last year. Unlike
+// listUnsyncedPayments this ignores the attempt cap and the 90-day window —
+// once a payment has silently failed we want it visible until it's fixed, not
+// hidden after ten tries. Returns a count, the money at stake, the most recent
+// Notion error (the actual reason the write failed), and a short sample list.
+export type NotionSyncHealth = {
+  pending: number; // how many payments haven't reached Notion
+  ils: number; // ILS at stake across those payments
+  usd: number; // USD at stake
+  lastError: string | null; // the most recent Notion error recorded (the real cause)
+  oldestPaidOn: string | null; // earliest affected payment date
+  sample: { number: string; client_slug: string; amount: number; currency: string; paid_on: string; error: string | null }[];
+};
+
+export async function notionSyncHealth(sampleLimit = 8): Promise<NotionSyncHealth> {
+  const empty: NotionSyncHealth = { pending: 0, ils: 0, usd: 0, lastError: null, oldestPaidOn: null, sample: [] };
+  try {
+    await ensurePaymentsTable();
+    const rows = (await getSql()`
+      SELECT p.number, p.client_slug, p.amount, p.currency, p.paid_on, p.notion_error, p.created_at
+      FROM invoice_payments p
+      JOIN clients c ON c.slug = p.client_slug
+      WHERE p.notion_synced_at IS NULL
+        AND p.amount > 0
+        AND COALESCE(c.data->>'notionPageId', '') <> ''
+        AND COALESCE(c.data->>'owner', '') <> 'ramzi'
+        AND p.paid_on > CURRENT_DATE - INTERVAL '365 days'
+      ORDER BY p.paid_on DESC, p.id DESC
+    `) as unknown as { number: string; client_slug: string; amount: number; currency: string; paid_on: string; notion_error: string | null; created_at: string }[];
+    if (!rows.length) return empty;
+
+    let ils = 0;
+    let usd = 0;
+    let lastError: string | null = null;
+    for (const r of rows) {
+      const amt = Number(r.amount) || 0;
+      if (r.currency === "USD") usd += amt;
+      else ils += amt;
+      // The rows are newest-first; keep the first non-empty error we see.
+      if (!lastError && r.notion_error) lastError = r.notion_error;
+    }
+    return {
+      pending: rows.length,
+      ils,
+      usd,
+      lastError,
+      oldestPaidOn: rows[rows.length - 1]?.paid_on?.slice(0, 10) || null,
+      sample: rows.slice(0, sampleLimit).map((r) => ({
+        number: r.number,
+        client_slug: r.client_slug,
+        amount: Number(r.amount) || 0,
+        currency: r.currency,
+        paid_on: (r.paid_on || "").slice(0, 10),
+        error: r.notion_error,
+      })),
+    };
+  } catch {
+    return empty;
+  }
+}
+
 // Payments that still aren't in Notion but should be: client is linked to a
 // Notion page, recorded within the last 90 days, and we haven't already given up
 // after many tries. Oldest first so the books fill in chronologically.
