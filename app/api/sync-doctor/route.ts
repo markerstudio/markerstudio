@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { getSql, isDbEnabled } from "@/lib/db";
-import { notionGet, notionPost, notionArchivePage } from "@/lib/notion";
+import { notionGet, notionPost, notionPatch, notionArchivePage } from "@/lib/notion";
 import { notionSyncHealth } from "@/lib/payments";
 
 export const dynamic = "force-dynamic";
@@ -23,8 +23,49 @@ const INCOME_DB = process.env.NOTION_INCOME_DB || "1822487b8e7e81d4821bede793d64
 const ARAB_BANK_ILS = process.env.NOTION_ARAB_BANK_ILS || "1cb2487b8e7e80a0a743f56fdbe7bcdf";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export async function GET() {
+export async function GET(req: Request) {
   if (!(await getSession())) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // One-time helper: ?fillUsdIls=3.5 fills the "USD in ILS" column for every
+  // Income row that has dollars but no frozen value yet, at USD × the given
+  // rate. Used to baseline HISTORICAL dollar payments at the legacy formula
+  // rate so old balances stay exactly as they were — new payments get the real
+  // pay-day rate stamped automatically and are never touched here (only empty
+  // cells are filled, so this is idempotent and can't overwrite anything).
+  const fillRate = parseFloat(new URL(req.url).searchParams.get("fillUsdIls") || "");
+  if (Number.isFinite(fillRate) && fillRate >= 0.5 && fillRate <= 10) {
+    const filled: { name: string; usd: number; ilsValue: number }[] = [];
+    const errors: string[] = [];
+    try {
+      const q = await notionPost(`/v1/databases/${INCOME_DB}/query`, {
+        filter: {
+          and: [
+            { property: "USD", number: { is_not_empty: true } },
+            { property: "USD in ILS", number: { is_empty: true } },
+          ],
+        },
+        page_size: 100,
+      });
+      for (const r of q.results || []) {
+        const usd = r?.properties?.USD?.number;
+        if (!r?.id || !(typeof usd === "number" && usd > 0)) continue;
+        const ilsValue = usd * fillRate;
+        try {
+          await notionPatch(`/v1/pages/${r.id}`, { properties: { "USD in ILS": { number: ilsValue } } });
+          filled.push({
+            name: ((r.properties?.Name?.title || []) as any[]).map((t) => t.plain_text).join("") || "?",
+            usd,
+            ilsValue,
+          });
+        } catch (e) {
+          errors.push(`${r.id}: ${(e as Error)?.message || String(e)}`);
+        }
+      }
+      return NextResponse.json({ action: "fillUsdIls", rate: fillRate, filledCount: filled.length, filled, errors });
+    } catch (e) {
+      return NextResponse.json({ action: "fillUsdIls", error: String((e as Error)?.message || e) }, { status: 500 });
+    }
+  }
 
   const out: Record<string, any> = {
     env: {

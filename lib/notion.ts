@@ -94,6 +94,14 @@ export async function notionPost(path: string, body: any): Promise<any> {
   });
 }
 
+export async function notionPatch(path: string, body: any): Promise<any> {
+  return notionFetch(path, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
 // Archive (soft-delete) a Notion page. Best-effort — used to clean up rows from
 // a previous, partially-failed payment write before re-creating them, so a
 // re-sync is idempotent and never doubles a payment.
