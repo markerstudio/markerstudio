@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { getInvoice, invoiceGrandTotal, invoiceRemaining } from "@/lib/invoices";
+import { getInvoice, invoiceGrandTotal, invoiceRemaining, invoiceCurrency } from "@/lib/invoices";
 import { getPayment } from "@/lib/payments";
 import PrintButton from "@/components/PrintButton";
 
@@ -39,6 +39,9 @@ export default async function ReceiptPage({
   const rate = inv ? Number(inv.vat_rate) || 0 : 0;
   const grand = inv ? invoiceGrandTotal(inv.items, rate) : 0;
   const remaining = inv ? invoiceRemaining(inv.items, rate, Number(inv.paid_amount) || 0) : 0;
+  // Invoice figures render in the INVOICE's currency — a $400 payment against
+  // a shekel invoice must not dress the invoice's totals in dollar signs.
+  const invCurrency = inv ? invoiceCurrency(inv.items) : pay.currency;
   const isAdmin = s.role !== "client";
 
   return (
@@ -85,11 +88,11 @@ export default async function ReceiptPage({
               <div className="ml-auto mt-4 w-full max-w-xs space-y-1.5 text-sm">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Invoice total</span>
-                  <span className="tabular-nums text-neutral-800">{money(grand, pay.currency)}</span>
+                  <span className="tabular-nums text-neutral-800">{money(grand, invCurrency)}</span>
                 </div>
                 <div className="flex justify-between border-t border-neutral-200 pt-1.5 font-semibold text-orange-deep">
                   <span>Remaining on invoice</span>
-                  <span className="tabular-nums">{money(remaining, pay.currency)}</span>
+                  <span className="tabular-nums">{money(remaining, invCurrency)}</span>
                 </div>
               </div>
             )}
