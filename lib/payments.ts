@@ -121,8 +121,8 @@ export async function listInvoicePayments(invoiceId: number): Promise<Payment[]>
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation, created_at,
-             notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
+      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+             notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE invoice_id = ${invoiceId} ORDER BY paid_on DESC, id DESC
     `) as unknown as Payment[];
   } catch {
@@ -135,8 +135,8 @@ export async function listClientPayments(slug: string, limit = 1000): Promise<Pa
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation, created_at,
-             notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
+      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+             notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE client_slug = ${slug} ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
   } catch {
@@ -149,8 +149,8 @@ export async function listAllPayments(limit = 1000): Promise<Payment[]> {
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation, created_at,
-             notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
+      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+             notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
   } catch {
@@ -170,8 +170,8 @@ export async function getPayment(id: number): Promise<Payment | undefined> {
   try {
     await ensurePaymentsTable();
     const rows = (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation, created_at,
-             notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
+      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+             notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE id = ${id} LIMIT 1
     `) as unknown as Payment[];
     return rows[0];
@@ -248,7 +248,7 @@ export async function notionSyncHealth(sampleLimit = 8): Promise<NotionSyncHealt
   try {
     await ensurePaymentsTable();
     const rows = (await getSql()`
-      SELECT p.number, p.client_slug, p.amount, p.currency, p.paid_on, p.notion_error, p.created_at
+      SELECT p.number, p.client_slug, p.amount, p.currency, p.paid_on::text AS paid_on, p.notion_error, p.created_at::text AS created_at
       FROM invoice_payments p
       JOIN clients c ON c.slug = p.client_slug
       WHERE p.notion_synced_at IS NULL
@@ -291,24 +291,26 @@ export async function notionSyncHealth(sampleLimit = 8): Promise<NotionSyncHealt
 }
 
 // Payments that still aren't in Notion but should be: client is linked to a
-// Notion page, recorded within the last 90 days. The attempt cap keeps the
-// AUTOMATIC path from hammering Notion forever, but the admin's explicit
-// "Re-sync payments" click passes ignoreAttemptCap — a manual retry must never
-// silently skip a payment just because it already failed ten times.
+// Notion page, recorded within the recent window. The attempt cap and the
+// short 90-day window keep the AUTOMATIC path cheap and non-spammy; the
+// admin's explicit "Re-sync payments" click passes ignoreAttemptCap, which
+// also widens the window to a year — a manual retry must never silently skip
+// a payment because it failed too often or is a backdated backfill.
 export async function listUnsyncedPayments(limit = 20, opts?: { ignoreAttemptCap?: boolean }): Promise<Payment[]> {
-  const ignoreCap = !!opts?.ignoreAttemptCap;
+  const manual = !!opts?.ignoreAttemptCap;
+  const windowDays = manual ? 365 : 90;
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT p.id, p.number, p.invoice_id, p.client_slug, p.amount, p.currency, p.paid_on, p.method, p.note,
-             p.allocation, p.created_at, p.notion_synced_at, p.notion_page_ids, p.notion_error, p.notion_sync_attempts
+      SELECT p.id, p.number, p.invoice_id, p.client_slug, p.amount, p.currency, p.paid_on::text AS paid_on, p.method, p.note,
+             p.allocation, p.created_at::text AS created_at, p.notion_synced_at::text AS notion_synced_at, p.notion_page_ids, p.notion_error, p.notion_sync_attempts
       FROM invoice_payments p
       JOIN clients c ON c.slug = p.client_slug
       WHERE p.notion_synced_at IS NULL
         AND COALESCE(c.data->>'notionPageId', '') <> ''
         AND COALESCE(c.data->>'owner', '') <> 'ramzi'
-        AND p.paid_on > CURRENT_DATE - INTERVAL '90 days'
-        AND (${ignoreCap} OR COALESCE(p.notion_sync_attempts, 0) < 10)
+        AND p.paid_on > CURRENT_DATE - (${windowDays} * INTERVAL '1 day')
+        AND (${manual} OR COALESCE(p.notion_sync_attempts, 0) < 10)
       ORDER BY p.paid_on ASC, p.id ASC
       LIMIT ${limit}
     `) as unknown as Payment[];
