@@ -8,7 +8,7 @@
 //   - a "Notes"/"Caption" prop → notes (rich text)
 import { unstable_cache } from "next/cache";
 import type { SocialPost, Invoice } from "@/lib/clients";
-import { amountLabelToIls } from "@/lib/money";
+import { amountLabelToIls, usdIlsRateOn } from "@/lib/money";
 
 // Accept a raw Notion id or a URL; return the 32-char id.
 export function extractNotionId(s: string): string | null {
@@ -241,6 +241,32 @@ async function getIncomeRefProp(): Promise<string | null> {
   return _incomeRefProp;
 }
 
+// Optional frozen-rate column. If the Income DB has a number property named
+// "USD in ILS" (or "ILS Equivalent"/"ILS Value"), every synced USD row also
+// gets its shekel value at the PAY-DAY exchange rate — locked forever, so a
+// later rate change can never re-value history. Sources can then roll this up
+// ("Paid USD in ILS") and Money Left uses the rollup instead of USD × a
+// hardcoded rate. Fully opt-in: without the column, the sync behaves exactly
+// as before. Detected once per process, like the Ref property.
+let _incomeUsdIlsProp: string | null | undefined;
+async function getIncomeUsdIlsProp(): Promise<string | null> {
+  if (_incomeUsdIlsProp !== undefined) return _incomeUsdIlsProp;
+  try {
+    const db = await notionGet(`/v1/databases/${INCOME_DB}`);
+    let found: string | null = null;
+    for (const [name, p] of Object.entries<any>(db?.properties || {})) {
+      if (p?.type === "number" && /^(usd in ils|ils equivalent|ils value)$/i.test(String(name).trim())) {
+        found = name;
+        break;
+      }
+    }
+    _incomeUsdIlsProp = found;
+  } catch {
+    _incomeUsdIlsProp = null;
+  }
+  return _incomeUsdIlsProp;
+}
+
 // Is this payment ALREADY in the Income DB — typically because the admin added
 // it to Notion by hand after the automatic sync failed? The reconciler asks this
 // before re-pushing a payment whose local state still reads "pending": if the
@@ -347,6 +373,10 @@ export async function createIncomePaymentLines(input: {
   // replace any rows already written for this receipt before re-creating them.
   const refProp = input.ref ? await getIncomeRefProp() : null;
   if (input.ref && refProp) await archiveIncomeByRef(refProp, input.ref);
+  // Frozen-rate stamp for dollar payments (dormant unless the column exists):
+  // the pay-day USD→ILS rate, fetched once for the whole payment.
+  const usdIlsProp = input.currency === "USD" ? await getIncomeUsdIlsProp() : null;
+  const usdRate = usdIlsProp ? await usdIlsRateOn(payDate) : 0;
   for (const line of lines) {
     const properties: Record<string, any> = {
       Name: { title: [{ text: { content: line.name || `Payment ${payDate}` } }] },
@@ -358,6 +388,9 @@ export async function createIncomePaymentLines(input: {
     if (input.currency === "USD") {
       properties.USD = { number: line.amount };
       properties["Arab Bank USD"] = { relation: [{ id: ARAB_BANK_USD }] };
+      // Lock the shekel value at the pay-day rate so "Money Left" deducts the
+      // real exchange value of the dollars — and never re-values it later.
+      if (usdIlsProp && usdRate > 0) properties[usdIlsProp] = { number: Math.round(line.amount * usdRate) };
     } else {
       properties.ILS = { number: line.amount };
       properties["ILS Account"] = { relation: [{ id: ARAB_BANK_ILS }] };
