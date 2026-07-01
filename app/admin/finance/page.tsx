@@ -28,7 +28,7 @@ function GrowthBadge({ now, prev }: { now: number; prev: number }) {
   );
 }
 
-export default async function FinanceAdmin({ searchParams }: { searchParams: { ok?: string; year?: string } }) {
+export default async function FinanceAdmin({ searchParams }: { searchParams: { ok?: string; year?: string; n?: string } }) {
   const f = await getFinance();
   // Health of the app→Notion payment mirror. When a write fails, the app used
   // to swallow the error silently — this surfaces it so a payment can never go
@@ -113,7 +113,11 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
         <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Synced fresh numbers from Notion.</p>
       )}
       {searchParams.ok === "resynced" && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Re-pushed any payments that weren&apos;t in Notion yet.</p>
+        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">
+          {Number(searchParams.n) > 0
+            ? `Tried to re-push ${searchParams.n} payment${searchParams.n === "1" ? "" : "s"} to Notion — if any are still listed in the red box below, the exact error is shown there.`
+            : "No pending payments were found to push. If payments are still missing from Notion, they may be wrongly marked as synced — tell me and I'll dig in."}
+        </p>
       )}
 
       {/* Payment→Notion sync health — loud, never silent. When a write to the

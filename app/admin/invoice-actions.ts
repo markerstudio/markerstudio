@@ -298,10 +298,13 @@ export async function recordPaymentAction(formData: FormData) {
 // stragglers. Wired to the "Re-sync payments" button on the Finance page.
 export async function resyncNotionPaymentsAction() {
   if (!(await getSession())) redirect("/login");
-  await reconcilePendingNotionPayments(100);
+  // Manual click: ignore the automatic path's attempt cap and report how many
+  // payments were actually processed — a silent no-op must never look like
+  // success (that's how a broken sync went unnoticed for a week).
+  const processed = await reconcilePendingNotionPayments(100, { ignoreAttemptCap: true });
   revalidatePath("/admin/finance");
   revalidatePath("/admin");
-  redirect("/admin/finance?ok=resynced");
+  redirect(`/admin/finance?ok=resynced&n=${processed}`);
 }
 
 // Void a recorded payment — deletes its receipt, rolls the amount back off the

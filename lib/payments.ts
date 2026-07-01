@@ -291,9 +291,12 @@ export async function notionSyncHealth(sampleLimit = 8): Promise<NotionSyncHealt
 }
 
 // Payments that still aren't in Notion but should be: client is linked to a
-// Notion page, recorded within the last 90 days, and we haven't already given up
-// after many tries. Oldest first so the books fill in chronologically.
-export async function listUnsyncedPayments(limit = 20): Promise<Payment[]> {
+// Notion page, recorded within the last 90 days. The attempt cap keeps the
+// AUTOMATIC path from hammering Notion forever, but the admin's explicit
+// "Re-sync payments" click passes ignoreAttemptCap — a manual retry must never
+// silently skip a payment just because it already failed ten times.
+export async function listUnsyncedPayments(limit = 20, opts?: { ignoreAttemptCap?: boolean }): Promise<Payment[]> {
+  const ignoreCap = !!opts?.ignoreAttemptCap;
   try {
     await ensurePaymentsTable();
     return (await getSql()`
@@ -305,10 +308,29 @@ export async function listUnsyncedPayments(limit = 20): Promise<Payment[]> {
         AND COALESCE(c.data->>'notionPageId', '') <> ''
         AND COALESCE(c.data->>'owner', '') <> 'ramzi'
         AND p.paid_on > CURRENT_DATE - INTERVAL '90 days'
-        AND COALESCE(p.notion_sync_attempts, 0) < 10
+        AND (${ignoreCap} OR COALESCE(p.notion_sync_attempts, 0) < 10)
       ORDER BY p.paid_on ASC, p.id ASC
       LIMIT ${limit}
     `) as unknown as Payment[];
+  } catch {
+    return [];
+  }
+}
+
+// Every Notion Income page id already claimed by a payment OTHER than payId.
+// The reconciler's "is this already booked?" check must never adopt rows that
+// belong to a different payment — that's how one deposit could swallow
+// another's Notion rows and leave a real payment unwritten forever.
+export async function listClaimedNotionPageIds(excludePayId: number): Promise<string[]> {
+  try {
+    await ensurePaymentsTable();
+    const rows = (await getSql()`
+      SELECT notion_page_ids FROM invoice_payments
+      WHERE notion_page_ids IS NOT NULL AND id <> ${excludePayId}
+    `) as unknown as { notion_page_ids: string[] | null }[];
+    const out = new Set<string>();
+    for (const r of rows) for (const id of r.notion_page_ids || []) if (id) out.add(id);
+    return Array.from(out);
   } catch {
     return [];
   }
