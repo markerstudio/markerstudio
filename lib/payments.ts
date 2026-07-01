@@ -76,6 +76,28 @@ export async function ensurePaymentsTable(): Promise<void> {
   if (baseline.length) {
     await sql`UPDATE invoice_payments SET notion_synced_at = COALESCE(created_at, now()) WHERE notion_synced_at IS NULL`;
   }
+
+  // Second one-time baseline. The June '26 invoice-history backfill created
+  // BACKDATED payments mirroring money that was already hand-tracked in Notion
+  // — under slightly different dates/amounts (650 on the 31st vs Notion's 350
+  // on the 1st), so the exact-date duplicate check cannot adopt them and a
+  // re-sync would double the books. A payment whose pay date is far older than
+  // the day it was recorded is that kind of historical mirror, never money the
+  // sync lost — mark them "already in Notion" and leave only genuinely-new
+  // payments pending. Runs once, guarded by a flag; payments recorded from now
+  // on are synced (or errored) at record time, so this never touches them.
+  const backfillBaseline = (await sql`
+    INSERT INTO app_flags (key, value) VALUES ('payments-backfill-baseline-v1', 'done')
+    ON CONFLICT (key) DO NOTHING RETURNING key
+  `) as unknown as unknown[];
+  if (backfillBaseline.length) {
+    await sql`
+      UPDATE invoice_payments
+      SET notion_synced_at = created_at, notion_error = NULL
+      WHERE notion_synced_at IS NULL
+        AND paid_on < created_at::date - INTERVAL '7 days'
+    `;
+  }
 }
 
 // REC-YYYY-NNN, sequential within the receipt's year.
