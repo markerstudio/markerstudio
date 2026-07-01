@@ -13,6 +13,7 @@ import { resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { recordInvoicePayment, deletePayment, getPayment, type PaymentMethod, type AllocationLine } from "@/lib/payments";
 import { syncPaymentToNotion, reconcilePendingNotionPayments } from "@/lib/notionSync";
 import { notionArchivePage } from "@/lib/notion";
+import { usdIlsRateOn } from "@/lib/money";
 import { snapshotForUndo, withParam } from "@/lib/undo";
 
 async function clientBySlug(slug: string) {
@@ -255,17 +256,28 @@ export async function recordPaymentAction(formData: FormData) {
   }
   if (inv && amount > 0) {
     const currency = currencyRaw === "USD" || currencyRaw === "ILS" ? (currencyRaw as "ILS" | "USD") : invoiceCurrency(inv.items);
+    // Cross-currency payment (e.g. $400 against an ILS invoice): what it's
+    // worth in the INVOICE's currency, frozen at the pay-day exchange rate.
+    // Same-currency payments apply 1:1. Without this, a $400 payment used to
+    // knock only 400 ILS off an ILS invoice.
+    const invCurrency = invoiceCurrency(inv.items);
+    let applied = amount;
+    if (currency !== invCurrency) {
+      const rate = await usdIlsRateOn(paidOn || new Date().toISOString().slice(0, 10));
+      applied = currency === "USD" ? Math.round(amount * rate) : Math.round(amount / rate);
+    }
     const { id: payId, number: payNumber } = await recordInvoicePayment({
       invoiceId: id,
       clientSlug: slug,
       amount,
       currency,
+      appliedAmount: applied,
       paidOn: paidOn || undefined,
       method,
       note: note || undefined,
       allocation: allocation.length ? allocation : undefined,
     });
-    await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + amount);
+    await setInvoicePaid(id, (Number(inv.paid_amount) || 0) + applied);
     // Mirror into Notion (unless the admin opted out) and record whether it
     // stuck; a failure here is saved on the payment and retried by the
     // reconciler, never silently dropped.
@@ -323,7 +335,10 @@ export async function deletePaymentAction(formData: FormData) {
     await deletePayment(payId);
     const inv = await getInvoice(pay.invoice_id);
     if (inv) {
-      const newPaid = Math.max(0, (Number(inv.paid_amount) || 0) - (Number(pay.amount) || 0));
+      // Roll back what was actually APPLIED to the invoice (the frozen
+      // cross-currency value when the currencies differed), not the raw amount.
+      const appliedBack = Number(pay.applied_amount ?? pay.amount) || 0;
+      const newPaid = Math.max(0, (Number(inv.paid_amount) || 0) - appliedBack);
       await setInvoicePaid(inv.id, newPaid);
       revalidatePath(`/portal/${pay.client_slug}`);
       revalidatePath("/admin/invoices");

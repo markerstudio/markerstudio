@@ -18,6 +18,11 @@ export type Payment = {
   client_slug: string;
   amount: number;
   currency: "ILS" | "USD";
+  // What this payment is worth in the INVOICE's currency, frozen at the
+  // pay-day exchange rate when the currencies differ (e.g. $400 on an ILS
+  // invoice → ~1,330). Equal to amount for same-currency payments; null on
+  // rows recorded before the column existed (treated as amount).
+  applied_amount: number | null;
   paid_on: string;
   method: PaymentMethod | null;
   note: string | null;
@@ -49,6 +54,9 @@ export async function ensurePaymentsTable(): Promise<void> {
     )
   `;
   await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS allocation JSONB`;
+  // Cross-currency support: the payment's value in the invoice's currency,
+  // frozen at the pay-day rate (see Payment.applied_amount).
+  await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS applied_amount NUMERIC`;
   // Notion sync bookkeeping — so a payment is never silently lost when the
   // Notion write fails. A null notion_synced_at marks it as still pending.
   await sql`ALTER TABLE invoice_payments ADD COLUMN IF NOT EXISTS notion_synced_at TIMESTAMPTZ`;
@@ -120,6 +128,9 @@ export async function recordInvoicePayment(input: {
   clientSlug: string;
   amount: number;
   currency: "ILS" | "USD";
+  // Value in the invoice's currency when it differs from the payment's (frozen
+  // at the pay-day rate by the caller). Defaults to amount.
+  appliedAmount?: number;
   paidOn?: string; // ISO yyyy-mm-dd; defaults to today
   method?: PaymentMethod;
   note?: string;
@@ -131,9 +142,10 @@ export async function recordInvoicePayment(input: {
   const year = parseInt(paidOn.slice(0, 4), 10) || new Date().getFullYear();
   const number = await nextReceiptNumber(year);
   const allocation = input.allocation && input.allocation.length ? JSON.stringify(input.allocation) : null;
+  const applied = Number.isFinite(input.appliedAmount) ? (input.appliedAmount as number) : input.amount;
   const rows = (await sql`
-    INSERT INTO invoice_payments (number, invoice_id, client_slug, amount, currency, paid_on, method, note, allocation)
-    VALUES (${number}, ${input.invoiceId}, ${input.clientSlug}, ${input.amount}, ${input.currency}, ${paidOn}, ${input.method || null}, ${input.note || null}, ${allocation}::jsonb)
+    INSERT INTO invoice_payments (number, invoice_id, client_slug, amount, currency, applied_amount, paid_on, method, note, allocation)
+    VALUES (${number}, ${input.invoiceId}, ${input.clientSlug}, ${input.amount}, ${input.currency}, ${applied}, ${paidOn}, ${input.method || null}, ${input.note || null}, ${allocation}::jsonb)
     RETURNING id
   `) as unknown as { id: number }[];
   return { id: rows[0].id, number };
@@ -143,7 +155,7 @@ export async function listInvoicePayments(invoiceId: number): Promise<Payment[]>
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+      SELECT id, number, invoice_id, client_slug, amount, currency, applied_amount, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE invoice_id = ${invoiceId} ORDER BY paid_on DESC, id DESC
     `) as unknown as Payment[];
@@ -157,7 +169,7 @@ export async function listClientPayments(slug: string, limit = 1000): Promise<Pa
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+      SELECT id, number, invoice_id, client_slug, amount, currency, applied_amount, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE client_slug = ${slug} ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
@@ -171,7 +183,7 @@ export async function listAllPayments(limit = 1000): Promise<Payment[]> {
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+      SELECT id, number, invoice_id, client_slug, amount, currency, applied_amount, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
@@ -192,7 +204,7 @@ export async function getPayment(id: number): Promise<Payment | undefined> {
   try {
     await ensurePaymentsTable();
     const rows = (await getSql()`
-      SELECT id, number, invoice_id, client_slug, amount, currency, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
+      SELECT id, number, invoice_id, client_slug, amount, currency, applied_amount, paid_on::text AS paid_on, method, note, allocation, created_at::text AS created_at,
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE id = ${id} LIMIT 1
     `) as unknown as Payment[];
@@ -324,7 +336,7 @@ export async function listUnsyncedPayments(limit = 20, opts?: { ignoreAttemptCap
   try {
     await ensurePaymentsTable();
     return (await getSql()`
-      SELECT p.id, p.number, p.invoice_id, p.client_slug, p.amount, p.currency, p.paid_on::text AS paid_on, p.method, p.note,
+      SELECT p.id, p.number, p.invoice_id, p.client_slug, p.amount, p.currency, p.applied_amount, p.paid_on::text AS paid_on, p.method, p.note,
              p.allocation, p.created_at::text AS created_at, p.notion_synced_at::text AS notion_synced_at, p.notion_page_ids, p.notion_error, p.notion_sync_attempts
       FROM invoice_payments p
       JOIN clients c ON c.slug = p.client_slug
