@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getFinance, fmtILS, type MonthFin, type PaymentRow } from "@/lib/finance";
+import { notionSyncHealth } from "@/lib/payments";
 import { timeAgo } from "@/lib/dashboard";
 import FinanceTabs from "@/components/admin/FinanceTabs";
 import { syncFinance } from "../actions";
@@ -29,6 +30,10 @@ function GrowthBadge({ now, prev }: { now: number; prev: number }) {
 
 export default async function FinanceAdmin({ searchParams }: { searchParams: { ok?: string; year?: string } }) {
   const f = await getFinance();
+  // Health of the app→Notion payment mirror. When a write fails, the app used
+  // to swallow the error silently — this surfaces it so a payment can never go
+  // missing from Notion unnoticed again.
+  const syncHealth = await notionSyncHealth();
 
   // Years with any activity, newest first; the current year always selectable.
   const yearSet = new Set(f.monthly.map((m) => m.ym.slice(0, 4)));
@@ -110,6 +115,49 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
       {searchParams.ok === "resynced" && (
         <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5">Re-pushed any payments that weren&apos;t in Notion yet.</p>
       )}
+
+      {/* Payment→Notion sync health — loud, never silent. When a write to the
+          Notion Income DB fails, the app records it here so it can't go unnoticed. */}
+      {syncHealth.pending > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-5 py-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 w-6 h-6 shrink-0 rounded-full bg-red-100 text-red-700 flex items-center justify-center text-sm font-bold">!</span>
+              <div>
+                <h2 className="font-bold text-red-900">
+                  {syncHealth.pending} payment{syncHealth.pending === 1 ? "" : "s"} haven&apos;t reached Notion
+                </h2>
+                <p className="text-sm text-red-800 mt-0.5">
+                  {[
+                    syncHealth.ils > 0 ? `${fmtILS(syncHealth.ils)}` : "",
+                    syncHealth.usd > 0 ? `$${syncHealth.usd.toLocaleString("en-US")}` : "",
+                  ].filter(Boolean).join(" + ")}{" "}
+                  recorded in the app but not written to the Notion Income database
+                  {syncHealth.oldestPaidOn ? ` (since ${syncHealth.oldestPaidOn})` : ""}. They&apos;re saved
+                  safely here — they just haven&apos;t mirrored across.
+                </p>
+                {syncHealth.lastError && (
+                  <p className="mt-2 text-xs text-red-700">
+                    <span className="font-semibold">What Notion said:</span>{" "}
+                    <code className="font-mono bg-red-100 px-1.5 py-0.5 rounded break-all">{syncHealth.lastError}</code>
+                  </p>
+                )}
+                <p className="mt-2 text-xs text-red-700/90">
+                  This usually means the app&apos;s Notion connection lost <b>edit</b> access to the Income
+                  database. In Notion → Settings → Connections, confirm the integration can edit the Budget
+                  Tracker, then re-sync below.
+                </p>
+              </div>
+            </div>
+            <form action={resyncNotionPaymentsAction} className="shrink-0">
+              <button className="bg-red-600 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-red-700 transition-colors whitespace-nowrap">
+                Re-sync now
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {f.available && f.diag && (
         <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-2.5">{f.diag}</p>
       )}
