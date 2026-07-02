@@ -538,7 +538,7 @@ export function defaultAgreementDoc(input: {
         body: [
           l(
             `This Service Agreement is made between Marker Studio®, a creative branding and marketing studio based in Beit Sahour, Palestine (“Studio”), and ${name}${rep ? `, represented by ${rep}` : ""} (“Client”).`,
-            `أُبرمت اتفاقية الخدمة هذه بين Marker Studio®، استوديو إبداعي للهوية والتسويق مقرّه بيت ساحور، فلسطين ("الاستوديو")، و${name}${rep ? `، ويمثّله ${rep}` : ""} ("العميل").`
+            `أُبرمت اتفاقية الخدمة هذه بين Marker Studio®، استوديو إبداعي للهوية والتسويق مقرّه بيت ساحور، فلسطين («الاستوديو»)، و${name}${rep ? `، ويمثّله ${rep}` : ""} («العميل»).`
           ),
           l(
             "The effective date of this Agreement is the date of signature by both parties, or the date the first phase advance payment is received, whichever occurs first.",
