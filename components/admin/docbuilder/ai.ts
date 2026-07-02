@@ -4,7 +4,7 @@
 // Claude together with any raw material (brief, old proposal HTML, notes),
 // paste the returned JSON back and the entire document fills in one apply.
 
-import type { OnboardingBrief } from "@/lib/clients";
+import type { ClientData, OnboardingBrief } from "@/lib/clients";
 import type { AgreementDoc, ProposalDoc } from "@/lib/docs";
 
 // Human-readable summary of the onboarding brief, embedded in the prompt so
@@ -38,8 +38,54 @@ export function briefText(name: string, brief?: OnboardingBrief): string {
     .join("\n");
 }
 
+// Summary of the packages agreed on the proposal — the selection the client
+// confirmed on acceptance when there is one, else the plans pre-selected on
+// the proposal document, else the legacy itemised quote. Embedded in the
+// agreement prompt so the AI names the real packages and prices.
+export function proposalPackagesText(data?: ClientData): string {
+  const p = data?.proposal;
+  const doc = p?.doc;
+  const per = (period: "mo" | "once") => (period === "mo" ? "/ month" : "one-time");
+
+  // Selection items only carry the plan title (in whichever language the
+  // client was viewing) — match back to the proposal's plans for features.
+  const plans = doc?.investment?.groups?.flatMap((g) => g.plans) || [];
+  const featuresOf = (plan?: { features: { en: string; ar: string }[] }) =>
+    (plan?.features || []).map((f) => f.en || f.ar).filter(Boolean).map((f) => `  · ${f}`);
+
+  const lines: string[] = [];
+  const sel = p?.selection;
+  if (sel?.items?.length) {
+    const when = p?.acceptedAt ? ` (accepted ${p.acceptedAt.slice(0, 10)}${p.acceptedBy ? ` by ${p.acceptedBy}` : ""})` : "";
+    lines.push(`Packages the client CONFIRMED on the proposal${when}:`);
+    for (const it of sel.items) {
+      lines.push(`- ${it.label} — ${it.price} ${sel.currency} ${per(it.period)}`);
+      lines.push(...featuresOf(plans.find((pl) => pl.title.en === it.label || pl.title.ar === it.label)));
+    }
+    if (sel.monthly) lines.push(`Monthly total: ${sel.monthly} ${sel.currency} / month`);
+    if (sel.once) lines.push(`One-time total: ${sel.once} ${sel.currency}`);
+    return lines.join("\n");
+  }
+  const preselected = plans.filter((pl) => pl.selected);
+  if (preselected.length) {
+    lines.push("Packages pre-selected on the proposal (the client has not accepted it yet):");
+    for (const pl of preselected) {
+      lines.push(`- ${pl.title.en || pl.title.ar} — ${pl.price} ${doc?.currency || "₪"} ${per(pl.period)}`);
+      lines.push(...featuresOf(pl));
+    }
+    return lines.join("\n");
+  }
+  const pricing = data?.pricing?.items?.filter((it) => it.label) || [];
+  if (pricing.length) {
+    lines.push("Itemised quote on file:");
+    for (const it of pricing) lines.push(`- ${it.label}${it.amount ? ` — ${it.amount}` : ""}`);
+  }
+  return lines.join("\n");
+}
+
 const SHARED_RULES = `Rules:
 - Output ONLY the JSON document — no commentary, no markdown fences, nothing before or after it.
+- The reply must be STRICTLY valid JSON. Never put an unescaped double quote (") inside a string value — write \\" or use “ ”, « » or ' instead. Line breaks inside a string must be written \\n, never a literal line break.
 - Keep the same structure and key names. Keep "theme" and "docId" unchanged.
 - If the full document would make your reply too long, you may return a PARTIAL document containing only the keys you changed — omitted keys keep their current value. Never stop in the middle of the JSON; close every bracket.
 - Every { "en": …, "ar": … } pair must have BOTH languages filled — natural, fluent Arabic (not a literal translation).
@@ -71,7 +117,7 @@ ${brief}
 ${JSON.stringify(doc, null, 1)}`;
 }
 
-export function agreementAiPrompt(doc: AgreementDoc, clientName: string, brief: string): string {
+export function agreementAiPrompt(doc: AgreementDoc, clientName: string, brief: string, packages = ""): string {
   return `You are preparing a service agreement for Marker Studio® — a bilingual (English + Arabic) creative studio in Beit Sahour, Palestine. The agreement is stored as a JSON document and rendered as a paged A4 contract (cover → summary → numbered terms → signature page).
 
 Personalise the JSON below for THIS client. The numbered terms are the studio's standard contract: keep their legal meaning intact — adjust only client-specific details (parties, purpose, scope of work, package names, payment schedule) and improve the Arabic where it reads stiffly.
@@ -79,8 +125,12 @@ Personalise the JSON below for THIS client. The numbered terms are the studio's 
 ${SHARED_RULES}
 - "summary.rows": fill Client, Representative, Agreement value and Package confirmation with the client's real details.
 - The "Parties", "Project Purpose" and "Agreed Scope of Work" sections must name the client and list the actual agreed deliverables.
+- Build the Package cover box, "Package confirmation", "Agreed Scope of Work" and the payment schedule from the packages agreed on the proposal (listed below) — use their exact names, deliverables and prices.
 - "schedule": if the material includes agreed pricing, set "enabled": true and list the payment lines (label + amount as written, e.g. "2,500 ₪"); otherwise leave "enabled": false.
 - Do NOT weaken or remove protective clauses (revisions, exclusions, ownership, cancellation).
+
+=== PACKAGES AGREED ON THE PROPOSAL ===
+${packages || "(No proposal selection on file — take the package names and pricing from the material below.)"}
 
 === CLIENT MATERIAL (brief, accepted proposal, pricing — use everything) ===
 ${brief}
@@ -92,10 +142,11 @@ ${JSON.stringify(doc, null, 1)}`;
 }
 
 // Parse the AI reply — very tolerant. Strips code fences and prose around the
-// JSON, removes trailing commas, repairs truncated replies (unterminated
-// strings / unclosed brackets), and falls back to progressively cutting the
-// tail until something parses. A partial document is fine — mergeAiDoc
-// overlays it on the current one, so omitted keys keep their value.
+// JSON, removes trailing commas, escapes unescaped quotes / line breaks inside
+// string values, repairs truncated replies (unterminated strings / unclosed
+// brackets), and falls back to progressively cutting the tail until something
+// parses. A partial document is fine — mergeAiDoc overlays it on the current
+// one, so omitted keys keep their value.
 export function parseAiDoc<T>(raw: string): T | null {
   let s = (raw || "").trim();
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)(?:```|$)/);
@@ -116,8 +167,15 @@ export function parseAiDoc<T>(raw: string): T | null {
     }
   };
 
-  // 1) as-is, then with trailing commas stripped, then bracket-repaired.
-  for (const c of [full, noTrailingCommas(full), noTrailingCommas(repairJson(s))]) {
+  // 1) as-is, then with trailing commas stripped, then with in-string quotes
+  //    and line breaks escaped, then bracket-repaired.
+  for (const c of [
+    full,
+    noTrailingCommas(full),
+    noTrailingCommas(repairStrings(full)),
+    noTrailingCommas(repairJson(s)),
+    noTrailingCommas(repairJson(repairStrings(s))),
+  ]) {
     const d = attempt(c);
     if (d) return d;
   }
@@ -132,10 +190,54 @@ export function parseAiDoc<T>(raw: string): T | null {
     );
     if (cutAt <= 0) break;
     cur = cur.slice(0, cutAt + 1);
-    const d = attempt(noTrailingCommas(repairJson(cur)));
+    const d = attempt(noTrailingCommas(repairJson(cur))) || attempt(noTrailingCommas(repairJson(repairStrings(cur))));
     if (d) return d;
   }
   return null;
+}
+
+// AI replies often carry unescaped double quotes inside string values —
+// e.g. `"فلسطين ("الاستوديو")، و…"` — which is invalid JSON. Walk the string:
+// inside a value, a `"` only closes it when the next non-space character
+// continues the JSON (`,` `:` `}` `]` or end of input); any other `"` is
+// content and gets escaped. Literal line breaks / tabs inside a string are
+// escaped too. Heuristic — used as an extra parse attempt, never on its own.
+function repairStrings(s: string): string {
+  let out = "";
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    if (!inStr) {
+      if (ch === '"') inStr = true;
+      out += ch;
+      continue;
+    }
+    if (esc) {
+      esc = false;
+      out += ch;
+      continue;
+    }
+    if (ch === "\\") {
+      esc = true;
+      out += ch;
+    } else if (ch === '"') {
+      let j = i + 1;
+      while (j < s.length && /\s/.test(s[j])) j++;
+      const closes = j >= s.length || s[j] === "," || s[j] === ":" || s[j] === "}" || s[j] === "]";
+      if (closes) inStr = false;
+      out += closes ? ch : '\\"';
+    } else if (ch === "\n") {
+      out += "\\n";
+    } else if (ch === "\r") {
+      // dropped — \n (if any) follows
+    } else if (ch === "\t") {
+      out += "\\t";
+    } else {
+      out += ch;
+    }
+  }
+  return out;
 }
 
 // Best-effort close of a truncated JSON string: terminate an open string,

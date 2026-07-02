@@ -24,6 +24,7 @@ export default function AgreementBuilder({
   signed,
   sentAt,
   briefText = "",
+  packagesText = "",
 }: {
   slug: string;
   clientName: string;
@@ -32,6 +33,7 @@ export default function AgreementBuilder({
   signed: { at: string; by: string } | null;
   sentAt?: string;
   briefText?: string;
+  packagesText?: string; // packages agreed on the proposal, for the AI prompt
 }) {
   const [doc, setDoc] = useState<AgreementDoc>(initialDoc);
   const [saving, setSaving] = useState<"" | "saving" | "saved" | "error">("");
@@ -138,7 +140,7 @@ export default function AgreementBuilder({
         <div className="p-4 sm:p-5 space-y-3 lg:h-[calc(100vh-130px)] lg:overflow-y-auto bg-neutral-50/60 border-r border-neutral-200">
           <AiFill
             label="agreement"
-            buildPrompt={() => agreementAiPrompt(doc, clientName, briefText)}
+            buildPrompt={() => agreementAiPrompt(doc, clientName, briefText, packagesText)}
             onApply={(raw) => {
               const parsed = parseAiDoc<AgreementDoc>(raw);
               if (!parsed) return false;
