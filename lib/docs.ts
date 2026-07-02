@@ -698,6 +698,82 @@ export function defaultAgreementDoc(input: {
   };
 }
 
+// Build the agreement draft straight from the accepted proposal — no AI step.
+// The plans the client confirmed become the package name, their features the
+// bilingual scope list, and their prices the payment schedule and agreement
+// value. Returns null when no selection was recorded. The standard clauses
+// come from defaultAgreementDoc; the studio reviews the draft before sending.
+export function agreementDocFromProposal(name: string, data: ClientData): AgreementDoc | null {
+  const p = data.proposal;
+  const sel = p?.selection;
+  if (!sel?.items?.length) return null;
+
+  const plans = p?.doc?.investment?.groups?.flatMap((g) => g.plans) || [];
+  const currency = sel.currency || p?.doc?.currency || "₪";
+  const fmt = (n: number) => n.toLocaleString("en-US");
+  // The selection stores the plan title in whichever language the client was
+  // viewing — match back to the proposal's plans for the other language and
+  // the feature list.
+  const chosen = sel.items.map((it) => ({
+    it,
+    plan: plans.find((pl) => pl.title.en === it.label || pl.title.ar === it.label),
+  }));
+  const titleOf = (c: (typeof chosen)[number]): L => c.plan?.title || l(c.it.label, c.it.label);
+
+  const pkg: L = {
+    en: chosen.map((c) => titleOf(c).en || titleOf(c).ar).join(" + "),
+    ar: chosen.map((c) => titleOf(c).ar || titleOf(c).en).join(" + "),
+  };
+  const scope: L[] = chosen.flatMap((c) => {
+    const features = (c.plan?.features || []).filter((f) => f.en || f.ar);
+    return features.length ? features : [titleOf(c)];
+  });
+  const value: L = {
+    en:
+      [sel.once ? `${fmt(sel.once)} ${currency} one-time` : "", sel.monthly ? `${fmt(sel.monthly)} ${currency} / month` : ""]
+        .filter(Boolean)
+        .join(" + ") || "As per the accepted proposal",
+    ar:
+      [sel.once ? `${fmt(sel.once)} ${currency} دفعة واحدة` : "", sel.monthly ? `${fmt(sel.monthly)} ${currency} شهريًا` : ""]
+        .filter(Boolean)
+        .join(" + ") || "بحسب العرض المقبول",
+  };
+
+  const brief = data.onboarding;
+  const doc = defaultAgreementDoc({
+    clientName: brief?.brandName || name,
+    representative: p?.acceptedBy || (brief ? `${brief.firstName} ${brief.lastName}`.trim() : ""),
+    phone: brief?.phone || "",
+    purpose: brief?.brandDescription || "",
+  });
+  doc.currency = currency;
+
+  // Overlay the selection-derived, properly bilingual details on the standard
+  // contract (defaultAgreementDoc duplicates one string across both languages).
+  const coverPkg = doc.cover.meta.find((m) => m.label.en === "Package");
+  if (coverPkg) coverPkg.value = { en: pkg.en.slice(0, 60), ar: pkg.ar.slice(0, 60) };
+  for (const row of doc.summary.rows) {
+    if (row.label.en === "Agreement value") row.value = value;
+    if (row.label.en === "Package confirmation") row.value = pkg;
+    // The standard payment-method clause is phase-based (50/50); a purely
+    // monthly selection is paid month by month instead.
+    if (row.label.en === "Payment method" && sel.monthly && !sel.once) {
+      row.value = l(
+        "The monthly fee is paid before the start of each service month and activates that month's work.",
+        "تُدفع الرسوم الشهرية قبل بداية كل شهر خدمة، وتُفعّل العمل لذلك الشهر."
+      );
+    }
+  }
+  doc.schedule.enabled = true;
+  doc.schedule.items = chosen.map((c) => ({
+    label: titleOf(c),
+    amount: `${fmt(c.it.price)} ${currency}${c.it.period === "mo" ? " /mo" : ""}`,
+  }));
+  const scopeSection = doc.sections.find((s) => s.title.en === "Agreed Scope of Work");
+  if (scopeSection) scopeSection.list = scope;
+  return doc;
+}
+
 // Resolve the doc to render: the saved one, else a default built from the
 // client's current data (so a preview always works before any editing).
 export function resolveProposalDoc(name: string, data: ClientData): ProposalDoc {
@@ -708,6 +784,8 @@ export function resolveProposalDoc(name: string, data: ClientData): ProposalDoc 
 export function resolveAgreementDoc(name: string, data: ClientData): AgreementDoc {
   const saved = (data.agreement as { doc?: AgreementDoc } | undefined)?.doc;
   if (saved && saved.v === 1) return saved;
+  const fromProposal = agreementDocFromProposal(name, data);
+  if (fromProposal) return fromProposal;
   const brief = data.onboarding;
   const extraServices = [
     ...(brief?.services || []).filter((sv) => sv !== "Other"),
