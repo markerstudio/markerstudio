@@ -5,6 +5,8 @@ import { getDashboardData, fmtMoney, timeAgo } from "@/lib/dashboard";
 import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
 import { runPaymentHistoryBackfill } from "@/lib/backfill";
 import { cleanupReconcilerDuplicates } from "@/lib/notionSync";
+import { getBoardData } from "@/lib/taskBoard";
+import TodayTasks from "@/components/admin/tasks/TodayTasks";
 
 export const dynamic = "force-dynamic";
 
@@ -51,6 +53,17 @@ const ATTENTION_ICONS: Record<string, string> = {
   inquiries: "✉️",
   applications: "👋",
 };
+
+// Today's tasks — streams in behind <Suspense> because the first load may hit
+// Notion (cached ~60s after that). A slice of the full Tasks board.
+async function TodayTasksCard() {
+  try {
+    const { tasks, projects } = await getBoardData();
+    return <TodayTasks initial={tasks} projects={projects} />;
+  } catch {
+    return null; // tasks must never take the dashboard down
+  }
+}
 
 // Async section component — awaited inside <Suspense>, not by the page.
 async function FinanceCard() {
@@ -232,9 +245,52 @@ export default async function AdminDashboard() {
         ))}
       </div>
 
-      {/* ---- Cashflow + attention ---- */}
-      <div className="grid lg:grid-cols-5 gap-4">
-        <div className="adm-rise lg:col-span-3 bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "240ms" }}>
+      {/* ---- Today's tasks + attention ---- */}
+      <div className="grid lg:grid-cols-5 gap-4 items-stretch">
+        <div className="lg:col-span-2 flex flex-col [&>*]:flex-1">
+          <Suspense
+            fallback={
+              <div className="bg-white border border-neutral-200 rounded-xl p-5" aria-busy="true">
+                <div className="adm-skeleton h-4 w-24 rounded mb-4" />
+                <div className="space-y-2.5">
+                  <div className="adm-skeleton h-5 rounded" />
+                  <div className="adm-skeleton h-5 rounded" />
+                  <div className="adm-skeleton h-5 rounded" />
+                  <div className="adm-skeleton h-9 rounded-xl mt-4" />
+                </div>
+              </div>
+            }
+          >
+            <TodayTasksCard />
+          </Suspense>
+        </div>
+
+        <div className="adm-rise lg:col-span-3 bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "300ms" }}>
+          <h2 className="font-bold tracking-tight mb-4">Needs attention</h2>
+          {d.attention.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
+              <span className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-lg">✓</span>
+              <p className="text-sm text-neutral-500">All clear — nothing waiting on you.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-neutral-100 -my-1.5">
+              {d.attention.map((a, i) => (
+                <li key={`${a.kind}-${i}`}>
+                  <Link href={a.href} className="group flex items-center gap-3 py-2.5 text-sm">
+                    <span aria-hidden className="shrink-0">{ATTENTION_ICONS[a.kind] || "•"}</span>
+                    <span className="flex-1 text-neutral-700 group-hover:text-neutral-900">{a.text}</span>
+                    <span className="text-neutral-300 group-hover:text-orange transition-colors">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Cashflow ---- */}
+      <div className="grid gap-4">
+        <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "240ms" }}>
           <div className="flex items-center justify-between gap-4 mb-4">
             <h2 className="font-bold tracking-tight">Cashflow — last 6 months</h2>
             <div className="flex items-center gap-3 text-[11px] text-neutral-500">
@@ -262,28 +318,6 @@ export default async function AdminDashboard() {
             <div className="h-40 flex items-center justify-center text-sm text-neutral-400">
               No invoices in the last six months — totals will chart here.
             </div>
-          )}
-        </div>
-
-        <div className="adm-rise lg:col-span-2 bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "300ms" }}>
-          <h2 className="font-bold tracking-tight mb-4">Needs attention</h2>
-          {d.attention.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-              <span className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-lg">✓</span>
-              <p className="text-sm text-neutral-500">All clear — nothing waiting on you.</p>
-            </div>
-          ) : (
-            <ul className="divide-y divide-neutral-100 -my-1.5">
-              {d.attention.map((a, i) => (
-                <li key={`${a.kind}-${i}`}>
-                  <Link href={a.href} className="group flex items-center gap-3 py-2.5 text-sm">
-                    <span aria-hidden className="shrink-0">{ATTENTION_ICONS[a.kind] || "•"}</span>
-                    <span className="flex-1 text-neutral-700 group-hover:text-neutral-900">{a.text}</span>
-                    <span className="text-neutral-300 group-hover:text-orange transition-colors">→</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
           )}
         </div>
       </div>

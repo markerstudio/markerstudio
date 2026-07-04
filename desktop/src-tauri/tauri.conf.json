@@ -1,13 +1,14 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Marker Studio",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "identifier": "ps.marker.studio",
   "build": {
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [],
+    "withGlobalTauri": true,
     "security": {
       "csp": null
     }

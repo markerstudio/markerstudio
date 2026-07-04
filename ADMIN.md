@@ -55,6 +55,59 @@ The first user is created by `/api/setup`. To add more, either insert into the
   flow above was implemented and type-checked but verified against Postgres only
   in your environment. Ping me if anything errors on first setup.
 
+## Tasks (the smart to-do board)
+
+**`/admin/deliverables`** (nav: **Tasks**) is one interactive board for
+everything the studio owes — per-client deliverables, internal studio to-dos,
+and the **Notion "Projects and Tasks"** databases, together.
+
+- **Smart quick-add.** Type naturally — `Send moodboard @vivid tomorrow at 5pm
+  !high`. Dates ("tomorrow", "next fri", "aug 12", "in 3 days"), times ("at 5",
+  "17:30" — becomes the reminder time), priority (`!high`, `!urgent`, `!low`,
+  `!!`/`!!!`) and `@client` / `@notion-project` light up in the input and pop
+  out as dismissible chips. The list picker on the right chooses where the task
+  lives (Studio · a client · a Notion project).
+- **Everything edits in place.** Click a title to rename; the date chip to
+  reschedule (quick Today/Tmrw/+1w, a date and a reminder time); the flag dot
+  to reprioritise; 📝 for a working note. Drag a task into another group
+  ("Today", "This week", …) to reschedule it. Deletes offer **Undo**.
+- **Groups** — Overdue / Today / Tomorrow / This week / Later / Someday / Done
+  (collapsed state sticks per browser). Filters: search, list, priority.
+- **Notion sync (two-way).** Tasks from the Notion *Tasks* database appear on
+  the board (60s cache) with their project names; completing, renaming,
+  rescheduling, reprioritising or deleting them writes back to Notion, and
+  quick-add can create tasks in a Notion project directly. Uses the existing
+  `NOTION_TOKEN`; share the **Projects and Tasks** page with the integration.
+  Override the database ids with `NOTION_TASKS_DB` / `NOTION_PROJECTS_DB`.
+- The dashboard's **Today** card is a slice of the same board: overdue + due
+  today + urgent, check-off and quick-add included.
+- Client-facing behaviour is unchanged: per-client items still show on their
+  portal when enabled, and client task requests still queue for approval.
+
+## Notifications
+
+The bell in the admin header aggregates everything that deserves a ping — new
+inquiries and job applications, client task requests, tasks due (honouring
+their reminder time, 30 min ahead), overdue invoices, and shoots in the next
+48h (`lib/notifications.ts`, `/api/notifications`, polled every minute + on
+focus). "Enable alerts" turns on **system notifications**: native macOS
+notifications + a Dock badge inside the desktop app, Web Notifications in the
+browser. Read state is per-user on the device; photographer accounts get only
+their shoots, partner accounts none.
+
+## Desktop app
+
+See `desktop/README.md` — v0.4.0 removes the launch Touch ID gate and adds
+native notifications + Dock badge, working `target="_blank"`/PDF preview
+windows, external links in the default browser, and a Keychain-remembered
+sign-in behind Touch ID.
+
+## 21st.dev MCP
+
+`.mcp.json` registers the 21st.dev Magic MCP for Claude Code sessions. Set
+`TWENTYFIRST_API_KEY` in your environment (never commit the key). On Claude
+Code web, also allowlist `21st.dev` in the environment's network policy.
+
 ## Photographer portal (Ameer & co.)
 
 A shared portal for the studio's photographers — **Ameer Shaheen** is the main

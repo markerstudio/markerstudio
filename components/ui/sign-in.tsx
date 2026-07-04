@@ -1,12 +1,27 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { PasskeyLoginButton } from "@/components/auth/PasskeyLoginButton";
 
 // Remember the last email used to sign in (not sensitive — just the address) so
 // the field is pre-filled next time and people don't retype it on every visit.
 const LAST_EMAIL_KEY = "marker:lastEmail";
+
+// The desktop app's native bridge (injected by the Tauri shell). When present,
+// the sign-in can be saved to the macOS Keychain and filled back behind a
+// Touch ID / Face ID check — the app-side answer to "remember my password".
+type NativeBridge = {
+  saveCredentials?: (email: string, password: string) => Promise<void>;
+  getCredentials?: () => Promise<{ email: string; password: string }>;
+  hasCredentials?: () => Promise<boolean>;
+  clearCredentials?: () => Promise<void>;
+};
+function nativeBridge(): NativeBridge | null {
+  if (typeof window === "undefined") return null;
+  const w = window as { __MARKER_DESKTOP__?: boolean; __MARKER_NATIVE__?: NativeBridge };
+  return w.__MARKER_DESKTOP__ && w.__MARKER_NATIVE__ ? w.__MARKER_NATIVE__ : null;
+}
 
 // Adapted from a 21st.dev sign-in component to Marker Studio: brand colours
 // (orange/charcoal/cream), wired to a server action via `action`, and with the
@@ -65,6 +80,12 @@ export const SignInPage: React.FC<SignInPageProps> = ({
 }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [hasSaved, setHasSaved] = useState(false);
+  const [rememberInApp, setRememberInApp] = useState(true);
+  const formRef = useRef<HTMLFormElement>(null);
+  const savedThisSubmit = useRef(false);
 
   // Pre-fill the remembered email once, on the client, after hydration.
   useEffect(() => {
@@ -74,7 +95,61 @@ export const SignInPage: React.FC<SignInPageProps> = ({
     } catch {
       /* localStorage unavailable (private mode) — no prefill, no harm */
     }
+    // In the desktop app: offer the Keychain-saved sign-in when one exists.
+    const bridge = nativeBridge();
+    if (bridge) {
+      setIsDesktop(true);
+      bridge.hasCredentials?.().then((v) => setHasSaved(!!v)).catch(() => undefined);
+    }
   }, []);
+
+  // Touch ID → fill from the Keychain → submit.
+  const signInWithSaved = async () => {
+    const bridge = nativeBridge();
+    if (!bridge?.getCredentials) return;
+    try {
+      const creds = await bridge.getCredentials();
+      if (!creds?.email) return;
+      setEmail(creds.email);
+      setPassword(creds.password);
+      savedThisSubmit.current = true; // already saved — don't rewrite
+      // Let React commit the values into the inputs before submitting.
+      setTimeout(() => formRef.current?.requestSubmit(), 30);
+    } catch {
+      /* Touch ID cancelled — quietly stay on the form */
+    }
+  };
+
+  const forgetSaved = async () => {
+    try {
+      await nativeBridge()?.clearCredentials?.();
+      setHasSaved(false);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  // Before the form's server action runs, stash the credentials in the
+  // Keychain (desktop only, opt-out via the checkbox). preventDefault → save →
+  // resubmit, with a flag so the second pass goes straight through.
+  const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    if (!isDesktop || !rememberInApp || savedThisSubmit.current) {
+      savedThisSubmit.current = false;
+      return;
+    }
+    const bridge = nativeBridge();
+    if (!bridge?.saveCredentials) return;
+    e.preventDefault();
+    savedThisSubmit.current = true;
+    const fd = new FormData(e.currentTarget);
+    bridge
+      .saveCredentials(String(fd.get("email") || ""), String(fd.get("password") || ""))
+      .catch(() => undefined)
+      .finally(() => {
+        setHasSaved(true);
+        formRef.current?.requestSubmit();
+      });
+  };
 
   // Tile the client logos so the grid always fills the tall panel.
   const tiledLogos =
@@ -100,7 +175,23 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               <p className="animate-element text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{notice}</p>
             )}
 
-            <form className="space-y-5" action={action}>
+            {/* Desktop app: one-tap sign-in with the Keychain-saved account. */}
+            {isDesktop && hasSaved && (
+              <div className="animate-element flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={signInWithSaved}
+                  className="flex-1 rounded-xl border-2 border-orange/60 bg-orange/5 py-3.5 font-semibold text-orange-deep hover:bg-orange/10 transition-colors flex items-center justify-center gap-2"
+                >
+                  <span aria-hidden>👆</span> Sign in with Touch ID
+                </button>
+                <button type="button" onClick={forgetSaved} className="text-xs text-charcoal-60 hover:text-red-600 whitespace-nowrap" title="Remove the saved sign-in from this Mac's Keychain">
+                  Forget
+                </button>
+              </div>
+            )}
+
+            <form ref={formRef} className="space-y-5" action={action} onSubmit={onFormSubmit}>
               <div className="animate-element animate-delay-400">
                 <label className="text-sm font-medium text-charcoal-60">Email address</label>
                 <GlassInputWrapper>
@@ -131,7 +222,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 <label className="text-sm font-medium text-charcoal-60">Password</label>
                 <GlassInputWrapper>
                   <div className="relative">
-                    <input name="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" placeholder="Enter your password" className="w-full bg-transparent text-sm p-4 pr-12 rounded-xl focus:outline-none text-ink" />
+                    <input name="password" type={showPassword ? "text" : "password"} required autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-transparent text-sm p-4 pr-12 rounded-xl focus:outline-none text-ink" />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-3 flex items-center" aria-label={showPassword ? "Hide password" : "Show password"}>
                       {showPassword ? <EyeOff className="w-5 h-5 text-charcoal-60 hover:text-ink transition-colors" /> : <Eye className="w-5 h-5 text-charcoal-60 hover:text-ink transition-colors" />}
                     </button>
@@ -146,6 +237,15 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 </label>
                 <a href="/forgot" className="font-medium text-orange hover:text-orange-deep">Forgot password?</a>
               </div>
+
+              {/* Desktop app: save the sign-in to the Mac's Keychain, filled
+                  back later behind Touch ID / Face ID. */}
+              {isDesktop && (
+                <label className="animate-element flex items-center gap-3 cursor-pointer text-sm -mt-2">
+                  <input type="checkbox" checked={rememberInApp} onChange={(e) => setRememberInApp(e.target.checked)} className="custom-checkbox" />
+                  <span className="text-ink/90">Remember password in this Mac&apos;s Keychain <span className="text-charcoal-60">(fills with Touch ID)</span></span>
+                </label>
+              )}
 
               <button type="submit" className="animate-element animate-delay-700 w-full rounded-xl bg-orange py-4 font-semibold text-white hover:bg-orange-deep transition-colors">
                 Sign in

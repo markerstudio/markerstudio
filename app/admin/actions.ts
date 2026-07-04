@@ -119,13 +119,18 @@ export async function login(formData: FormData) {
   if (!u || !(await bcrypt.compare(password, u.password_hash))) {
     redirect("/login?error=1");
   }
-  await createSession({
-    id: u.id,
-    email: u.email,
-    name: u.name,
-    role: (u.role as Role) || "admin",
-    clientId: u.client_id ?? null,
-  });
+  await createSession(
+    {
+      id: u.id,
+      email: u.email,
+      name: u.name,
+      role: (u.role as Role) || "admin",
+      clientId: u.client_id ?? null,
+    },
+    // "Keep me signed in" — previously ignored (the session was always 30
+    // days); now unticking it really does end the session with the browser.
+    { persist: formData.get("rememberMe") != null }
+  );
   redirect(u.role === "client" ? "/portal" : "/admin");
 }
 

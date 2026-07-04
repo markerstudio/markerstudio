@@ -38,7 +38,7 @@ export default function AdminNav({
     [{ href: "/admin", label: "Dashboard" }],
     [
       { href: "/admin/clients", label: "Clients" },
-      ...(showDeliverables ? [{ href: "/admin/deliverables", label: "Deliverables" } as Item] : []),
+      ...(showDeliverables ? [{ href: "/admin/deliverables", label: "Tasks" } as Item] : []),
       { href: "/admin/projects", label: "Projects" },
       ...(showPhotographer ? [{ href: "/admin/photographer", label: "Photography" } as Item] : []),
       { href: "/admin/accounts", label: "Accounts" },
