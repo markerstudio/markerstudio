@@ -120,18 +120,26 @@ export type ClientPhoto = {
 // tracked per client, aggregated across clients ("what's due"), and optionally
 // shown to the client as a progress view. Mirrors the photography block.
 export type DeliverableStatus = "todo" | "doing" | "review" | "done";
+export type TaskPriority = "low" | "normal" | "high" | "urgent";
 export type Deliverable = {
   id?: string; // stable id — assigned on read/save; legacy rows fall back to index
   title: string;
   detail?: string;
   due?: string; // ISO yyyy-mm-dd — generated from the timeline/cycle, or hand-set
+  time?: string; // optional reminder time "HH:MM" (24h) on the due day
   status: DeliverableStatus;
+  priority?: TaskPriority; // defaults to "normal" when absent
+  note?: string; // free-form working note, admin-only
+  order?: number; // manual sort key within a date group (lower first)
+  createdAt?: string; // ISO timestamp
+  completedAt?: string; // ISO timestamp — stamped when status flips to done
   kind?: "recurring" | "milestone";
   source?: "manual" | "plan" | "timeline" | "client"; // provenance — drives dedupe on re-generate
   cycle?: string; // recurring dedupe key, "YYYY-MM"
   phaseKey?: string; // milestone dedupe key — the source timeline phase name
   requestedByClient?: boolean; // submitted from the client portal
   pending?: boolean; // awaiting admin approval (only meaningful for client requests)
+  notionPageId?: string; // linked page in the Notion Tasks database (two-way sync)
 };
 export type ClientDeliverables = {
   active?: boolean; // tracked for this client (shows on the cross-client "what's due" view)

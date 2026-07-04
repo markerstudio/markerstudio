@@ -16,11 +16,17 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = [] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# System notifications + opening links in the default browser, both driven by
+# the site through the __MARKER_NATIVE__ bridge (see src/lib.rs).
+tauri-plugin-notification = "2"
+tauri-plugin-opener = "2"
 
-# Native Touch ID / Face ID gate on launch (macOS only). Scoped to macOS so the
-# crate's other-platform backends never enter the build.
+# macOS-only natives: the Touch ID / Face ID check that guards the saved
+# sign-in, and the Keychain entry it protects. Scoped to macOS so the crates'
+# other-platform backends never enter the build.
 [target.'cfg(target_os = "macos")'.dependencies]
 robius-authentication = "0.1.1"
+keyring = { version = "3", features = ["apple-native"] }
 
 [profile.release]
 codegen-units = 1

@@ -98,7 +98,12 @@ function secret(): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
-export async function createSession(user: SessionUser): Promise<void> {
+// `persist: false` (the login form's "Keep me signed in" unticked) issues a
+// session cookie that dies with the browser and a short (1-day) JWT instead of
+// the 30-day sign-in. Callers that never show the checkbox (passkeys, invites,
+// password reset) keep the persistent default.
+export async function createSession(user: SessionUser, opts?: { persist?: boolean }): Promise<void> {
+  const persist = opts?.persist ?? true;
   const token = await new SignJWT({
     email: user.email,
     name: user.name,
@@ -108,7 +113,7 @@ export async function createSession(user: SessionUser): Promise<void> {
   })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
-    .setExpirationTime(`${SESSION_DAYS}d`)
+    .setExpirationTime(persist ? `${SESSION_DAYS}d` : "1d")
     .sign(secret());
 
   cookies().set(SESSION_COOKIE, token, {
@@ -116,7 +121,7 @@ export async function createSession(user: SessionUser): Promise<void> {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: SESSION_SECONDS,
+    ...(persist ? { maxAge: SESSION_SECONDS } : {}),
   });
 }
 

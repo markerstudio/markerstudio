@@ -893,6 +893,40 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 }
 
 /* ===============================================================
+   TASKS BOARD — the interactive to-do (composer chips, checks,
+   popovers, drag targets, toasts) + the notification bell.
+   =============================================================== */
+/* Chips pop in as the smart input recognises tokens. */
+@keyframes ms-chip-in { from { opacity: 0; transform: translateY(4px) scale(0.9); } to { opacity: 1; transform: none; } }
+.ms-chip { animation: ms-chip-in 180ms var(--ease-out) both; }
+/* Popovers (date / priority / list pickers) grow from their anchor. */
+@keyframes ms-pop-in { from { opacity: 0; transform: translateY(-4px) scale(0.97); } to { opacity: 1; transform: none; } }
+.ms-pop { animation: ms-pop-in 140ms var(--ease-out) both; }
+/* One-shot glow when a task is added. */
+@keyframes ms-flash { 0% { box-shadow: 0 0 0 3px rgba(255,145,0,0.35); } 100% { box-shadow: 0 0 0 3px rgba(255,145,0,0); } }
+.ms-composer-flash { animation: ms-flash 600ms ease-out both; }
+/* Checkbox pop on complete. */
+@keyframes ms-check-pop { 0% { transform: scale(1); } 45% { transform: scale(1.25); } 100% { transform: scale(1); } }
+.ms-check:active { transform: scale(0.9); }
+.ms-task .ms-check[class*="bg-orange"] { animation: ms-check-pop 260ms var(--ease-out); }
+/* Rows ease in; a drop target shows an orange insertion line. */
+@keyframes ms-task-in { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+.ms-task { animation: ms-task-in 200ms var(--ease-out) both; }
+.ms-drop-before { box-shadow: 0 -2px 0 0 var(--marker-orange); border-top-left-radius: 2px; border-top-right-radius: 2px; }
+/* Toasts slide up from the bottom edge. */
+@keyframes ms-toast-in { from { opacity: 0; transform: translateY(12px) scale(0.96); } to { opacity: 1; transform: none; } }
+.ms-toast { animation: ms-toast-in 220ms var(--ease-out) both; }
+/* Notification bell: badge pulse when something new lands, panel slide. */
+@keyframes ms-bell-ring { 0%,100% { transform: rotate(0); } 20% { transform: rotate(12deg); } 40% { transform: rotate(-10deg); } 60% { transform: rotate(6deg); } 80% { transform: rotate(-3deg); } }
+.ms-bell-ring { animation: ms-bell-ring 700ms var(--ease-out); transform-origin: top center; }
+@keyframes ms-badge-in { from { transform: scale(0); } to { transform: scale(1); } }
+.ms-badge { animation: ms-badge-in 220ms var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .ms-chip, .ms-pop, .ms-task, .ms-toast, .ms-badge { animation: none; }
+  .ms-composer-flash, .ms-bell-ring { animation: none; }
+}
+
+/* ===============================================================
    CLIENT PORTAL — built on the same .ms-* design language as the site
    (crisp corners, sparse shadows, brand type). Lives under /portal.
    =============================================================== */

@@ -4,6 +4,7 @@ import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
 import AdminNav from "@/components/admin/AdminNav";
+import NotificationBell from "@/components/admin/NotificationBell";
 import { logout } from "./actions";
 
 export const metadata = { title: "Marker Admin", robots: { index: false, follow: false } };
@@ -22,6 +23,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                 Marker<span className="text-neutral-900"> Admin</span>
               </Link>
               <div className="flex items-center gap-4 text-sm min-w-0">
+                <NotificationBell userKey={user.email} />
                 <Link href="/" className="text-neutral-500 hover:text-neutral-900 whitespace-nowrap" target="_blank">
                   View site ↗
                 </Link>

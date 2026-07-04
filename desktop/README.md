@@ -1,13 +1,13 @@
 # Marker Studio — macOS app
 
-A small native macOS app for **Marker Studio**. It's a [Tauri](https://tauri.app)
+A native macOS app for **Marker Studio**. It's a [Tauri](https://tauri.app)
 shell: a real `.app` / `.dmg` with the Marker icon and a native (Overlay) title
-bar, opening the **hosted** site in its own window. Built for the whole studio —
-admins *and* clients can install it.
+bar, opening the **hosted** site in its own window — plus a native layer the
+site talks to. Built for the whole studio — admins *and* clients can install it.
 
 It does **not** bundle the database, secrets, or the Next.js server — those stay
-server-side on your deployment. The app just points a window at the live site,
-so logins, the session cookie, Meta data, and AI reading all work exactly as in
+server-side on your deployment. The app points a window at the live site, so
+logins, the session cookie, Meta data, and AI reading all work exactly as in
 the browser.
 
 ## What URL it opens
@@ -17,34 +17,39 @@ the browser.
 serves both. The URL is set in `src-tauri/src/lib.rs` (the `WebviewWindowBuilder`
 in `run()`); change it there to point at a staging deploy.
 
-## Unlock with Touch ID / Face ID
+## What the native layer does
 
-The app is **locked behind the Mac's own biometrics on every launch**. The
-window stays hidden until macOS confirms the device owner with **Touch ID / Face
-ID** (with the device passcode as the fallback); on cancel/failure the app
-closes. This is native code in `src-tauri/src/lib.rs` (the
-`require_biometric_unlock` helper, using the
-[`robius-authentication`](https://crates.io/crates/robius-authentication) crate
-and `NSFaceIDUsageDescription` in `src-tauri/Info.plist`).
+The shell injects a small bridge (`window.__MARKER_NATIVE__`, see
+`src-tauri/src/lib.rs`) that the site uses when it detects the app
+(`window.__MARKER_DESKTOP__`):
 
-Why native instead of a web passkey: Tauri's `WKWebView` can't run web passkeys
-for `marker.ps` unless the app is **code-signed** with an Apple Team ID **and**
-carries an Associated-Domains entitlement that the site authorises — so on an
-unsigned build the in-page “Sign in with Face ID” button can't work. The native
-unlock needs none of that. (The web page detects the app via
-`window.__MARKER_DESKTOP__` and hides the web-passkey button accordingly; in a
-real browser the passkey button still works.)
+- **Notifications + Dock badge.** The admin notification bell relays new items
+  (inquiries, task reminders, overdue invoices, shoots) to real macOS
+  notifications, and keeps the Dock icon badged with the unread count.
+  ⚠️ On an **unsigned** build, macOS may refuse to show banner notifications —
+  the Dock badge and in-app bell still work; the signed build shows banners.
+- **Working links & PDF preview.** WKWebView silently swallows
+  `target="_blank"` — that was the "can't preview a PDF" bug. Now same-site
+  pages (invoice PDFs, portal previews) open in a **native preview window**
+  (WKWebView renders PDFs inline), and external links open in your **default
+  browser**.
+- **Remembered sign-in (Touch ID where it counts).** On the login page the app
+  offers *Remember password in this Mac's Keychain*. Next time, one button —
+  **Sign in with Touch ID** — asks macOS to confirm the owner, fills the saved
+  credentials from the Keychain, and signs in. The launch-time biometric gate
+  is **gone**: it locked an empty window while the real session lived on
+  regardless; the biometric now guards the actual secret.
+
+The old "unlock on every launch" behaviour was removed in 0.4.0. If you ever
+want it back, it's `require_biometric_unlock` in the git history.
 
 Notes:
-- If the Mac has **no biometrics enrolled** (or biometrics are unavailable), the
-  app **opens normally** — it never hard-locks someone out of their own machine.
-- The biometric here unlocks *the app*; the website session (the 30-day cookie)
-  is what keeps you signed in to `marker.ps`. So first run still needs one
-  password sign-in; after that it's Touch ID to open + an existing session.
-- **Verify on a real Mac.** This native path is built on the macOS CI runner and
-  can't be exercised in a Linux/CI typecheck, so smoke-test the launch prompt on
-  a Touch ID Mac. Unsigned ad-hoc builds may behave differently from a signed
-  one; signing is covered below under *Code signing & notarization*.
+- Web passkeys still can't run inside the unsigned WKWebView (needs signing +
+  Associated Domains), so the site hides its passkey button in the app — the
+  Keychain flow above replaces it.
+- **Verify on a real Mac.** The native paths (Keychain, Touch ID, preview
+  windows, notifications) are built on the macOS CI runner and can't be
+  exercised in a Linux typecheck — smoke-test on a Touch ID Mac.
 
 ## App icon
 

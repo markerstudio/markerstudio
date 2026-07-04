@@ -1,9 +1,14 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Default capabilities for the Marker Admin window.",
-  "windows": ["main"],
+  "description": "Marker Studio windows (main + previews), including the hosted marker.ps pages, may reach the IPC bridge (__MARKER_NATIVE__: notifications, badge, links, saved sign-in).",
+  "windows": ["main", "preview-*"],
+  "remote": {
+    "urls": ["https://marker.ps", "https://*.marker.ps"]
+  },
   "permissions": [
-    "core:default"
+    "core:default",
+    "notification:default",
+    "opener:default"
   ]
 }
