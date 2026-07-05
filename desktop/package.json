@@ -1,6 +1,6 @@
 {
   "name": "marker-studio-desktop",
-  "version": "0.3.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Native macOS app for Marker Studio (https://marker.ps/login).",
   "scripts": {

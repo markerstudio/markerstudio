@@ -82,6 +82,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isDesktop, setIsDesktop] = useState(false);
+  const [ipcOk, setIpcOk] = useState<boolean | null>(null); // can the app bridge actually reach native code?
   const [hasSaved, setHasSaved] = useState(false);
   const [rememberInApp, setRememberInApp] = useState(true);
   const formRef = useRef<HTMLFormElement>(null);
@@ -96,10 +97,19 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       /* localStorage unavailable (private mode) — no prefill, no harm */
     }
     // In the desktop app: offer the Keychain-saved sign-in when one exists.
+    // hasCredentials doubles as a live probe of the native bridge — if the
+    // IPC is dead (old app build, blocked origin) we show a clear hint
+    // instead of silently promising a Keychain that can't be reached.
     const bridge = nativeBridge();
-    if (bridge) {
+    if (bridge?.hasCredentials) {
       setIsDesktop(true);
-      bridge.hasCredentials?.().then((v) => setHasSaved(!!v)).catch(() => undefined);
+      bridge
+        .hasCredentials()
+        .then((v) => {
+          setIpcOk(true);
+          setHasSaved(!!v);
+        })
+        .catch(() => setIpcOk(false));
     }
   }, []);
 
@@ -133,7 +143,7 @@ export const SignInPage: React.FC<SignInPageProps> = ({
   // Keychain (desktop only, opt-out via the checkbox). preventDefault → save →
   // resubmit, with a flag so the second pass goes straight through.
   const onFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    if (!isDesktop || !rememberInApp || savedThisSubmit.current) {
+    if (!isDesktop || !ipcOk || !rememberInApp || savedThisSubmit.current) {
       savedThisSubmit.current = false;
       return;
     }
@@ -239,12 +249,22 @@ export const SignInPage: React.FC<SignInPageProps> = ({
               </div>
 
               {/* Desktop app: save the sign-in to the Mac's Keychain, filled
-                  back later behind Touch ID / Face ID. */}
-              {isDesktop && (
+                  back later behind Touch ID / Face ID. Only offered when the
+                  native bridge is confirmed reachable. */}
+              {isDesktop && ipcOk && (
                 <label className="animate-element flex items-center gap-3 cursor-pointer text-sm -mt-2">
                   <input type="checkbox" checked={rememberInApp} onChange={(e) => setRememberInApp(e.target.checked)} className="custom-checkbox" />
                   <span className="text-ink/90">Remember password in this Mac&apos;s Keychain <span className="text-charcoal-60">(fills with Touch ID)</span></span>
                 </label>
+              )}
+              {isDesktop && ipcOk === false && (
+                <p className="animate-element text-xs text-charcoal-60 bg-cream border border-charcoal-20 rounded-lg px-3 py-2 -mt-2">
+                  Touch ID sign-in needs a newer app —{" "}
+                  <a href="https://github.com/markerstudio/markerstudio/releases/latest" target="_blank" rel="noreferrer" className="font-semibold text-orange hover:text-orange-deep">
+                    download the latest Marker Studio.dmg
+                  </a>
+                  . Your password still works below.
+                </p>
               )}
 
               <button type="submit" className="animate-element animate-delay-700 w-full rounded-xl bg-orange py-4 font-semibold text-white hover:bg-orange-deep transition-colors">
