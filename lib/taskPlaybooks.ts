@@ -9,12 +9,13 @@ import { toISODate } from "@/lib/taskParse";
 
 export type PlaybookItem = {
   id: string;
-  title: string;
+  title: string; // may contain "{n}" — replaced with the adjustable count
   detail?: string;
   day: number; // offset in days from the start date (smart schedule)
   priority?: TaskPriority;
   recurring?: "weekly"; // expands to one task per week ("· week 2")
   defaultOn?: boolean; // pre-ticked in the wizard (default true)
+  count?: { default: number; min: number; max: number; label: string }; // wizard stepper for "{n}"
 };
 
 export type Playbook = {
@@ -76,7 +77,7 @@ export const PLAYBOOKS: Playbook[] = [
       { id: "designs", title: "Design batch — posts & covers", day: 7 },
       { id: "approval", title: "Client approval on the calendar", day: 9, priority: "high" },
       { id: "stories", title: "Daily stories", detail: "Keep the account alive every day", day: 2, recurring: "weekly" },
-      { id: "posts", title: "3 posts this week", detail: "Publish per the calendar", day: 4, recurring: "weekly" },
+      { id: "posts", title: "{n} posts this week", detail: "Publish per the calendar", day: 4, recurring: "weekly", count: { default: 3, min: 1, max: 7, label: "posts / week" } },
       { id: "midmonth", title: "Mid-month check-in & adjustments", day: 15 },
       { id: "ads", title: "Boosts & ads review", day: 20, defaultOn: false },
       { id: "report", title: "Monthly performance report", day: 28, priority: "high" },
@@ -133,10 +134,16 @@ const daysBetween = (a: string, b: string): number =>
 //   calendar, not the deadline) but never run past it.
 export function buildPlaybookTasks(
   pb: Playbook,
-  opts: { start: string; deliveryDate?: string; weeks?: number; selected: Set<string> }
+  opts: { start: string; deliveryDate?: string; weeks?: number; selected: Set<string>; counts?: Record<string, number> }
 ): BuiltTask[] {
   const weeks = Math.max(1, Math.min(12, opts.weeks ?? 4));
-  const chosen = pb.items.filter((i) => opts.selected.has(i.id));
+  // Resolve "{n}" titles from the wizard's steppers (clamped to the item's range).
+  const titled = pb.items.map((i) => {
+    if (!i.count) return i;
+    const n = Math.max(i.count.min, Math.min(i.count.max, opts.counts?.[i.id] ?? i.count.default));
+    return { ...i, title: i.title.replace("{n}", String(n)) };
+  });
+  const chosen = titled.filter((i) => opts.selected.has(i.id));
   const oneOffs = chosen.filter((i) => !i.recurring);
   const maxDay = Math.max(1, ...oneOffs.map((i) => i.day));
   const span = opts.deliveryDate ? daysBetween(opts.start, opts.deliveryDate) : null;

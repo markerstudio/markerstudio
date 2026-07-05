@@ -37,6 +37,7 @@ export default function PlaybookWizard({
   const [mode, setMode] = useState<"smart" | "delivery">("smart");
   const [delivery, setDelivery] = useState("");
   const [weeks, setWeeks] = useState(4);
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [dump, setDump] = useState("");
   const [mirror, setMirror] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -73,8 +74,17 @@ export default function PlaybookWizard({
       deliveryDate: mode === "delivery" && delivery ? delivery : undefined,
       weeks,
       selected,
+      counts,
     });
-  }, [playbook, dump, projects, start, mode, delivery, weeks, selected]);
+  }, [playbook, dump, projects, start, mode, delivery, weeks, selected, counts]);
+
+  // What an item's title looks like with its stepper count applied — used for
+  // both display and matching the built preview dates.
+  const resolvedTitle = (item: { id: string; title: string; count?: { default: number; min: number; max: number } }) => {
+    if (!item.count) return item.title;
+    const n = Math.max(item.count.min, Math.min(item.count.max, counts[item.id] ?? item.count.default));
+    return item.title.replace("{n}", String(n));
+  };
 
   const submit = async () => {
     if (!project || !built.length || busy) return;
@@ -249,19 +259,23 @@ export default function PlaybookWizard({
               <ul className="divide-y divide-neutral-50 rounded-xl border border-neutral-100">
                 {playbook.items.map((item) => {
                   const on = selected.has(item.id);
-                  const preview = built.find((b) => b.title === item.title || b.title.startsWith(`${item.title} ·`));
+                  const shown = resolvedTitle(item);
+                  const preview = built.find((b) => b.title === shown || b.title.startsWith(`${shown} ·`));
+                  const n = item.count ? Math.max(item.count.min, Math.min(item.count.max, counts[item.id] ?? item.count.default)) : 0;
+                  const bump = (d: number) =>
+                    setCounts((c) => ({ ...c, [item.id]: Math.max(item.count!.min, Math.min(item.count!.max, n + d)) }));
                   return (
-                    <li key={item.id}>
+                    <li key={item.id} className="flex items-center">
                       <button
                         type="button"
                         onClick={() =>
                           setSelected((s) => {
-                            const n = new Set(s);
-                            if (n.has(item.id)) n.delete(item.id); else n.add(item.id);
-                            return n;
+                            const set = new Set(s);
+                            if (set.has(item.id)) set.delete(item.id); else set.add(item.id);
+                            return set;
                           })
                         }
-                        className={`w-full flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors ${on ? "" : "opacity-45"}`}
+                        className={`flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors ${on ? "" : "opacity-45"}`}
                       >
                         <span className={`ms-check w-[17px] h-[17px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${on ? "bg-orange border-orange text-white" : "border-neutral-300"}`}>
                           {on && (
@@ -270,7 +284,7 @@ export default function PlaybookWizard({
                         </span>
                         <span className="flex-1 min-w-0">
                           <span className="block text-sm text-neutral-800 truncate">
-                            {item.title}
+                            {shown}
                             {item.recurring && <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-neutral-100 text-neutral-500 align-middle">weekly</span>}
                           </span>
                           {item.detail && <span className="block text-[11px] text-neutral-400 truncate">{item.detail}</span>}
@@ -280,6 +294,13 @@ export default function PlaybookWizard({
                           {on && preview?.due ? friendlyDue(preview.due) : ""}
                         </span>
                       </button>
+                      {item.count && on && (
+                        <span className="flex items-center gap-1 pr-3 shrink-0" title={item.count.label}>
+                          <button type="button" onClick={() => bump(-1)} disabled={n <= item.count.min} className="w-5 h-5 rounded-full border border-neutral-200 text-neutral-500 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">−</button>
+                          <span className="w-5 text-center text-xs font-bold tabular-nums">{n}</span>
+                          <button type="button" onClick={() => bump(1)} disabled={n >= item.count.max} className="w-5 h-5 rounded-full border border-neutral-200 text-neutral-500 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">＋</button>
+                        </span>
+                      )}
                     </li>
                   );
                 })}
