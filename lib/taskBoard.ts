@@ -32,6 +32,7 @@ function flat(slug: string, listName: string, color: string, sourceKind: BoardTa
     kind: item.kind,
     requestedByClient: item.requestedByClient,
     pending: item.pending,
+    notionPageId: item.notionPageId,
   };
 }
 
@@ -74,7 +75,51 @@ export async function getBoardData(): Promise<BoardData> {
     if (!ok) notionHint = "Notion tasks unreachable — share the “Projects and Tasks” page with the Marker integration.";
     for (const p of nprojects) projects.push({ key: p.id, name: p.name, kind: "notion" });
     if (ok && !nprojects.length) projects.push({ key: "notion", name: "Notion", kind: "notion" });
+
+    // Mirrored tasks (created here, written through to Notion) must show once:
+    // the local row wins, its Notion copy is hidden. If someone ticked the
+    // mirror off IN Notion, carry the completion back to the local task.
+    const mirrorIndex = new Map<string, BoardTask>();
+    for (const t of tasks) {
+      if (t.slug !== NOTION_SLUG && t.notionPageId) mirrorIndex.set(t.notionPageId.replace(/-/g, ""), t);
+    }
+    const doneBySlug = new Map<string, string[]>();
     for (const nt of ntasks) {
+      const local = mirrorIndex.get(nt.pageId.replace(/-/g, ""));
+      if (local) {
+        if (nt.done && local.status !== "done") {
+          local.status = "done";
+          local.completedAt = nt.editedAt || new Date().toISOString();
+          const arr = doneBySlug.get(local.slug) || [];
+          arr.push(local.id);
+          doneBySlug.set(local.slug, arr);
+        }
+        continue; // hidden — the local row represents it
+      }
+    }
+    for (const [slug, ids] of Array.from(doneBySlug.entries())) {
+      const apply = (items: Deliverable[]) => {
+        for (const id of ids) {
+          const item = items.find((x) => x.id === id);
+          if (item && item.status !== "done") {
+            item.status = "done";
+            item.completedAt = new Date().toISOString();
+          }
+        }
+      };
+      if (slug === STUDIO_SLUG) {
+        const items = await getStudioDeliverables();
+        apply(items);
+        await saveStudioDeliverables(items);
+      } else {
+        const { updateDeliverablesBlock } = await import("@/lib/clients");
+        await updateDeliverablesBlock(slug, (block) => apply(block.items ?? []));
+      }
+    }
+
+    const mirroredIds = new Set(Array.from(mirrorIndex.keys()));
+    for (const nt of ntasks) {
+      if (mirroredIds.has(nt.pageId.replace(/-/g, ""))) continue;
       tasks.push({
         key: `${NOTION_SLUG}:${nt.pageId}`,
         slug: NOTION_SLUG,

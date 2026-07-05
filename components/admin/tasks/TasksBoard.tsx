@@ -10,6 +10,7 @@ import type { TaskPriority, Deliverable, DeliverableStatus } from "@/lib/clients
 import { friendlyDue, toISODate, type ProjectOption } from "@/lib/taskParse";
 import { patchTask, createTask, deleteTask, restoreTask, reorderTasks, clearDoneTasks, approveRequest, rejectRequest, type TaskPatch } from "@/app/admin/deliverables/actions";
 import TaskComposer, { type ComposerSubmit } from "./TaskComposer";
+import PlaybookWizard from "./PlaybookWizard";
 import { type BoardTask, PRIORITY_META, PRIORITY_WEIGHT, STUDIO_SLUG, NOTION_SLUG } from "./types";
 
 type GroupKey = "overdue" | "today" | "tomorrow" | "week" | "later" | "nodate" | "done";
@@ -98,6 +99,7 @@ export default function TasksBoard({
   const [popover, setPopover] = useState<{ key: string; kind: "due" | "prio" } | null>(null);
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<{ group: GroupKey; beforeKey: string | null } | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const toastId = useRef(0);
 
   // Server refreshes (revalidation) hand us new props — adopt them, but keep
@@ -215,6 +217,7 @@ export default function TasksBoard({
         time: c.time,
         priority: c.priority,
         notionProjectId: c.project.kind === "notion" && c.project.key !== "notion" ? c.project.key : undefined,
+        listName: c.project.kind === "notion" ? undefined : c.project.name,
       });
       if (!res.ok || !res.item) {
         setTasks((ts) => ts.filter((t) => t.key !== temp.key));
@@ -247,6 +250,37 @@ export default function TasksBoard({
       toast(`Cleared ${res.cleared ?? doneLocal.length} done task${(res.cleared ?? doneLocal.length) === 1 ? "" : "s"}.`);
     }
   }, [tasks, toast]);
+
+  // Playbook wizard finished — merge the batch into the board.
+  const onPlaybookAdded = useCallback(
+    (slug: string, listName: string, color: string, items: Deliverable[], mirrored: number) => {
+      const sourceKind: BoardTask["sourceKind"] = slug === STUDIO_SLUG ? "studio" : "client";
+      setTasks((ts) => [
+        ...ts,
+        ...items.map((item) => ({
+          key: `${slug}:${item.id}`,
+          slug,
+          id: item.id!,
+          listName,
+          color,
+          sourceKind,
+          title: item.title,
+          detail: item.detail,
+          due: item.due,
+          time: item.time,
+          status: item.status,
+          priority: item.priority || ("normal" as const),
+          kind: item.kind,
+          createdAt: item.createdAt,
+          notionPageId: item.notionPageId,
+        })),
+      ]);
+      toast(
+        `Added ${items.length} task${items.length === 1 ? "" : "s"} for ${listName}${mirrored ? ` · ${mirrored} in Notion` : ""}.`
+      );
+    },
+    [toast]
+  );
 
   const decideRequest = useCallback(
     async (key: string, approve: boolean) => {
@@ -588,6 +622,14 @@ export default function TasksBoard({
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setWizardOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-charcoal text-white text-sm font-semibold pl-3.5 pr-4 py-2 hover:bg-black transition-colors shadow-sm"
+            title="Add a whole playbook of tasks — onboarding, branding, monthly marketing…"
+          >
+            <span className="text-orange">✦</span> Playbook
+          </button>
           {/* week progress ring */}
           <div className="flex items-center gap-2.5 bg-white border border-neutral-200 rounded-full pl-1.5 pr-4 py-1.5">
             <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
@@ -683,6 +725,9 @@ export default function TasksBoard({
           <div className="text-3xl mb-2">☀️</div>
           <p className="text-sm font-semibold text-neutral-700">All clear.</p>
           <p className="text-xs text-neutral-400 mt-1">Add a task above — try “Post reel for @vivid tomorrow at 5pm !high”.</p>
+          <button type="button" onClick={() => setWizardOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-orange hover:text-orange-deep transition-colors">
+            <span className="text-orange">✦</span> Start from a playbook
+          </button>
         </div>
       ) : (
         GROUPS.map(({ key: g, label, tone }) => {
@@ -721,6 +766,17 @@ export default function TasksBoard({
             </section>
           );
         })
+      )}
+
+      {/* playbook wizard */}
+      {wizardOpen && (
+        <PlaybookWizard
+          projects={projects}
+          notionConnected={notionConnected}
+          initialProjectKey={listFilter.startsWith("client:") ? listFilter.slice(7) : listFilter.startsWith("studio:") ? STUDIO_SLUG : undefined}
+          onClose={() => setWizardOpen(false)}
+          onAdded={onPlaybookAdded}
+        />
       )}
 
       {/* toasts */}

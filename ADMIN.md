@@ -73,12 +73,28 @@ and the **Notion "Projects and Tasks"** databases, together.
   ("Today", "This week", …) to reschedule it. Deletes offer **Undo**.
 - **Groups** — Overdue / Today / Tomorrow / This week / Later / Someday / Done
   (collapsed state sticks per browser). Filters: search, list, priority.
-- **Notion sync (two-way).** Tasks from the Notion *Tasks* database appear on
-  the board (60s cache) with their project names; completing, renaming,
-  rescheduling, reprioritising or deleting them writes back to Notion, and
-  quick-add can create tasks in a Notion project directly. Uses the existing
-  `NOTION_TOKEN`; share the **Projects and Tasks** page with the integration.
-  Override the database ids with `NOTION_TASKS_DB` / `NOTION_PROJECTS_DB`.
+- **Playbooks (✦ button).** "+ Tasks" for a whole project: pick the client,
+  pick what it needs from you — **Client onboarding**, **Branding** (logo →
+  brand book → packages → handoff), **Marketing — monthly cycle** (calendar,
+  daily stories & 3-posts-a-week per week, report), **Launch/campaign**, or a
+  **Checkpoint** brain-dump ("what does this project need from me?" — one task
+  per line, parsed like the smart input). Tick what applies, then either
+  **Sort it for me** (studio-tuned day offsets from a start date) or pick a
+  **delivery date** and everything is back-planned proportionally to land on
+  it. Templates live in `lib/taskPlaybooks.ts` — edit them to taste.
+- **Notion mirroring (write-through).** Every task created here — quick-add,
+  playbooks, the dashboard card — is also written to the Notion *Tasks*
+  database under a project named after the client (created in *Projects* if
+  missing). Completing, renaming, rescheduling or deleting keeps the mirror in
+  sync; ticking the mirror off **in Notion** completes the task here too.
+  All of it is best-effort: if Notion is down or unshared, the board never
+  blocks — tasks stay local and the header shows a connect hint.
+- **Notion pull (two-way).** Tasks living only in Notion appear on the board
+  (60s cache) with their project names, and edits write back. Uses the
+  existing `NOTION_TOKEN`; **share the "Projects and Tasks" page with the
+  integration** (Notion → page ⋯ → Connections). The database ids are
+  auto-discovered if the defaults 404; override with `NOTION_TASKS_DB` /
+  `NOTION_PROJECTS_DB`.
 - The dashboard's **Today** card is a slice of the same board: overdue + due
   today + urgent, check-off and quick-add included.
 - Client-facing behaviour is unchanged: per-client items still show on their

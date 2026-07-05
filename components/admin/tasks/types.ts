@@ -13,6 +13,7 @@ export type BoardTask = {
   color: string; // list dot colour
   sourceKind: "client" | "studio" | "notion";
   notionUrl?: string;
+  notionPageId?: string; // set on local tasks mirrored to Notion
   title: string;
   detail?: string;
   note?: string;

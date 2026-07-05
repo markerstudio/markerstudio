@@ -51,6 +51,7 @@ export default function TodayTasks({ initial, projects }: { initial: BoardTask[]
         time: c.time,
         priority: c.priority,
         notionProjectId: c.project.kind === "notion" && c.project.key !== "notion" ? c.project.key : undefined,
+        listName: c.project.kind === "notion" ? undefined : c.project.name,
       });
       if (!res.ok || !res.item) {
         setError(res.error || "Couldn’t add.");
