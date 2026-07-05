@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TaskPriority, Deliverable, DeliverableStatus } from "@/lib/clients";
 import { friendlyDue, toISODate, type ProjectOption } from "@/lib/taskParse";
-import { patchTask, createTask, deleteTask, restoreTask, reorderTasks, clearDoneTasks, approveRequest, rejectRequest, type TaskPatch } from "@/app/admin/deliverables/actions";
+import { patchTask, createTask, deleteTask, restoreTask, reorderTasks, clearDoneTasks, approveRequest, rejectRequest, bulkDeleteTasks, bulkRestoreTasks, bulkCompleteTasks, type TaskPatch } from "@/app/admin/deliverables/actions";
 import TaskComposer, { type ComposerSubmit } from "./TaskComposer";
 import PlaybookWizard from "./PlaybookWizard";
 import { type BoardTask, PRIORITY_META, PRIORITY_WEIGHT, STUDIO_SLUG, NOTION_SLUG } from "./types";
@@ -100,6 +100,8 @@ export default function TasksBoard({
   const [dragKey, setDragKey] = useState<string | null>(null);
   const [dropHint, setDropHint] = useState<{ group: GroupKey; beforeKey: string | null } | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const toastId = useRef(0);
 
   // Server refreshes (revalidation) hand us new props — adopt them, but keep
@@ -251,35 +253,81 @@ export default function TasksBoard({
     }
   }, [tasks, toast]);
 
+  // ---- bulk operations (selection mode + playbook-batch undo) -------------
+
+  const removeBatch = useCallback(
+    async (batch: BoardTask[], label: string) => {
+      if (!batch.length) return;
+      const keys = new Set(batch.map((t) => t.key));
+      const prev = tasks;
+      setTasks((ts) => ts.filter((t) => !keys.has(t.key)));
+      setSelectedKeys(new Set());
+      const res = await bulkDeleteTasks(batch.map((t) => ({ slug: t.slug, id: t.id })));
+      if (!res.ok) {
+        setTasks(prev);
+        toast(res.error || "Couldn’t delete those.");
+        return;
+      }
+      toast(`Deleted ${batch.length} task${batch.length === 1 ? "" : "s"}${label ? ` — ${label}` : ""}`, async () => {
+        setTasks((ts) => {
+          const have = new Set(ts.map((t) => t.key));
+          return [...ts, ...batch.filter((t) => !have.has(t.key))];
+        });
+        const r = await bulkRestoreTasks(batch.map((t) => ({ slug: t.slug, item: toDeliverable(t) })));
+        if (!r.ok) toast(r.error || "Couldn’t restore them.");
+      });
+    },
+    [tasks, toast]
+  );
+
+  const completeBatch = useCallback(
+    async (batch: BoardTask[]) => {
+      if (!batch.length) return;
+      const keys = new Set(batch.map((t) => t.key));
+      const prev = tasks;
+      const doneAt = new Date().toISOString();
+      setTasks((ts) => ts.map((t) => (keys.has(t.key) ? { ...t, status: "done" as const, completedAt: doneAt } : t)));
+      setSelectedKeys(new Set());
+      setSelectMode(false);
+      const res = await bulkCompleteTasks(batch.map((t) => ({ slug: t.slug, id: t.id })));
+      if (!res.ok) {
+        setTasks(prev);
+        toast(res.error || "Couldn’t complete those.");
+      } else {
+        toast(`✓ ${batch.length} done.`);
+      }
+    },
+    [tasks, toast]
+  );
+
   // Playbook wizard finished — merge the batch into the board.
   const onPlaybookAdded = useCallback(
     (slug: string, listName: string, color: string, items: Deliverable[], mirrored: number) => {
       const sourceKind: BoardTask["sourceKind"] = slug === STUDIO_SLUG ? "studio" : "client";
-      setTasks((ts) => [
-        ...ts,
-        ...items.map((item) => ({
-          key: `${slug}:${item.id}`,
-          slug,
-          id: item.id!,
-          listName,
-          color,
-          sourceKind,
-          title: item.title,
-          detail: item.detail,
-          due: item.due,
-          time: item.time,
-          status: item.status,
-          priority: item.priority || ("normal" as const),
-          kind: item.kind,
-          createdAt: item.createdAt,
-          notionPageId: item.notionPageId,
-        })),
-      ]);
+      const batch: BoardTask[] = items.map((item) => ({
+        key: `${slug}:${item.id}`,
+        slug,
+        id: item.id!,
+        listName,
+        color,
+        sourceKind,
+        title: item.title,
+        detail: item.detail,
+        due: item.due,
+        time: item.time,
+        status: item.status,
+        priority: item.priority || "normal",
+        kind: item.kind,
+        createdAt: item.createdAt,
+        notionPageId: item.notionPageId,
+      }));
+      setTasks((ts) => [...ts, ...batch]);
       toast(
-        `Added ${items.length} task${items.length === 1 ? "" : "s"} for ${listName}${mirrored ? ` · ${mirrored} in Notion` : ""}.`
+        `Added ${items.length} task${items.length === 1 ? "" : "s"} for ${listName}${mirrored ? ` · ${mirrored} in Notion` : ""}.`,
+        () => removeBatch(batch, listName) // Undo removes the whole batch again
       );
     },
-    [toast]
+    [toast, removeBatch]
   );
 
   const decideRequest = useCallback(
@@ -367,12 +415,44 @@ export default function TasksBoard({
 
   // ---- row rendering --------------------------------------------------------
 
+  const toggleSelected = (key: string) =>
+    setSelectedKeys((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key); else n.add(key);
+      return n;
+    });
+
   const row = (t: BoardTask) => {
     const done = t.status === "done";
     const meta = PRIORITY_META[t.priority];
     const editing = editingKey === t.key;
     const noteOpen = openNoteKey === t.key;
     const overdue = !done && t.due && t.due < today;
+
+    // Selection mode: the whole row is one toggle — no editing, no dragging.
+    if (selectMode) {
+      const sel = selectedKeys.has(t.key);
+      return (
+        <li key={t.key}>
+          <button
+            type="button"
+            onClick={() => toggleSelected(t.key)}
+            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${sel ? "bg-orange/[0.07] ring-1 ring-orange/40" : "hover:bg-neutral-50"}`}
+          >
+            <span className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "bg-orange border-orange text-white" : "border-neutral-300"}`}>
+              {sel && (
+                <svg viewBox="0 0 10 8" className="w-2.5 h-2" fill="none"><path d="M1 4l2.5 2.5L9 1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              )}
+            </span>
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} title={t.listName} />
+            <span className={`flex-1 min-w-0 text-sm truncate ${done ? "text-neutral-400 line-through" : "text-neutral-800"}`}>{t.title}</span>
+            {t.priority !== "normal" && <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />}
+            {t.due && <span className={`text-[11px] font-semibold whitespace-nowrap ${overdue ? "text-red-600" : "text-neutral-400"}`}>{friendlyDue(t.due)}</span>}
+          </button>
+        </li>
+      );
+    }
+
     return (
       <li
         key={t.key}
@@ -684,6 +764,19 @@ export default function TasksBoard({
           <option value="normal">Normal</option>
           <option value="low">Low</option>
         </select>
+        <button
+          type="button"
+          onClick={() => {
+            setSelectMode((m) => !m);
+            setSelectedKeys(new Set());
+          }}
+          className={`text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors ${
+            selectMode ? "bg-charcoal text-white border-charcoal" : "border-neutral-200 text-neutral-500 hover:border-neutral-300 bg-white"
+          }`}
+          title="Select several tasks to delete or complete together"
+        >
+          {selectMode ? "Done selecting" : "Select"}
+        </button>
         <div className="flex-1" />
         <span className="text-xs text-neutral-400">
           {overdueCount > 0 && <b className="text-red-600">{overdueCount} overdue · </b>}
@@ -748,12 +841,30 @@ export default function TasksBoard({
               }}
               className={`bg-white border rounded-2xl px-3 py-2.5 transition-colors ${dropHint?.group === g && dragKey ? "border-orange bg-orange/[0.03]" : "border-neutral-200"}`}
             >
-              <button type="button" onClick={() => toggleGroup(g)} className="w-full flex items-center gap-2 px-1.5 py-1 select-none">
-                <span className={`text-[13px] font-bold tracking-tight ${tone || "text-neutral-800"}`}>{label}</span>
-                <span className="text-[11px] font-semibold text-neutral-300 tabular-nums">{items.length}</span>
-                {g === "done" && items.length > 0 && <span className="text-[10px] text-neutral-300">· kept 2 weeks</span>}
-                <span className={`ml-auto text-neutral-300 text-[10px] transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}>▼</span>
-              </button>
+              <div className="w-full flex items-center gap-2 px-1.5 py-1 select-none">
+                <button type="button" onClick={() => toggleGroup(g)} className="flex items-center gap-2">
+                  <span className={`text-[13px] font-bold tracking-tight ${tone || "text-neutral-800"}`}>{label}</span>
+                  <span className="text-[11px] font-semibold text-neutral-300 tabular-nums">{items.length}</span>
+                  {g === "done" && items.length > 0 && <span className="text-[10px] text-neutral-300">· kept 2 weeks</span>}
+                </button>
+                {selectMode && items.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSelectedKeys((s) => {
+                        const n = new Set(s);
+                        const allIn = items.every((t) => n.has(t.key));
+                        for (const t of items) allIn ? n.delete(t.key) : n.add(t.key);
+                        return n;
+                      })
+                    }
+                    className="text-[10px] font-semibold text-neutral-400 hover:text-orange border border-neutral-200 rounded-full px-2 py-0.5"
+                  >
+                    {items.every((t) => selectedKeys.has(t.key)) ? "none" : "all"}
+                  </button>
+                )}
+                <button type="button" onClick={() => toggleGroup(g)} aria-label="Collapse group" className={`ml-auto text-neutral-300 text-[10px] transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}>▼</button>
+              </div>
               {!isCollapsed && (
                 <ul className="mt-0.5">
                   {items.length === 0 ? (
@@ -777,6 +888,46 @@ export default function TasksBoard({
           onClose={() => setWizardOpen(false)}
           onAdded={onPlaybookAdded}
         />
+      )}
+
+      {/* bulk action bar */}
+      {selectMode && (
+        <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50">
+          <div className="ms-toast flex items-center gap-2 bg-white border border-neutral-200 rounded-full shadow-2xl pl-4 pr-2 py-2">
+            <span className="text-sm font-bold tabular-nums text-neutral-900">{selectedKeys.size}</span>
+            <span className="text-xs text-neutral-400 mr-1">selected</span>
+            <button
+              type="button"
+              disabled={!selectedKeys.size}
+              onClick={() => completeBatch(tasks.filter((t) => selectedKeys.has(t.key) && t.status !== "done"))}
+              className="text-xs font-semibold rounded-full border border-emerald-200 text-emerald-700 bg-emerald-50 px-3 py-1.5 hover:bg-emerald-100 disabled:opacity-40"
+            >
+              ✓ Mark done
+            </button>
+            <button
+              type="button"
+              disabled={!selectedKeys.size}
+              onClick={() => {
+                removeBatch(tasks.filter((t) => selectedKeys.has(t.key)), "");
+                setSelectMode(false);
+              }}
+              className="text-xs font-semibold rounded-full border border-red-200 text-red-600 bg-red-50 px-3 py-1.5 hover:bg-red-100 disabled:opacity-40"
+            >
+              🗑 Delete
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectMode(false);
+                setSelectedKeys(new Set());
+              }}
+              className="w-7 h-7 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100"
+              aria-label="Exit selection"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
       {/* toasts */}

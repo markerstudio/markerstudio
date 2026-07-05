@@ -368,6 +368,110 @@ export async function reorderTasks(
   return { ok: true };
 }
 
+// ---- Bulk operations (selection mode / playbook-batch undo) ---------------
+
+type BulkEntry = { slug: string; id: string };
+
+function groupBySlug(entries: BulkEntry[]): Map<string, string[]> {
+  const by = new Map<string, string[]>();
+  for (const e of (entries || []).slice(0, 200)) {
+    if (!e?.slug || !e?.id) continue;
+    const arr = by.get(e.slug) || [];
+    arr.push(e.id);
+    by.set(e.slug, arr);
+  }
+  return by;
+}
+
+export async function bulkDeleteTasks(entries: BulkEntry[]): Promise<Result & { deleted?: number }> {
+  const denied = await guard();
+  if (denied) return denied;
+  let deleted = 0;
+  let touchedNotion = false;
+  for (const [slug, ids] of Array.from(groupBySlug(entries).entries())) {
+    if (slug === NOTION_SLUG) {
+      for (const id of ids) if (await archiveNotionTask(id)) { deleted++; touchedNotion = true; }
+      continue;
+    }
+    const mirrors: string[] = [];
+    await mutateItems(slug, (items) => {
+      for (const id of ids) {
+        const i = items.findIndex((x) => x.id === id);
+        if (i >= 0) {
+          if (items[i].notionPageId) mirrors.push(items[i].notionPageId!);
+          items.splice(i, 1);
+          deleted++;
+        }
+      }
+    });
+    for (const pid of mirrors) if (await archiveNotionTask(pid)) touchedNotion = true;
+    revalidateTask(slug);
+  }
+  if (touchedNotion) await bustNotionTasksCache();
+  return { ok: true, deleted };
+}
+
+// Undo for a bulk delete — restores the full items (and un-archives mirrors).
+export async function bulkRestoreTasks(entries: { slug: string; item: Deliverable }[]): Promise<Result> {
+  const denied = await guard();
+  if (denied) return denied;
+  const bySlug = new Map<string, Deliverable[]>();
+  for (const e of (entries || []).slice(0, 200)) {
+    if (!e?.slug || !e?.item?.title) continue;
+    const arr = bySlug.get(e.slug) || [];
+    arr.push(e.item);
+    bySlug.set(e.slug, arr);
+  }
+  let touchedNotion = false;
+  for (const [slug, items] of Array.from(bySlug.entries())) {
+    const unarchive = async (pageId: string) => {
+      try {
+        const { notionPatch } = await import("@/lib/notion");
+        await notionPatch(`/v1/pages/${pageId}`, { archived: false });
+        touchedNotion = true;
+      } catch { /* mirror stays archived */ }
+    };
+    if (slug === NOTION_SLUG) {
+      for (const item of items) if (item.id) await unarchive(item.id);
+      continue;
+    }
+    await mutateItems(slug, (arr) => {
+      for (const item of items) if (!arr.some((x) => x.id === item.id)) arr.push(item);
+    });
+    for (const item of items) if (item.notionPageId) await unarchive(item.notionPageId);
+    revalidateTask(slug);
+  }
+  if (touchedNotion) await bustNotionTasksCache();
+  return { ok: true };
+}
+
+export async function bulkCompleteTasks(entries: BulkEntry[]): Promise<Result> {
+  const denied = await guard();
+  if (denied) return denied;
+  let touchedNotion = false;
+  for (const [slug, ids] of Array.from(groupBySlug(entries).entries())) {
+    if (slug === NOTION_SLUG) {
+      for (const id of ids) if (await patchNotionTask(id, { done: true })) touchedNotion = true;
+      continue;
+    }
+    const mirrors: string[] = [];
+    await mutateItems(slug, (items) => {
+      for (const id of ids) {
+        const item = items.find((x) => x.id === id);
+        if (item && item.status !== "done") {
+          item.status = "done";
+          item.completedAt = new Date().toISOString();
+          if (item.notionPageId) mirrors.push(item.notionPageId);
+        }
+      }
+    });
+    for (const pid of mirrors) if (await patchNotionTask(pid, { done: true })) touchedNotion = true;
+    revalidateTask(slug);
+  }
+  if (touchedNotion) await bustNotionTasksCache();
+  return { ok: true };
+}
+
 // Apply a playbook: create a whole batch of tasks for one list in a single
 // write (and mirror the batch to Notion under the client's project). Used by
 // the playbook wizard — onboarding checklists, branding pipelines, monthly
