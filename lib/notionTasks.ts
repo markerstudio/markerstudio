@@ -12,9 +12,72 @@ import { unstable_cache } from "next/cache";
 import { notionGet, notionPost, notionPatch } from "@/lib/notion";
 import type { TaskPriority } from "@/lib/clients";
 
-// The Tasks / Projects databases under the "Projects and Tasks" page.
+// The Tasks / Projects databases under the "Projects and Tasks" page. These
+// are the ids from the studio workspace; if they ever 404 (page moved, new
+// workspace, different share), resolveDbs() falls back to searching the
+// integration's accessible databases by title, so the sync self-heals.
 const TASKS_DB = process.env.NOTION_TASKS_DB || "1dc2487b8e7e81f7ba2fe7b841c9a592";
 const PROJECTS_DB = process.env.NOTION_PROJECTS_DB || "1dc2487b8e7e8164a427fff623bb9b53";
+
+type ResolvedDbs = { tasks: string | null; projects: string | null; tasksTitle: string; projectsTitle: string };
+let _resolved: ResolvedDbs | undefined;
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+function titlePropOf(db: any): string {
+  for (const [name, p] of Object.entries<any>(db?.properties || {})) {
+    if (p?.type === "title") return name;
+  }
+  return "Name";
+}
+
+// Search the integration's accessible databases for one whose title matches.
+async function discoverDb(titleRe: RegExp): Promise<{ id: string; title: string } | null> {
+  try {
+    const res = await notionPost(`/v1/search`, {
+      filter: { value: "database", property: "object" },
+      page_size: 50,
+    });
+    for (const db of res?.results || []) {
+      const t = (db?.title || []).map((x: any) => x.plain_text).join("").trim();
+      if (titleRe.test(t)) return { id: db.id as string, title: titlePropOf(db) };
+    }
+  } catch {
+    /* search unavailable — stay with the configured ids */
+  }
+  return null;
+}
+
+// Validate the configured ids once per process; fall back to discovery. Also
+// learns each database's title property name so writes never guess wrong.
+async function resolveDbs(): Promise<ResolvedDbs> {
+  if (_resolved) return _resolved;
+  const out: ResolvedDbs = { tasks: null, projects: null, tasksTitle: "Name", projectsTitle: "Name" };
+  try {
+    const db = await notionGet(`/v1/databases/${TASKS_DB}`);
+    out.tasks = TASKS_DB;
+    out.tasksTitle = titlePropOf(db);
+  } catch {
+    const found = await discoverDb(/^tasks$/i);
+    if (found) {
+      out.tasks = found.id;
+      out.tasksTitle = found.title;
+    }
+  }
+  try {
+    const db = await notionGet(`/v1/databases/${PROJECTS_DB}`);
+    out.projects = PROJECTS_DB;
+    out.projectsTitle = titlePropOf(db);
+  } catch {
+    const found = await discoverDb(/^projects$/i);
+    if (found) {
+      out.projects = found.id;
+      out.projectsTitle = found.title;
+    }
+  }
+  _resolved = out;
+  return out;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export type NotionTask = {
   pageId: string;
@@ -42,7 +105,8 @@ export function isNotionTasksConfigured(): boolean {
 /* eslint-disable @typescript-eslint/no-explicit-any */
 function mapTask(pg: any, projects: Map<string, string>): NotionTask | null {
   const p = pg?.properties || {};
-  const title = (p.Name?.title || []).map((t: any) => t.plain_text).join("").trim();
+  const titleProp: any = Object.values(p).find((x: any) => x?.type === "title");
+  const title = (titleProp?.title || []).map((t: any) => t.plain_text).join("").trim();
   if (!title) return null;
   const start: string = p.Date?.date?.start || "";
   const rel = (p.Project?.relation || [])[0]?.id as string | undefined;
@@ -64,7 +128,9 @@ function mapTask(pg: any, projects: Map<string, string>): NotionTask | null {
 export async function fetchNotionProjects(): Promise<NotionProject[]> {
   if (!isNotionTasksConfigured()) return [];
   try {
-    const q = await notionPost(`/v1/databases/${PROJECTS_DB}/query`, { page_size: 100 });
+    const { projects } = await resolveDbs();
+    if (!projects) return [];
+    const q = await notionPost(`/v1/databases/${projects}/query`, { page_size: 100 });
     return (q.results || [])
       .map((pg: any) => {
         // The title property of the Projects DB regardless of its name.
@@ -85,6 +151,8 @@ export async function fetchNotionProjects(): Promise<NotionProject[]> {
 async function fetchNotionTasksRaw(): Promise<{ tasks: NotionTask[]; projects: NotionProject[]; ok: boolean }> {
   if (!isNotionTasksConfigured()) return { tasks: [], projects: [], ok: false };
   try {
+    const { tasks: tasksDb } = await resolveDbs();
+    if (!tasksDb) return { tasks: [], projects: [], ok: false };
     const projects = await fetchNotionProjects();
     const pmap = new Map<string, string>();
     for (const pr of projects) {
@@ -92,7 +160,7 @@ async function fetchNotionTasksRaw(): Promise<{ tasks: NotionTask[]; projects: N
       pmap.set(pr.id.replace(/-/g, ""), pr.name);
     }
     const twoWeeksAgo = new Date(Date.now() - 14 * 86400000).toISOString();
-    const q = await notionPost(`/v1/databases/${TASKS_DB}/query`, {
+    const q = await notionPost(`/v1/databases/${tasksDb}/query`, {
       filter: {
         or: [
           { property: "Complete", checkbox: { equals: false } },
@@ -132,7 +200,10 @@ export type NotionTaskPatch = {
 export async function patchNotionTask(pageId: string, patch: NotionTaskPatch, current?: { due?: string; time?: string }): Promise<boolean> {
   if (!isNotionTasksConfigured() || !pageId) return false;
   const properties: Record<string, any> = {};
-  if (patch.title !== undefined) properties.Name = { title: [{ text: { content: patch.title } }] };
+  if (patch.title !== undefined) {
+    const { tasksTitle } = await resolveDbs();
+    properties[tasksTitle] = { title: [{ text: { content: patch.title } }] };
+  }
   if (patch.done !== undefined) properties.Complete = { checkbox: patch.done };
   if (patch.due !== undefined || patch.time !== undefined) {
     const due = patch.due !== undefined ? patch.due : current?.due ?? null;
@@ -159,20 +230,54 @@ export async function createNotionTask(input: {
   projectId?: string;
 }): Promise<{ pageId: string; url?: string } | null> {
   if (!isNotionTasksConfigured() || !input.title.trim()) return null;
-  const properties: Record<string, any> = {
-    Name: { title: [{ text: { content: input.title.trim() } }] },
-    Complete: { checkbox: false },
-  };
-  if (input.due) properties.Date = dateValue(input.due, input.time);
-  if (input.priority) properties.Priority = { select: { name: PRIORITY_TO_NOTION[input.priority] } };
-  if (input.detail) properties.Description = { rich_text: [{ text: { content: input.detail } }] };
-  if (input.projectId) properties.Project = { relation: [{ id: input.projectId }] };
   try {
-    const res = await notionPost(`/v1/pages`, { parent: { database_id: TASKS_DB }, properties });
+    const { tasks: tasksDb, tasksTitle } = await resolveDbs();
+    if (!tasksDb) return null;
+    const properties: Record<string, any> = {
+      [tasksTitle]: { title: [{ text: { content: input.title.trim() } }] },
+      Complete: { checkbox: false },
+    };
+    if (input.due) properties.Date = dateValue(input.due, input.time);
+    if (input.priority) properties.Priority = { select: { name: PRIORITY_TO_NOTION[input.priority] } };
+    if (input.detail) properties.Description = { rich_text: [{ text: { content: input.detail } }] };
+    if (input.projectId) properties.Project = { relation: [{ id: input.projectId }] };
+    const res = await notionPost(`/v1/pages`, { parent: { database_id: tasksDb }, properties });
     return res?.id ? { pageId: res.id as string, url: res.url as string | undefined } : null;
   } catch {
     return null;
   }
+}
+
+// Find the Notion project row for a client (by name), creating it when absent —
+// so mirrored tasks always land under the right project in "Projects and
+// Tasks". Cached per process; best-effort like everything Notion-side.
+const _projectIdByName = new Map<string, string>();
+export async function findOrCreateNotionProject(name: string): Promise<string | null> {
+  const clean = (name || "").trim();
+  if (!isNotionTasksConfigured() || !clean) return null;
+  const cached = _projectIdByName.get(clean.toLowerCase());
+  if (cached) return cached;
+  try {
+    const { projects, projectsTitle } = await resolveDbs();
+    if (!projects) return null;
+    const existing = (await fetchNotionProjects()).find((p) => p.name.trim().toLowerCase() === clean.toLowerCase());
+    if (existing) {
+      _projectIdByName.set(clean.toLowerCase(), existing.id);
+      return existing.id;
+    }
+    const res = await notionPost(`/v1/pages`, {
+      parent: { database_id: projects },
+      properties: { [projectsTitle]: { title: [{ text: { content: clean } }] } },
+    });
+    if (res?.id) {
+      _projectIdByName.set(clean.toLowerCase(), res.id as string);
+      await bustNotionTasksCache();
+      return res.id as string;
+    }
+  } catch {
+    /* Notion unreachable — the task just stays local */
+  }
+  return null;
 }
 
 export async function archiveNotionTask(pageId: string): Promise<boolean> {
@@ -200,10 +305,6 @@ export async function bustNotionTasksCache(): Promise<void> {
 // "token set but the Tasks DB isn't shared with the integration".
 export async function notionTasksStatus(): Promise<"off" | "unshared" | "ok"> {
   if (!isNotionTasksConfigured()) return "off";
-  try {
-    await notionGet(`/v1/databases/${TASKS_DB}`);
-    return "ok";
-  } catch {
-    return "unshared";
-  }
+  const { tasks } = await resolveDbs();
+  return tasks ? "ok" : "unshared";
 }

@@ -17,6 +17,8 @@ import {
   createNotionTask,
   archiveNotionTask,
   bustNotionTasksCache,
+  findOrCreateNotionProject,
+  isNotionTasksConfigured,
 } from "@/lib/notionTasks";
 
 // Sentinel slug for tasks that live in the Notion Tasks database rather than in
@@ -119,6 +121,26 @@ function applyPatch(item: Deliverable, p: TaskPatch) {
 
 // ---- The board API ---------------------------------------------------------
 
+// Push a local change through to the task's Notion mirror, when it has one.
+// Best-effort by design: Notion being down or unshared must never limit the
+// board — the local store is the source of truth.
+async function propagateToNotion(notionPageId: string | undefined, p: TaskPatch, current?: { due?: string; time?: string }) {
+  if (!notionPageId) return;
+  const ok = await patchNotionTask(
+    notionPageId,
+    {
+      title: p.title,
+      detail: p.detail,
+      due: p.due,
+      time: p.time,
+      priority: p.priority,
+      done: p.status === undefined ? undefined : p.status === "done",
+    },
+    current
+  );
+  if (ok) await bustNotionTasksCache();
+}
+
 export async function patchTask(slug: string, id: string, patch: TaskPatch): Promise<Result> {
   const denied = await guard();
   if (denied) return denied;
@@ -140,15 +162,18 @@ export async function patchTask(slug: string, id: string, patch: TaskPatch): Pro
   }
 
   let found = false;
+  let mirror: { pageId?: string; due?: string; time?: string } = {};
   const ok = await mutateItems(slug, (items) => {
     const item = items.find((x) => x.id === id);
     if (item) {
+      mirror = { pageId: item.notionPageId, due: item.due, time: item.time };
       applyPatch(item, p);
       found = true;
     }
   });
   if (!ok) return { ok: false, error: "Save failed — no database." };
   if (!found) return { ok: false, error: "Task not found — refresh the board." };
+  await propagateToNotion(mirror.pageId, p, { due: mirror.due, time: mirror.time });
   revalidateTask(slug);
   return { ok: true };
 }
@@ -162,7 +187,26 @@ export type CreateTaskInput = {
   detail?: string;
   kind?: "milestone" | "recurring";
   notionProjectId?: string; // when slug === "__notion__"
+  listName?: string; // display name of the client/list — names the Notion mirror project
 };
+
+// Mirror one freshly-created local task into the Notion Tasks database under a
+// project named after its client (find-or-create). Returns the page id, or
+// null when Notion is off/unreachable — the local task stands either way.
+async function mirrorToNotion(item: Deliverable, projectName: string): Promise<string | null> {
+  if (!isNotionTasksConfigured()) return null;
+  const projectId = (await findOrCreateNotionProject(projectName)) || undefined;
+  const created = await createNotionTask({
+    title: item.title,
+    due: item.due,
+    time: item.time,
+    priority: item.priority,
+    detail: item.detail,
+    projectId,
+  });
+  if (created) await bustNotionTasksCache();
+  return created?.pageId ?? null;
+}
 
 export async function createTask(input: CreateTaskInput): Promise<Result & { item?: Deliverable; notionUrl?: string }> {
   const denied = await guard();
@@ -211,6 +255,10 @@ export async function createTask(input: CreateTaskInput): Promise<Result & { ite
     source: "manual",
     createdAt: new Date().toISOString(),
   };
+  // Report to Notion too: mirror under a project named after the client (or
+  // "Studio"), then store the page id on the item so edits/completions follow.
+  const pageId = await mirrorToNotion(item, input.listName?.trim() || (slug === STUDIO_SLUG ? "Studio" : slug));
+  if (pageId) item.notionPageId = pageId;
   const ok = await mutateItems(slug, (items) => {
     items.push(item);
   });
@@ -228,11 +276,16 @@ export async function deleteTask(slug: string, id: string): Promise<Result> {
     if (ok) await bustNotionTasksCache();
     return ok ? { ok: true } : { ok: false, error: "Couldn’t archive in Notion." };
   }
+  let mirrorId: string | undefined;
   const ok = await mutateItems(slug, (items) => {
     const i = items.findIndex((x) => x.id === id);
-    if (i >= 0) items.splice(i, 1);
+    if (i >= 0) {
+      mirrorId = items[i].notionPageId;
+      items.splice(i, 1);
+    }
   });
   if (!ok) return { ok: false, error: "Save failed — no database." };
+  if (mirrorId && (await archiveNotionTask(mirrorId))) await bustNotionTasksCache();
   revalidateTask(slug);
   return { ok: true };
 }
@@ -257,6 +310,16 @@ export async function restoreTask(slug: string, item: Deliverable): Promise<Resu
     if (!items.some((x) => x.id === item.id)) items.push(item);
   });
   if (!ok) return { ok: false, error: "Save failed — no database." };
+  if (item.notionPageId) {
+    // Bring the Notion mirror back too (it was archived with the delete).
+    try {
+      const { notionPatch } = await import("@/lib/notion");
+      await notionPatch(`/v1/pages/${item.notionPageId}`, { archived: false });
+      await bustNotionTasksCache();
+    } catch {
+      /* mirror stays archived — local task is restored regardless */
+    }
+  }
   revalidateTask(slug);
   return { ok: true };
 }
@@ -286,17 +349,96 @@ export async function reorderTasks(
       await bustNotionTasksCache();
       continue;
     }
+    const mirrors: { pageId: string; due: string | null }[] = [];
     await mutateItems(slug, (items) => {
       for (const e of arr) {
         const item = items.find((x) => x.id === e.id);
         if (!item) continue;
         item.order = e.order;
-        if (e.due !== undefined) item.due = e.due ?? undefined;
+        if (e.due !== undefined) {
+          item.due = e.due ?? undefined;
+          if (item.notionPageId) mirrors.push({ pageId: item.notionPageId, due: e.due });
+        }
       }
     });
+    for (const m of mirrors) await patchNotionTask(m.pageId, { due: m.due });
+    if (mirrors.length) await bustNotionTasksCache();
     revalidateTask(slug);
   }
   return { ok: true };
+}
+
+// Apply a playbook: create a whole batch of tasks for one list in a single
+// write (and mirror the batch to Notion under the client's project). Used by
+// the playbook wizard — onboarding checklists, branding pipelines, monthly
+// marketing cycles, checkpoint brain-dumps.
+export type PlaybookTaskInput = {
+  title: string;
+  due?: string;
+  time?: string;
+  priority?: TaskPriority;
+  detail?: string;
+  kind?: "milestone" | "recurring";
+};
+
+export async function applyPlaybookTasks(input: {
+  slug: string; // client slug or STUDIO_SLUG
+  listName?: string;
+  tasks: PlaybookTaskInput[];
+  mirror?: boolean; // default true — set false to keep the batch Marker-only
+}): Promise<Result & { items?: Deliverable[]; mirrored?: number }> {
+  const denied = await guard();
+  if (denied) return denied;
+  const slug = input.slug === NOTION_SLUG ? STUDIO_SLUG : input.slug || STUDIO_SLUG;
+  const now = new Date().toISOString();
+  const items: Deliverable[] = [];
+  for (const t of (input.tasks || []).slice(0, 80)) {
+    const title = String(t.title || "").trim().slice(0, 300);
+    if (!title) continue;
+    items.push({
+      id: genId(),
+      title,
+      due: t.due && DATE_RE.test(t.due) ? t.due : undefined,
+      time: t.time && TIME_RE.test(t.time) ? t.time : undefined,
+      priority: t.priority && PRIORITIES.includes(t.priority) ? t.priority : undefined,
+      detail: t.detail?.trim().slice(0, 2000) || undefined,
+      status: "todo",
+      kind: t.kind === "recurring" ? "recurring" : "milestone",
+      source: "manual",
+      createdAt: now,
+    });
+  }
+  if (!items.length) return { ok: false, error: "Nothing to add — tick at least one task." };
+
+  // Mirror the batch to Notion first (best-effort) so the page ids land in the
+  // same write as the tasks themselves.
+  let mirrored = 0;
+  if (input.mirror !== false && isNotionTasksConfigured()) {
+    const projectName = input.listName?.trim() || (slug === STUDIO_SLUG ? "Studio" : slug);
+    const projectId = (await findOrCreateNotionProject(projectName)) || undefined;
+    for (const item of items) {
+      const created = await createNotionTask({
+        title: item.title,
+        due: item.due,
+        time: item.time,
+        priority: item.priority,
+        detail: item.detail,
+        projectId,
+      });
+      if (created) {
+        item.notionPageId = created.pageId;
+        mirrored++;
+      }
+    }
+    if (mirrored) await bustNotionTasksCache();
+  }
+
+  const ok = await mutateItems(slug, (arr) => {
+    arr.push(...items);
+  });
+  if (!ok) return { ok: false, error: "Save failed — no database." };
+  revalidateTask(slug);
+  return { ok: true, items, mirrored };
 }
 
 // Sweep every delivered/completed task off the board (all clients + studio).
