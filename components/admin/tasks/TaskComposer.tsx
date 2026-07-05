@@ -218,7 +218,7 @@ export default function TaskComposer({
           <button
             type="button"
             onClick={() => setListOpen((o) => !o)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 pl-2 pr-2.5 py-1 text-[12px] font-semibold text-neutral-600 hover:border-neutral-300 transition-colors max-w-[160px]"
+            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 pl-2 pr-2.5 py-1 text-[12px] font-semibold text-neutral-600 hover:border-neutral-300 transition-colors max-w-[104px] sm:max-w-[160px]"
             title="Where this task goes"
           >
             {project.kind === "notion" ? (

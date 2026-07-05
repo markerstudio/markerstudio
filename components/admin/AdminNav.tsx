@@ -56,7 +56,10 @@ export default function AdminNav({
       { href: "/admin/inquiries", label: "Inquiries", badge: unreadInquiries },
       { href: "/admin/applications", label: "Applications", badge: unreadApplications },
     ],
-    [{ href: "/admin/users", label: "Users" }],
+    [
+      { href: "/admin/notify", label: "Notify" },
+      { href: "/admin/users", label: "Users" },
+    ],
   ];
 
   const isActive = (href: string) => {

@@ -6,6 +6,7 @@
 // (via the __MARKER_NATIVE__ bridge), or Web Notifications in a browser.
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { subscribeToPush } from "@/lib/pushClient";
 
 type Notice = { id: string; kind: string; title: string; body?: string; href: string; at: string };
 
@@ -147,6 +148,14 @@ export default function NotificationBell({ userKey }: { userKey: string }) {
       try { localStorage.setItem(PREF_KEY, "1"); } catch { /* ignore */ }
       return;
     }
+    // Real Web Push first (works on phones with the site closed); falls back
+    // to tab-local notifications when push isn't available/configured.
+    const pushed = await subscribeToPush();
+    if (pushed === "ok") {
+      setAlertsOn(true);
+      try { localStorage.setItem(PREF_KEY, "1"); } catch { /* ignore */ }
+      return;
+    }
     if (typeof Notification === "undefined") return;
     const perm = await Notification.requestPermission();
     if (perm === "granted") {
@@ -175,7 +184,7 @@ export default function NotificationBell({ userKey }: { userKey: string }) {
       </button>
 
       {open && (
-        <div className="ms-pop absolute right-0 top-full mt-2 z-50 w-[340px] max-h-[70vh] overflow-hidden flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+        <div className="ms-pop fixed inset-x-3 top-[4.5rem] sm:inset-x-auto sm:absolute sm:right-0 sm:top-full sm:mt-2 z-50 sm:w-[340px] max-h-[70vh] overflow-hidden flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-2xl">
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100">
             <span className="text-sm font-bold tracking-tight">Notifications</span>
             <div className="flex items-center gap-3">
