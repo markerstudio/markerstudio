@@ -936,6 +936,12 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 .ms-portal-tabs::-webkit-scrollbar { display: none; }
 .ms-portal-tab { border: 0; background: transparent; color: var(--marker-charcoal); font: 600 13px/1 var(--font-display); padding: 9px 12px; border-radius: var(--r-sm); cursor: pointer; white-space: nowrap; transition: color 140ms, background 140ms; }
 .ms-portal-tab:hover { color: var(--marker-orange); }
+
+/* "Get updates" push chip in the portal top bar (and its enabled state). */
+.ms-push-chip { border: 1px solid var(--marker-charcoal-20, #d6d3cd); background: #fff; color: var(--marker-charcoal); font: 600 12px/1 var(--font-display); padding: 7px 10px; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: color 140ms, border-color 140ms; }
+.ms-push-chip:hover { color: var(--marker-orange); border-color: var(--marker-orange); }
+.ms-push-chip.on { cursor: default; color: var(--marker-orange); border-color: transparent; background: rgba(255, 145, 0, 0.1); }
+@media (max-width: 560px) { .ms-push-chip { padding: 6px 8px; } }
 .ms-portal-tab.is-active { background: var(--marker-orange); color: #fff; }
 body.ar .ms-portal-tab { font-family: var(--font-arabic); }
 .ms-portal-signout { padding: 9px 14px; font-size: 13px; }

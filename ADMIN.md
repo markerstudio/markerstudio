@@ -107,9 +107,32 @@ inquiries and job applications, client task requests, tasks due (honouring
 their reminder time, 30 min ahead), overdue invoices, and shoots in the next
 48h (`lib/notifications.ts`, `/api/notifications`, polled every minute + on
 focus). "Enable alerts" turns on **system notifications**: native macOS
-notifications + a Dock badge inside the desktop app, Web Notifications in the
-browser. Read state is per-user on the device; photographer accounts get only
-their shoots, partner accounts none.
+notifications + a Dock badge inside the desktop app, Web Push in browsers.
+Read state is per-user on the device; photographer accounts get only their
+shoots, partner accounts none.
+
+## Push notifications (mobile) & the Notify panel
+
+Real **Web Push** — notifications that reach phones even with the site closed:
+
+- **One-time setup:** `npx web-push generate-vapid-keys`, then set
+  `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (and optionally `VAPID_SUBJECT`,
+  a `mailto:` address) in the environment and redeploy.
+- **Devices subscribe once.** Admins: the bell's "Enable alerts" (or the
+  Notify panel's "Enable on this device"). Clients: a subtle **🔔 Get
+  updates** chip in their portal top bar (bilingual). Subscriptions are
+  stored per account in `push_subscriptions` (created on first use).
+- **iPhone:** Safari only allows push for installed web apps — Share →
+  **Add to Home Screen**, open the icon, then enable. Android/desktop
+  Chrome work directly in the browser.
+- **Admin → Notify** (`/admin/notify`): compose a title/message/link and
+  send to **yourself (test)**, **all admins**, **all clients**, or **one
+  client** — with live device counts per audience and sent/failed results.
+  Links must be site paths (`/portal`, `/admin/...`). Dead subscriptions
+  are pruned automatically.
+- Plumbing: `public/sw.js` (service worker), `lib/push.ts` (send/store),
+  `lib/pushClient.ts` (subscribe), `/api/push/*` (subscribe/unsubscribe/
+  vapid), `web-push` on the server.
 
 ## Desktop app
 

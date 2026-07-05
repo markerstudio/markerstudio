@@ -7,6 +7,7 @@ import { logout } from "@/app/admin/actions";
 import { setPostApproval, addPostComment, requestDeliverable } from "@/app/portal-feedback-actions";
 import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
+import EnablePushButton from "@/components/EnablePushButton";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
 
 const MARKER_LOGO = "/assets/logo-primary-transparent.png";
@@ -237,6 +238,7 @@ export default function PortalView({
             <img src={MARKER_LOGO} alt="Marker Studio" />
           </button>
           <div className="ms-actions">
+            <EnablePushButton lang={lang} />
             <div className="ms-lang" role="group" aria-label="Language">
               <button className={lang === "en" ? "on" : ""} onClick={() => setLang("en")}>EN</button>
               <button className={lang === "ar" ? "on" : ""} onClick={() => setLang("ar")}>ع</button>
