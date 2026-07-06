@@ -6,7 +6,10 @@ import { getFinance, fmtILS, type FinanceData } from "@/lib/finance";
 import { runPaymentHistoryBackfill } from "@/lib/backfill";
 import { cleanupReconcilerDuplicates } from "@/lib/notionSync";
 import { getBoardData } from "@/lib/taskBoard";
+import { getAgenda } from "@/lib/agenda";
 import TodayTasks from "@/components/admin/tasks/TodayTasks";
+import TodayAgenda from "@/components/admin/TodayAgenda";
+import { StatTile, Skeleton } from "@/components/ui/glass";
 
 export const dynamic = "force-dynamic";
 
@@ -35,13 +38,13 @@ function greeting(): string {
 function StatusPill({ status }: { status: string }) {
   const tone =
     status === "paid"
-      ? "bg-green-100 text-green-800"
+      ? "lq-chip--green"
       : status === "due"
-      ? "bg-orange-100 text-orange-deep"
+      ? "lq-chip--orange"
       : status === "partial"
-      ? "bg-amber-100 text-amber-800"
-      : "bg-neutral-100 text-neutral-600";
-  return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase ${tone}`}>{status}</span>;
+      ? "lq-chip--orange"
+      : "";
+  return <span className={`lq-chip ${tone} uppercase !text-[10px]`}>{status}</span>;
 }
 
 const ATTENTION_ICONS: Record<string, string> = {
@@ -65,34 +68,44 @@ async function TodayTasksCard() {
   }
 }
 
+// The "today by client" ritual strip — the agenda engine's daily slice.
+async function TodayAgendaCard() {
+  try {
+    const agenda = await getAgenda(3);
+    return <TodayAgenda agenda={agenda} />;
+  } catch {
+    return null;
+  }
+}
+
 // Async section component — awaited inside <Suspense>, not by the page.
 async function FinanceCard() {
   const fin = await financeSnapshot();
   if (!fin) return null;
   return (
-    <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5">
+    <div className="lq-card lq-rise p-5">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div>
-          <h2 className="font-bold tracking-tight">The books — from Notion</h2>
-          <p className="text-xs text-neutral-500 mt-0.5">
-            Live from your Budget Tracker — the source of truth. The cards up top track what you&apos;ve{" "}
+          <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">The books — from Notion</h2>
+          <p className="text-xs text-charcoal-60 mt-0.5">
+            Live from your Budget Tracker — the source of truth. The tiles up top track what you&apos;ve{" "}
             <b>invoiced in the app</b>, so the two won&apos;t always match.
           </p>
         </div>
-        <Link href="/admin/finance" className="text-xs font-semibold text-neutral-500 hover:text-orange whitespace-nowrap shrink-0">Full analysis →</Link>
+        <Link href="/admin/finance" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep whitespace-nowrap shrink-0 no-underline">Full analysis →</Link>
       </div>
-      <div className="grid sm:grid-cols-3 gap-4">
-        <div className="rounded-lg bg-neutral-50 px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">In the bank</div>
-          <div className="mt-1 text-2xl font-extrabold tabular-nums text-neutral-900">{fmtILS(fin.bankTotal)}</div>
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div className="lq-well px-4 py-3">
+          <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">In the bank</div>
+          <div className="mt-1 text-[22px] font-display font-extrabold tabular-nums text-ink">{fmtILS(fin.bankTotal)}</div>
         </div>
-        <div className="rounded-lg bg-neutral-50 px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Clients owe us</div>
-          <div className="mt-1 text-2xl font-extrabold tabular-nums text-orange-deep">{fmtILS(fin.totalDebt)}</div>
+        <div className="lq-well px-4 py-3">
+          <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Clients owe us</div>
+          <div className="mt-1 text-[22px] font-display font-extrabold tabular-nums text-orange-deep">{fmtILS(fin.totalDebt)}</div>
         </div>
-        <div className="rounded-lg bg-neutral-50 px-4 py-3">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Overdue</div>
-          <div className={`mt-1 text-2xl font-extrabold tabular-nums ${fin.overdue.length ? "text-red-600" : "text-neutral-900"}`}>
+        <div className="lq-well px-4 py-3">
+          <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Overdue</div>
+          <div className={`mt-1 text-[22px] font-display font-extrabold tabular-nums ${fin.overdue.length ? "text-rose-600" : "text-ink"}`}>
             {fin.overdue.length ? `${fin.overdue.length} · ${fmtILS(fin.overdueTotal)}` : "None"}
           </div>
         </div>
@@ -101,14 +114,14 @@ async function FinanceCard() {
         <ul className="mt-4 space-y-1.5">
           {fin.debtors.filter((x) => x.debt > 0).slice(0, 3).map((t) => (
             <li key={t.sourceId} className="flex items-center gap-3 text-sm">
-              <span className="text-neutral-700 font-medium truncate">{t.name}</span>
-              <span className="flex-1 h-1.5 rounded-full bg-neutral-100 overflow-hidden">
+              <span className="text-charcoal-80 font-medium truncate">{t.name}</span>
+              <span className="flex-1 h-1.5 rounded-full bg-charcoal/5 overflow-hidden">
                 <span
                   className="block h-full rounded-full bg-orange"
                   style={{ width: `${Math.max(3, Math.round((t.debt / Math.max(1, fin.debtors[0]?.debt || 1)) * 100))}%` }}
                 />
               </span>
-              <span className="tabular-nums font-semibold text-neutral-900 whitespace-nowrap">{fmtILS(t.debt)}</span>
+              <span className="tabular-nums font-semibold text-ink whitespace-nowrap">{fmtILS(t.debt)}</span>
             </li>
           ))}
         </ul>
@@ -128,121 +141,64 @@ export default async function AdminDashboard() {
   await cleanupReconcilerDuplicates();
   const [user, d] = await Promise.all([getSession(), getDashboardData()]);
   const firstName = (user?.name || "there").split(" ")[0];
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const maxBilled = Math.max(1, ...d.months.map((m) => m.billed));
   const hasMoney = d.months.some((m) => m.billed > 0 || m.collected > 0);
 
   return (
     <div className="space-y-5">
-      {/* ---- Hero strip ---- */}
-      <div className="adm-rise bg-charcoal text-white rounded-2xl px-6 py-6 sm:px-8 flex flex-wrap items-center justify-between gap-5 relative overflow-hidden">
-        <div
-          aria-hidden
-          className="absolute inset-0 opacity-[0.06] pointer-events-none"
-          style={{
-            backgroundImage:
-              "linear-gradient(to right, #fff 1px, transparent 1px), linear-gradient(to bottom, #fff 1px, transparent 1px)",
-            backgroundSize: "44px 44px",
-          }}
-        />
-        <div className="relative">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+      {/* ---- Greeting — type on the field, no box ---- */}
+      <header className="flex flex-wrap items-end justify-between gap-4 pt-1">
+        <div>
+          <p className="text-[11.5px] font-display font-bold uppercase tracking-[0.16em] text-charcoal-60">{today}</p>
+          <h1 className="font-display font-extrabold text-[30px] sm:text-[36px] tracking-tight text-ink leading-tight mt-0.5">
             {greeting()}, <span className="text-orange">{firstName}</span>.
           </h1>
-          <p className="text-sm text-white/60 mt-1">{today}</p>
         </div>
-        <div className="relative flex items-center gap-2.5 flex-wrap">
-          <Link href="/admin/invoices" className="bg-orange text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-orange-deep transition-colors">
-            + New invoice
-          </Link>
-          <Link href="/admin/payments/new" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
-            + Record payment
-          </Link>
-          <Link href="/admin/proposals" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
-            + New proposal
-          </Link>
-          <Link href="/admin/clients" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
-            + New client
-          </Link>
-          <Link href="/admin/projects/new" className="bg-white/10 text-white text-sm font-semibold rounded-md px-4 py-2 hover:bg-white/20 transition-colors">
-            + New project
-          </Link>
-          <Link href="/" target="_blank" className="text-white/70 text-sm font-medium hover:text-white transition-colors px-1">
-            View site ↗
-          </Link>
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/admin/invoices" className="lq-btn lq-btn--primary no-underline">+ Invoice</Link>
+          <Link href="/admin/payments/new" className="lq-btn lq-btn--glass no-underline">+ Payment</Link>
+          <Link href="/admin/proposals" className="lq-btn lq-btn--glass no-underline">+ Proposal</Link>
+          <Link href="/admin/clients" className="lq-btn lq-btn--glass no-underline">+ Client</Link>
         </div>
-      </div>
+      </header>
 
       {d.dbOff && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3">
+        <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">
           No database configured — the dashboard is empty. Connect a database to see studio numbers here.
         </p>
       )}
       {d.needsSetup && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3">
+        <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">
           Database connected, but it hasn&apos;t been initialised yet.{" "}
           <Link href="/admin/setup" className="font-semibold underline">Run setup →</Link>
         </p>
       )}
 
-      {/* ---- KPI cards ---- */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-        {[
-          {
-            label: "Outstanding",
-            value: fmtMoney(d.outstanding),
-            note: d.outstanding > 0 ? "across due & partial invoices" : "nothing owed right now",
-            href: "/admin/invoices",
-            accent: true,
-          },
-          {
-            label: "Overdue invoices",
-            value: d.overdueCount ? fmtMoney(d.overdueTotal) : "None",
-            note: d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule",
-            href: "/admin/invoices?f=overdue",
-            red: d.overdueCount > 0,
-          },
-          {
-            label: "This month",
-            value: fmtMoney(d.thisMonthCollected),
-            note: `collected · ${fmtMoney(d.thisMonthBilled)} billed`,
-            href: "/admin/finance",
-          },
-          {
-            label: "Collected this year",
-            value: fmtMoney(d.collectedYear),
-            note: `${d.invoiceStatusCounts.paid} invoice${d.invoiceStatusCounts.paid === 1 ? "" : "s"} fully paid`,
-            href: "/admin/invoices?f=paid",
-          },
-          {
-            label: "Active clients",
-            value: String(d.activeClients),
-            note: `of ${d.totalClients} portal${d.totalClients === 1 ? "" : "s"} total`,
-            href: "/admin/clients",
-          },
-          {
-            label: "Awaiting reply",
-            value: String(d.unreadInquiries + d.unreadApplications),
-            note: `${d.unreadInquiries} inquir${d.unreadInquiries === 1 ? "y" : "ies"} · ${d.unreadApplications} application${d.unreadApplications === 1 ? "" : "s"}`,
-            href: "/admin/inquiries",
-          },
-        ].map((kpi, i) => (
-          <Link
-            key={kpi.label}
-            href={kpi.href}
-            className="adm-rise group bg-white border border-neutral-200 rounded-xl px-5 py-4 hover:border-orange hover:shadow-md transition-all"
-            style={{ animationDelay: `${60 + i * 60}ms` }}
-          >
-            <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-neutral-500">
-              <span className={`inline-block w-4 h-[3px] rounded-full ${kpi.red ? "bg-red-500" : kpi.accent ? "bg-orange" : "bg-charcoal-20 group-hover:bg-orange transition-colors"}`} />
-              {kpi.label}
+      {/* ---- Today by client — the ritual strip ---- */}
+      <Suspense
+        fallback={
+          <div className="lq-dark p-5" aria-busy="true">
+            <Skeleton className="h-4 w-40 mb-4 opacity-30" />
+            <div className="space-y-2.5">
+              <Skeleton className="h-9 opacity-20" />
+              <Skeleton className="h-9 opacity-20" />
+              <Skeleton className="h-9 opacity-20" />
             </div>
-            <div className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${kpi.red ? "text-red-600" : kpi.accent ? "text-orange-deep" : "text-neutral-900"}`}>
-              {kpi.value}
-            </div>
-            <div className="mt-1 text-xs text-neutral-500">{kpi.note}</div>
-          </Link>
-        ))}
+          </div>
+        }
+      >
+        <TodayAgendaCard />
+      </Suspense>
+
+      {/* ---- KPI tiles ---- */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
+        <StatTile label="Outstanding" value={fmtMoney(d.outstanding)} sub={d.outstanding > 0 ? "across due & partial invoices" : "nothing owed right now"} href="/admin/invoices" tone="accent" delay={40} />
+        <StatTile label="Overdue" value={d.overdueCount ? fmtMoney(d.overdueTotal) : "None"} sub={d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule"} href="/admin/invoices?f=overdue" tone={d.overdueCount ? "bad" : "good"} delay={90} />
+        <StatTile label="This month" value={fmtMoney(d.thisMonthCollected)} sub={`collected · ${fmtMoney(d.thisMonthBilled)} billed`} href="/admin/finance" delay={140} />
+        <StatTile label="Collected this year" value={fmtMoney(d.collectedYear)} sub={`${d.invoiceStatusCounts.paid} invoice${d.invoiceStatusCounts.paid === 1 ? "" : "s"} fully paid`} href="/admin/invoices?f=paid" delay={190} />
+        <StatTile label="Active clients" value={String(d.activeClients)} sub={`of ${d.totalClients} portal${d.totalClients === 1 ? "" : "s"} total`} href="/admin/clients" delay={240} />
+        <StatTile label="Awaiting reply" value={String(d.unreadInquiries + d.unreadApplications)} sub={`${d.unreadInquiries} inquir${d.unreadInquiries === 1 ? "y" : "ies"} · ${d.unreadApplications} application${d.unreadApplications === 1 ? "" : "s"}`} href="/admin/inquiries" tone={d.unreadInquiries + d.unreadApplications > 0 ? "warn" : "neutral"} delay={290} />
       </div>
 
       {/* ---- Today's tasks + attention ---- */}
@@ -250,13 +206,13 @@ export default async function AdminDashboard() {
         <div className="lg:col-span-2 flex flex-col [&>*]:flex-1">
           <Suspense
             fallback={
-              <div className="bg-white border border-neutral-200 rounded-xl p-5" aria-busy="true">
-                <div className="adm-skeleton h-4 w-24 rounded mb-4" />
+              <div className="lq-card p-5" aria-busy="true">
+                <Skeleton className="h-4 w-24 mb-4" />
                 <div className="space-y-2.5">
-                  <div className="adm-skeleton h-5 rounded" />
-                  <div className="adm-skeleton h-5 rounded" />
-                  <div className="adm-skeleton h-5 rounded" />
-                  <div className="adm-skeleton h-9 rounded-xl mt-4" />
+                  <Skeleton className="h-5" />
+                  <Skeleton className="h-5" />
+                  <Skeleton className="h-5" />
+                  <Skeleton className="h-9 mt-4" />
                 </div>
               </div>
             }
@@ -265,21 +221,21 @@ export default async function AdminDashboard() {
           </Suspense>
         </div>
 
-        <div className="adm-rise lg:col-span-3 bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "300ms" }}>
-          <h2 className="font-bold tracking-tight mb-4">Needs attention</h2>
+        <div className="lq-card lq-rise lg:col-span-3 p-5" style={{ animationDelay: "300ms" }}>
+          <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">Needs attention</h2>
           {d.attention.length === 0 ? (
             <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
-              <span className="w-10 h-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-lg">✓</span>
-              <p className="text-sm text-neutral-500">All clear — nothing waiting on you.</p>
+              <span className="w-10 h-10 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center text-lg">✓</span>
+              <p className="text-sm text-charcoal-60">All clear — nothing waiting on you.</p>
             </div>
           ) : (
-            <ul className="divide-y divide-neutral-100 -my-1.5">
+            <ul className="divide-y divide-charcoal/5 -my-1">
               {d.attention.map((a, i) => (
                 <li key={`${a.kind}-${i}`}>
-                  <Link href={a.href} className="group flex items-center gap-3 py-2.5 text-sm">
+                  <Link href={a.href} className="group flex items-center gap-3 py-2.5 text-sm no-underline">
                     <span aria-hidden className="shrink-0">{ATTENTION_ICONS[a.kind] || "•"}</span>
-                    <span className="flex-1 text-neutral-700 group-hover:text-neutral-900">{a.text}</span>
-                    <span className="text-neutral-300 group-hover:text-orange transition-colors">→</span>
+                    <span className="flex-1 text-charcoal-80 group-hover:text-ink">{a.text}</span>
+                    <span className="text-charcoal-20 group-hover:text-orange transition-colors">→</span>
                   </Link>
                 </li>
               ))}
@@ -289,48 +245,46 @@ export default async function AdminDashboard() {
       </div>
 
       {/* ---- Cashflow ---- */}
-      <div className="grid gap-4">
-        <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "240ms" }}>
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <h2 className="font-bold tracking-tight">Cashflow — last 6 months</h2>
-            <div className="flex items-center gap-3 text-[11px] text-neutral-500">
-              <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-orange inline-block" /> collected</span>
-              <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-charcoal-20 inline-block" /> billed</span>
-            </div>
+      <div className="lq-card lq-rise p-5" style={{ animationDelay: "240ms" }}>
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Cashflow — last 6 months</h2>
+          <div className="flex items-center gap-3 text-[11px] text-charcoal-60">
+            <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-orange inline-block" /> collected</span>
+            <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-charcoal-20 inline-block" /> billed</span>
           </div>
-          {hasMoney ? (
-            <div className="grid grid-cols-6 gap-3 items-end h-40">
-              {d.months.map((m, i) => {
-                const billedH = Math.round((m.billed / maxBilled) * 100);
-                const collectedH = Math.round((m.collected / maxBilled) * 100);
-                return (
-                  <div key={m.label} className="flex flex-col items-center gap-2 h-full justify-end" title={`${m.label}: billed ${fmtMoney(m.billed)} · collected ${fmtMoney(m.collected)}`}>
-                    <div className="relative w-full max-w-[44px] h-full flex items-end justify-center">
-                      <div className="adm-bar absolute bottom-0 w-full rounded-t-md bg-charcoal-10" style={{ height: `${billedH}%`, animationDelay: `${300 + i * 70}ms` }} />
-                      <div className="adm-bar absolute bottom-0 w-full rounded-t-md bg-orange" style={{ height: `${collectedH}%`, animationDelay: `${360 + i * 70}ms` }} />
-                    </div>
-                    <span className="text-[11px] font-medium text-neutral-500">{m.label}</span>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="h-40 flex items-center justify-center text-sm text-neutral-400">
-              No invoices in the last six months — totals will chart here.
-            </div>
-          )}
         </div>
+        {hasMoney ? (
+          <div className="grid grid-cols-6 gap-3 items-end h-40">
+            {d.months.map((m, i) => {
+              const billedH = Math.round((m.billed / maxBilled) * 100);
+              const collectedH = Math.round((m.collected / maxBilled) * 100);
+              return (
+                <div key={m.label} className="flex flex-col items-center gap-2 h-full justify-end" title={`${m.label}: billed ${fmtMoney(m.billed)} · collected ${fmtMoney(m.collected)}`}>
+                  <div className="relative w-full max-w-[44px] h-full flex items-end justify-center">
+                    <div className="adm-bar absolute bottom-0 w-full rounded-t-lg bg-charcoal/10" style={{ height: `${billedH}%`, animationDelay: `${300 + i * 70}ms` }} />
+                    <div className="adm-bar absolute bottom-0 w-full rounded-t-lg bg-gradient-to-t from-[#F57F00] to-[#FFA226] shadow-[0_6px_14px_-6px_rgba(255,145,0,.5)]" style={{ height: `${collectedH}%`, animationDelay: `${360 + i * 70}ms` }} />
+                  </div>
+                  <span className="text-[11px] font-medium text-charcoal-60">{m.label}</span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="h-40 flex items-center justify-center text-sm text-charcoal-40">
+            No invoices in the last six months — totals will chart here.
+          </div>
+        )}
       </div>
 
       {/* ---- Finance snapshot (Notion Budget Tracker) — streams in ---- */}
       <Suspense
         fallback={
-          <div className="bg-white border border-neutral-200 rounded-xl p-5" aria-busy="true">
-            <div className="adm-skeleton h-4 w-32 rounded mb-4" />
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div className="adm-skeleton h-16 rounded-lg" />
-              <div className="adm-skeleton h-16 rounded-lg" />
-              <div className="adm-skeleton h-16 rounded-lg" />
+          <div className="lq-card p-5" aria-busy="true">
+            <Skeleton className="h-4 w-32 mb-4" />
+            <div className="grid sm:grid-cols-3 gap-3">
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
+              <Skeleton className="h-16" />
             </div>
           </div>
         }
@@ -340,49 +294,49 @@ export default async function AdminDashboard() {
 
       {/* ---- Latest inquiries + recent invoices ---- */}
       <div className="grid lg:grid-cols-2 gap-4">
-        <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "360ms" }}>
+        <div className="lq-card lq-rise p-5" style={{ animationDelay: "360ms" }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold tracking-tight">Latest inquiries</h2>
-            <Link href="/admin/inquiries" className="text-xs font-semibold text-neutral-500 hover:text-orange">All →</Link>
+            <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Latest inquiries</h2>
+            <Link href="/admin/inquiries" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">All →</Link>
           </div>
           {d.recentInquiries.length === 0 ? (
-            <p className="text-sm text-neutral-400 py-6 text-center">No inquiries yet — they&apos;ll land here from the contact form.</p>
+            <p className="text-sm text-charcoal-40 py-6 text-center">No inquiries yet — they&apos;ll land here from the contact form.</p>
           ) : (
-            <ul className="divide-y divide-neutral-100">
+            <ul className="divide-y divide-charcoal/5">
               {d.recentInquiries.map((q) => (
                 <li key={q.id} className="flex items-center gap-3 py-2.5">
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${q.read_at ? "bg-neutral-200" : "bg-orange"}`} title={q.read_at ? "Read" : "Unread"} />
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${q.read_at ? "bg-charcoal-20" : "bg-orange"}`} title={q.read_at ? "Read" : "Unread"} />
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-semibold text-neutral-900 truncate">
+                    <div className="text-sm font-semibold text-ink truncate">
                       {q.name}
-                      {q.brand ? <span className="font-normal text-neutral-500"> · {q.brand}</span> : null}
+                      {q.brand ? <span className="font-normal text-charcoal-60"> · {q.brand}</span> : null}
                     </div>
-                    <div className="text-xs text-neutral-500 truncate">{q.service || q.email}</div>
+                    <div className="text-xs text-charcoal-60 truncate">{q.service || q.email}</div>
                   </div>
-                  <span className="text-[11px] text-neutral-400 whitespace-nowrap">{timeAgo(q.created_at)}</span>
+                  <span className="text-[11px] text-charcoal-40 whitespace-nowrap">{timeAgo(q.created_at)}</span>
                 </li>
               ))}
             </ul>
           )}
         </div>
 
-        <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "420ms" }}>
+        <div className="lq-card lq-rise p-5" style={{ animationDelay: "420ms" }}>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold tracking-tight">Recent invoices</h2>
-            <Link href="/admin/invoices" className="text-xs font-semibold text-neutral-500 hover:text-orange">All →</Link>
+            <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Recent invoices</h2>
+            <Link href="/admin/invoices" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">All →</Link>
           </div>
           {d.recentInvoices.length === 0 ? (
-            <p className="text-sm text-neutral-400 py-6 text-center">No invoices yet — create one from a client&apos;s page.</p>
+            <p className="text-sm text-charcoal-40 py-6 text-center">No invoices yet — create one from a client&apos;s page.</p>
           ) : (
-            <ul className="divide-y divide-neutral-100">
+            <ul className="divide-y divide-charcoal/5">
               {d.recentInvoices.map((inv) => (
                 <li key={inv.id} className="flex items-center gap-3 py-2.5">
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-mono font-semibold text-neutral-900 truncate">{inv.number}</div>
-                    <div className="text-xs text-neutral-500 truncate">/{inv.client_slug}</div>
+                    <div className="text-sm font-mono font-semibold text-ink truncate">{inv.number}</div>
+                    <div className="text-xs text-charcoal-60 truncate">/{inv.client_slug}</div>
                   </div>
                   <StatusPill status={inv.status} />
-                  <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-neutral-400 hover:text-orange whitespace-nowrap">
+                  <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-xs font-medium text-charcoal-40 hover:text-orange-deep whitespace-nowrap no-underline">
                     PDF ↗
                   </Link>
                 </li>
@@ -393,37 +347,37 @@ export default async function AdminDashboard() {
       </div>
 
       {/* ---- Client pulse ---- */}
-      <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5" style={{ animationDelay: "480ms" }}>
+      <div className="lq-card lq-rise p-5" style={{ animationDelay: "480ms" }}>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-bold tracking-tight">Client pulse</h2>
-          <Link href="/admin/clients" className="text-xs font-semibold text-neutral-500 hover:text-orange">All clients →</Link>
+          <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Client pulse</h2>
+          <Link href="/admin/clients" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">All clients →</Link>
         </div>
         {d.clients.length === 0 ? (
-          <p className="text-sm text-neutral-400 py-4 text-center">No client portals yet.</p>
+          <p className="text-sm text-charcoal-40 py-4 text-center">No client portals yet.</p>
         ) : (
           <div className="flex flex-wrap gap-2.5">
             {d.clients.map((c) => (
               <Link
                 key={c.slug}
                 href={`/admin/clients/${c.slug}/edit`}
-                className="inline-flex items-center gap-2.5 border border-neutral-200 rounded-full pl-2 pr-3.5 py-1.5 text-sm hover:border-orange hover:shadow-sm transition-all"
+                className="lq-press inline-flex items-center gap-2.5 bg-white/60 border border-charcoal/5 rounded-full ps-1.5 pe-3.5 py-1.5 text-sm no-underline hover:bg-white shadow-[inset_0_1px_0_rgba(255,255,255,.8)]"
               >
                 <span className="w-6 h-6 rounded-full shrink-0" style={{ background: c.color }} />
-                <span className="font-semibold text-neutral-800">{c.name}</span>
+                <span className="font-semibold text-charcoal-80">{c.name}</span>
                 {c.pending ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide bg-amber-100 text-amber-800 rounded-full px-2 py-0.5">Pending</span>
+                  <span className="lq-chip lq-chip--orange !px-2 !py-0.5 uppercase !text-[9.5px]">Pending</span>
                 ) : c.active ? (
-                  <span className="text-[10px] font-semibold uppercase tracking-wide bg-green-100 text-green-800 rounded-full px-2 py-0.5">Active</span>
+                  <span className="lq-chip lq-chip--green !px-2 !py-0.5 uppercase !text-[9.5px]">Active</span>
                 ) : null}
-                {c.planName && <span className="text-xs text-neutral-500">{c.planName}</span>}
+                {c.planName && <span className="text-xs text-charcoal-60">{c.planName}</span>}
               </Link>
             ))}
           </div>
         )}
-        <div className="mt-4 pt-4 border-t border-neutral-100 flex flex-wrap gap-x-6 gap-y-1 text-xs text-neutral-500">
-          <span><strong className="text-neutral-800">{d.projectCount}</strong> published case stud{d.projectCount === 1 ? "y" : "ies"}</span>
-          <span><strong className="text-neutral-800">{d.invoiceStatusCounts.due + d.invoiceStatusCounts.partial}</strong> open invoice{d.invoiceStatusCounts.due + d.invoiceStatusCounts.partial === 1 ? "" : "s"}</span>
-          <span><strong className="text-neutral-800">{d.invoiceStatusCounts.draft}</strong> draft{d.invoiceStatusCounts.draft === 1 ? "" : "s"}</span>
+        <div className="mt-4 pt-4 border-t border-charcoal/5 flex flex-wrap gap-x-6 gap-y-1 text-xs text-charcoal-60">
+          <span><strong className="text-charcoal-80">{d.projectCount}</strong> published case stud{d.projectCount === 1 ? "y" : "ies"}</span>
+          <span><strong className="text-charcoal-80">{d.invoiceStatusCounts.due + d.invoiceStatusCounts.partial}</strong> open invoice{d.invoiceStatusCounts.due + d.invoiceStatusCounts.partial === 1 ? "" : "s"}</span>
+          <span><strong className="text-charcoal-80">{d.invoiceStatusCounts.draft}</strong> draft{d.invoiceStatusCounts.draft === 1 ? "" : "s"}</span>
         </div>
       </div>
     </div>
