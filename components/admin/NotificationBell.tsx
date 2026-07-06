@@ -37,7 +37,15 @@ function timeAgo(iso: string): string {
   return `${Math.floor(h / 24)}d`;
 }
 
-export default function NotificationBell({ userKey }: { userKey: string }) {
+export default function NotificationBell({
+  userKey,
+  placement = "top",
+}: {
+  userKey: string;
+  /** "rail" — trigger lives in the desktop glass rail (panel opens beside it);
+      "top" — floating trigger near the top edge (panel drops below). */
+  placement?: "rail" | "top";
+}) {
   const [notices, setNotices] = useState<Notice[]>([]);
   const [open, setOpen] = useState(false);
   const [ring, setRing] = useState(false);
@@ -170,7 +178,7 @@ export default function NotificationBell({ userKey }: { userKey: string }) {
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label={unread.length ? `Notifications — ${unread.length} unread` : "Notifications"}
-        className={`relative w-8 h-8 rounded-full flex items-center justify-center text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 transition-colors ${ring ? "ms-bell-ring" : ""}`}
+        className={`lq-press relative w-8 h-8 rounded-full flex items-center justify-center text-charcoal-60 hover:text-ink hover:bg-charcoal/5 ${ring ? "ms-bell-ring" : ""}`}
       >
         <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -184,7 +192,13 @@ export default function NotificationBell({ userKey }: { userKey: string }) {
       </button>
 
       {open && (
-        <div className="ms-pop fixed inset-x-3 top-[4.5rem] sm:inset-x-auto sm:absolute sm:right-0 sm:top-full sm:mt-2 z-50 sm:w-[340px] max-h-[70vh] overflow-hidden flex flex-col rounded-2xl border border-neutral-200 bg-white shadow-2xl">
+        <div
+          className={`ms-pop lq-chrome z-[80] max-h-[70vh] overflow-hidden flex flex-col rounded-3xl fixed inset-x-3 top-[4.2rem] sm:inset-x-auto sm:w-[340px] ${
+            placement === "rail"
+              ? "sm:absolute sm:bottom-0 sm:top-auto sm:start-full sm:ms-3"
+              : "sm:absolute sm:end-0 sm:top-full sm:mt-2"
+          }`}
+        >
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100">
             <span className="text-sm font-bold tracking-tight">Notifications</span>
             <div className="flex items-center gap-3">
