@@ -437,7 +437,7 @@ export default function TasksBoard({
           <button
             type="button"
             onClick={() => toggleSelected(t.key)}
-            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${sel ? "bg-orange/[0.07] ring-1 ring-orange/40" : "hover:bg-neutral-50"}`}
+            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${sel ? "bg-orange/[0.07] ring-1 ring-orange/40" : "hover:bg-white/70"}`}
           >
             <span className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "bg-orange border-orange text-white" : "border-neutral-300"}`}>
               {sel && (
@@ -477,7 +477,7 @@ export default function TasksBoard({
         }}
         className={`ms-task group relative rounded-xl transition-all duration-200 ${dragKey === t.key ? "opacity-40" : ""} ${
           dropHint?.beforeKey === t.key ? "ms-drop-before" : ""
-        } ${t.priority === "urgent" && !done ? "bg-red-50/40" : "hover:bg-neutral-50"}`}
+        } ${t.priority === "urgent" && !done ? "bg-rose-500/[0.06]" : "hover:bg-white/70"}`}
       >
         <div className="flex items-start gap-3 px-2.5 py-2">
           {/* check */}
@@ -524,12 +524,12 @@ export default function TasksBoard({
                 title={done ? undefined : "Click to rename"}
               >
                 {t.title}
-                {t.kind === "recurring" && <span className="ml-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-neutral-100 text-neutral-500">↻</span>}
+                {t.kind === "recurring" && <span className="ms-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-charcoal/8 text-charcoal-60">↻</span>}
               </button>
             )}
             {/* meta line */}
             <div className="mt-0.5 flex items-center gap-2 flex-wrap text-[11px] text-neutral-400">
-              <span className="inline-flex items-center gap-1.5 font-medium text-neutral-500">
+              <span className="inline-flex items-center gap-1.5 font-medium text-charcoal-60">
                 {t.sourceKind === "notion" ? (
                   <span className="w-3 h-3 rounded-[3px] bg-neutral-900 text-white text-[8px] font-bold leading-3 text-center">N</span>
                 ) : (
@@ -561,7 +561,7 @@ export default function TasksBoard({
                   const v = e.target.value.trim();
                   if (v !== (t.note || "")) mutate(t.key, { note: v });
                 }}
-                className="mt-1.5 w-full bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
+                className="lq-input mt-1.5 w-full !rounded-lg !px-2.5 !py-1.5 !text-xs"
               />
             )}
           </div>
@@ -601,13 +601,13 @@ export default function TasksBoard({
                   setPopover(popover?.key === t.key && popover.kind === "due" ? null : { key: t.key, kind: "due" });
                 }}
                 className={`text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors ${
-                  overdue ? "text-red-600 bg-red-50" : t.due === today ? "text-orange-deep bg-orange/10" : t.due ? "text-neutral-500 hover:bg-neutral-100" : "text-neutral-300 hover:text-neutral-500 hover:bg-neutral-100"
+                  overdue ? "text-rose-700 bg-rose-500/10" : t.due === today ? "text-orange-deep bg-orange/10" : t.due ? "text-charcoal-60 hover:bg-charcoal/5" : "text-charcoal-40 hover:text-charcoal-60 hover:bg-charcoal/5"
                 }`}
               >
                 {t.due ? `${friendlyDue(t.due)}${t.time ? ` · ${t.time}` : ""}` : "＋ date"}
               </button>
               {popover?.key === t.key && popover.kind === "due" && (
-                <div onClick={(e) => e.stopPropagation()} className="ms-pop absolute right-0 top-full mt-1 z-30 w-52 rounded-xl border border-neutral-200 bg-white shadow-xl p-2 space-y-1.5">
+                <div onClick={(e) => e.stopPropagation()} className="lq-pop lq-chrome absolute end-0 top-full mt-1 z-30 w-52 p-2 space-y-1.5">
                   <div className="grid grid-cols-3 gap-1">
                     {[
                       { l: "Today", v: today },
@@ -655,9 +655,9 @@ export default function TasksBoard({
                 <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
               </button>
               {popover?.key === t.key && popover.kind === "prio" && (
-                <div onClick={(e) => e.stopPropagation()} className="ms-pop absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-neutral-200 bg-white shadow-xl p-1.5">
+                <div onClick={(e) => e.stopPropagation()} className="lq-pop lq-chrome absolute end-0 top-full mt-1 z-30 w-36 p-1.5">
                   {(Object.keys(PRIORITY_META) as TaskPriority[]).map((p) => (
-                    <button key={p} type="button" onClick={() => { setPopover(null); mutate(t.key, { priority: p }); }} className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-neutral-50 ${t.priority === p ? "font-bold" : "text-neutral-600"}`}>
+                    <button key={p} type="button" onClick={() => { setPopover(null); mutate(t.key, { priority: p }); }} className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-white/70 ${t.priority === p ? "font-bold" : "text-charcoal-60"}`}>
                       <span className={`w-2.5 h-2.5 rounded-full ${PRIORITY_META[p].dot}`} />
                       {PRIORITY_META[p].label}
                     </button>
@@ -901,7 +901,7 @@ export default function TasksBoard({
       {/* bulk action bar */}
       {selectMode && (
         <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50">
-          <div className="ms-toast flex items-center gap-2 bg-white border border-neutral-200 rounded-full shadow-2xl pl-4 pr-2 py-2">
+          <div className="ms-toast lq-chrome flex items-center gap-2 rounded-full ps-4 pe-2 py-2">
             <span className="text-sm font-bold tabular-nums text-neutral-900">{selectedKeys.size}</span>
             <span className="text-xs text-neutral-400 mr-1">selected</span>
             <button
