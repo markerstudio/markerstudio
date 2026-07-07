@@ -81,8 +81,15 @@ export default function ProposalBuilder({
     router.refresh();
   }
 
+  // Two-step confirm — no window.confirm (browsers can suppress it silently).
+  const [resetArmed, setResetArmed] = useState(false);
   async function resetAcceptance() {
-    if (!window.confirm("Clear the client's recorded acceptance so the proposal can be revised and re-accepted?")) return;
+    if (!resetArmed) {
+      setResetArmed(true);
+      setTimeout(() => setResetArmed(false), 4000);
+      return;
+    }
+    setResetArmed(false);
     await resetProposalAcceptance(slug);
     router.refresh();
   }
@@ -110,8 +117,8 @@ export default function ProposalBuilder({
         <div className="flex-1" />
         {errMsg && <span className="text-xs font-medium text-rose-600">{errMsg}</span>}
         {accepted && (
-          <button onClick={resetAcceptance} className="text-xs font-semibold text-charcoal-40 hover:text-rose-600">
-            Reset acceptance
+          <button onClick={resetAcceptance} className={`text-xs font-semibold ${resetArmed ? "text-white bg-rose-600 rounded-full px-2.5 py-1 animate-pulse" : "text-charcoal-40 hover:text-rose-600"}`}>
+            {resetArmed ? "Sure? Tap again" : "Reset acceptance"}
           </button>
         )}
         <a href={`/portal/${slug}/proposal`} target="_blank" className="text-sm font-semibold text-charcoal-60 hover:text-orange-deep no-underline">
