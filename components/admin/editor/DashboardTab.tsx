@@ -54,15 +54,15 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
 
   return (
     <div className="space-y-6">
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Hero</legend>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Hero</legend>
         <Bi label="Intro line" value={data.hero} onChange={(hero) => patch({ hero })} area />
         <Text label="Watermark word (optional)" value={data.accent ?? ""} onChange={(accent) => patch({ accent })} placeholder="JACK" />
       </fieldset>
 
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Dashboard</legend>
-        <p className="text-xs text-neutral-400 mb-3">The Dashboard is an auto quick-view (plan, money left, next post, top result). You set a one-line headline and a few optional health bars.</p>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Dashboard</legend>
+        <p className="text-xs text-charcoal-40 mb-3">The Dashboard is an auto quick-view (plan, money left, next post, top result). You set a one-line headline and a few optional health bars.</p>
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
         <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
         <label className={`${lbl} mt-2`}>Story cards (optional)</label>
@@ -88,15 +88,20 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
           )} />
       </fieldset>
 
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h3 className="font-bold mb-1">✨ Fill the portal from the onboarding AI</h3>
-        <p className="text-sm text-neutral-600 mb-3">Paste the AI&apos;s JSON reply — it fills the Hero and Dashboard fields above. Then Save.</p>
-        <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={applyPortalJson} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Apply portal content</button>
-          {portalMsg && <span className="text-sm text-neutral-700">{portalMsg}</span>}
+      {/* AI is the shortcut, not the front door — collapsed until wanted. */}
+      <details className="lq-card">
+        <summary className="cursor-pointer select-none px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+          <span className="font-display font-bold text-[14px] tracking-tight text-charcoal-80">✨ Fill with AI (optional)</span>
+          <span className="text-xs text-charcoal-40">Paste the onboarding AI&apos;s JSON reply to fill the fields above.</span>
+        </summary>
+        <div className="px-5 pb-5 border-t border-charcoal/5 pt-4">
+          <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={applyPortalJson} className="lq-btn lq-btn--glass lq-btn--sm">Apply portal content</button>
+            {portalMsg && <span className="text-sm text-charcoal-80">{portalMsg}</span>}
+          </div>
         </div>
-      </div>
+      </details>
 
       <SaveButton onSave={() => saveSection(slug, { hero: data.hero, accent: data.accent, dashboard: data.dashboard })} />
     </div>

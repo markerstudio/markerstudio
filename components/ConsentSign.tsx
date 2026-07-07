@@ -27,8 +27,7 @@ const UI = {
   },
 } as const;
 
-const inputCls =
-  "w-full border border-neutral-300 rounded-md px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const inputCls = "lq-input";
 
 function SubmitButton({ label, disabled }: { label: string; disabled: boolean }) {
   const { pending } = useFormStatus();
@@ -36,7 +35,7 @@ function SubmitButton({ label, disabled }: { label: string; disabled: boolean })
     <button
       type="submit"
       disabled={disabled || pending}
-      className="w-full inline-flex h-12 items-center justify-center rounded-md bg-orange px-8 text-base font-semibold text-white transition-colors hover:bg-orange-deep disabled:cursor-not-allowed disabled:opacity-50"
+      className="lq-btn lq-btn--primary w-full h-12 justify-center !text-base disabled:cursor-not-allowed disabled:opacity-50"
     >
       {pending ? "…" : label}
     </button>
@@ -78,22 +77,22 @@ function SignForm({
       <input type="hidden" name="lang" value={lang} />
 
       {state.error && (
-        <p className="rounded-md border border-red-200 bg-red-50 px-4 py-2.5 text-sm font-medium text-red-600">{state.error}</p>
+        <p className="lq-well !border-rose-300/40 px-4 py-2.5 text-sm font-medium text-rose-700">{state.error}</p>
       )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">{copy.nameLabel}</label>
+          <label className="mb-1.5 block text-sm font-medium text-ink">{copy.nameLabel}</label>
           <input name="name" value={name} onChange={(e) => setName(e.target.value)} required className={inputCls} />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-neutral-900">{copy.dateLabel}</label>
-          <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2.5 text-sm text-neutral-600">{today}</div>
+          <label className="mb-1.5 block text-sm font-medium text-ink">{copy.dateLabel}</label>
+          <div className="lq-well px-3 py-2.5 text-sm text-charcoal-60">{today}</div>
         </div>
       </div>
 
       <div>
-        <label className="mb-1.5 block text-sm font-medium text-neutral-900">{copy.contactLabel}</label>
+        <label className="mb-1.5 block text-sm font-medium text-ink">{copy.contactLabel}</label>
         <input name="contact" className={inputCls} />
       </div>
 
@@ -114,14 +113,14 @@ export default function ConsentSign({ token, defaultLang }: { token: string; def
   const ui = UI[lang];
 
   return (
-    <div dir={lang === "ar" ? "rtl" : "ltr"} className="w-full max-w-xl rounded-2xl border border-neutral-200 bg-white p-7 sm:p-9">
+    <div dir={lang === "ar" ? "rtl" : "ltr"} className="lq-card lq-rise w-full max-w-xl p-7 sm:p-9">
       <div className="mb-6 flex items-start justify-between gap-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-8 w-auto" />
         <button
           type="button"
           onClick={() => setLang(lang === "ar" ? "en" : "ar")}
-          className="rounded-full border border-neutral-200 px-3 py-1 text-xs font-semibold text-neutral-600 hover:border-neutral-400"
+          className="lq-btn lq-btn--glass lq-btn--sm !px-3 !py-1"
         >
           {ui.toggle}
         </button>
@@ -129,24 +128,24 @@ export default function ConsentSign({ token, defaultLang }: { token: string; def
 
       {signed ? (
         <div className="py-10 text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-2xl">✓</div>
-          <h1 className="text-2xl font-bold">{ui.thanksTitle}</h1>
-          <p className="mt-1 text-sm text-neutral-500">{ui.thanksBody}</p>
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-700 text-2xl">✓</div>
+          <h1 className="font-display font-extrabold text-2xl tracking-tight text-ink">{ui.thanksTitle}</h1>
+          <p className="mt-1 text-sm text-charcoal-60">{ui.thanksBody}</p>
           <button
             type="button"
             onClick={() => {
               setSigned(false);
               setRound((r) => r + 1);
             }}
-            className="mt-8 rounded-md border border-neutral-300 px-5 py-2.5 text-sm font-semibold text-neutral-700 hover:border-neutral-500"
+            className="lq-btn lq-btn--glass mt-8"
           >
             {ui.signAnother}
           </button>
         </div>
       ) : (
         <>
-          <h1 className="text-2xl font-bold leading-snug">{copy.title}</h1>
-          <div className="mt-4 space-y-3 text-sm leading-relaxed text-neutral-600">
+          <h1 className="font-display font-extrabold text-2xl tracking-tight text-ink leading-snug">{copy.title}</h1>
+          <div className="mt-4 space-y-3 text-sm leading-relaxed text-charcoal-60">
             {copy.paras.map((p, i) => (
               <p key={i}>{p}</p>
             ))}
@@ -155,7 +154,7 @@ export default function ConsentSign({ token, defaultLang }: { token: string; def
         </>
       )}
 
-      <p className="mt-8 border-t border-neutral-100 pt-4 text-center text-[11px] text-neutral-400" dir="ltr">
+      <p className="mt-8 border-t border-charcoal/5 pt-4 text-center text-[11px] text-charcoal-40" dir="ltr">
         {CONSENT_FOOTER}
       </p>
     </div>

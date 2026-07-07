@@ -27,13 +27,25 @@ export default function PhotographerStatusButton<T extends string>({
   const [optimistic, setOptimistic] = useOptimistic(status);
   const [pending, startTransition] = useTransition();
   const next = order[(order.indexOf(optimistic) + 1) % order.length];
+  // Map the legacy badge palette onto Marker Glass chip tones so both shoot
+  // and shot statuses render as lq-chips without changing the callers' API.
+  const badge = badges[optimistic] || "";
+  const tone = badge.includes("emerald")
+    ? "lq-chip--green"
+    : badge.includes("amber") || badge.includes("orange")
+    ? "lq-chip--orange"
+    : badge.includes("sky") || badge.includes("blue")
+    ? "lq-chip--blue"
+    : badge.includes("red") || badge.includes("rose")
+    ? "lq-chip--red"
+    : "";
 
   return (
     <button
       type="button"
       disabled={pending}
       title="Tap to advance status"
-      className={`text-[11px] font-semibold rounded-full border px-2.5 py-0.5 transition-opacity ${badges[optimistic]} ${pending ? "opacity-60" : ""}`}
+      className={`lq-chip lq-press !text-[11px] transition-opacity ${tone} ${pending ? "opacity-60" : ""}`}
       onClick={() =>
         startTransition(async () => {
           setOptimistic(next);

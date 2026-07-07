@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const field = "lq-input !w-auto text-sm";
 
 /* Client picker for tab-level forms: a dropdown of existing portals with a
    "+ New client" escape hatch that swaps in a free-text name input. The
@@ -59,13 +59,11 @@ export default function ClientSelectOrType({
         )}
       </div>
       {bal && bal.open > 0 ? (
-        <p className="text-xs font-medium text-orange-deep bg-orange-50 border border-orange-100 rounded-md px-3 py-1.5 inline-block">
+        <p className="lq-chip lq-chip--orange !text-[11px]">
           Already owes <b className="tabular-nums">{fmt(bal.open)}</b> across {bal.count} open invoice{bal.count === 1 ? "" : "s"}.
         </p>
       ) : slug && slug !== "__new" ? (
-        <p className="text-xs font-medium text-green-700 bg-green-50 border border-green-100 rounded-md px-3 py-1.5 inline-block">
-          Nothing outstanding — all invoices paid.
-        </p>
+        <p className="lq-chip lq-chip--green !text-[11px]">Nothing outstanding — all invoices paid.</p>
       ) : null}
     </div>
   );

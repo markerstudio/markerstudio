@@ -2,15 +2,14 @@ import Link from "next/link";
 import { saveProject } from "@/app/admin/actions";
 import type { Project } from "@/lib/projects";
 
-const inputCls =
-  "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const inputCls = "lq-input";
 
 function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <div className="mb-5">
-      <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">{label}</label>
+      <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">{label}</label>
       {children}
-      {hint && <p className="text-xs text-neutral-400 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-charcoal-40 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -29,7 +28,7 @@ function Bilingual({
 }) {
   const one = (field: string, value: string | undefined, d: "ltr" | "rtl", label: string) => (
     <div>
-      <span className="block text-[10px] font-bold text-neutral-400 mb-1">{label}</span>
+      <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">{label}</span>
       {textarea ? (
         <textarea name={field} defaultValue={value} dir={d} rows={3} className={inputCls} />
       ) : (
@@ -48,15 +47,21 @@ function Bilingual({
 export default function ProjectForm({ project }: { project?: Project }) {
   const p = project;
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">{p ? `Edit · ${p.name.en}` : "New project"}</h1>
-        <Link href="/admin/projects" className="text-sm text-neutral-500 hover:text-neutral-900">← Back</Link>
-      </div>
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3 lq-rise">
+        <div>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Projects</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">
+            {p ? `Edit · ${p.name.en}` : "New project"}
+          </h1>
+        </div>
+        <Link href="/admin/projects" className="lq-btn lq-btn--glass lq-btn--sm no-underline">← Back to projects</Link>
+      </header>
 
-      <form action={saveProject} className="bg-white border border-neutral-200 rounded-xl p-6">
+      <form action={saveProject} className="lq-card lq-rise p-5" style={{ animationDelay: "80ms" }}>
         {p && <input type="hidden" name="originalSlug" value={p.slug} />}
 
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-4">Basics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <Row label="Slug" hint="URL-safe, e.g. canaan-hotel">
             <input name="slug" defaultValue={p?.slug} required pattern="[a-z0-9-]+" className={inputCls} />
@@ -72,8 +77,9 @@ export default function ProjectForm({ project }: { project?: Project }) {
           </Row>
         </div>
 
-        <hr className="my-4 border-neutral-100" />
+        <hr className="my-4 border-charcoal/5" />
 
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-4">The story</h2>
         <Row label="Name"><Bilingual name="name" en={p?.name.en} ar={p?.name.ar} /></Row>
         <Row label="Tag" hint="e.g. Identity · Hospitality"><Bilingual name="tag" en={p?.tag.en} ar={p?.tag.ar} /></Row>
         <Row label="Services" hint="Comma-separated"><Bilingual name="services" en={p?.services.en.join(", ")} ar={p?.services.ar.join(", ")} /></Row>
@@ -87,10 +93,10 @@ export default function ProjectForm({ project }: { project?: Project }) {
         </Row>
 
         <div className="flex items-center gap-3 pt-2">
-          <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">
+          <button className="lq-btn lq-btn--primary">
             {p ? "Save changes" : "Create project"}
           </button>
-          <Link href="/admin/projects" className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</Link>
+          <Link href="/admin/projects" className="text-sm font-medium text-charcoal-60 hover:text-ink no-underline">Cancel</Link>
         </div>
       </form>
     </div>

@@ -110,24 +110,24 @@ export default function PlaybookWizard({
   );
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 sm:p-8" role="dialog" aria-modal>
-      <div className="absolute inset-0 bg-charcoal/40 backdrop-blur-[2px]" onClick={onClose} />
-      <div className="ms-pop relative w-full max-w-2xl max-h-[88vh] flex flex-col rounded-2xl bg-white shadow-2xl border border-neutral-200 overflow-hidden">
+    <>
+      <div className="lq-scrim" onClick={onClose} aria-hidden />
+      <div role="dialog" aria-modal="true" className="lq-modal lq-chrome !w-[min(94vw,672px)] !max-h-[88dvh] !p-0 flex flex-col !overflow-hidden">
         {/* header */}
-        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-neutral-100">
+        <div className="flex items-center gap-3 px-5 py-3.5 border-b border-charcoal/10 shrink-0">
           <div className="flex items-center gap-1.5 text-[11px] font-bold">
             {[1, 2, 3].map((n) => (
-              <span key={n} className={`w-5 h-5 rounded-full flex items-center justify-center ${step === n ? "bg-orange text-white" : step > n ? "bg-orange/15 text-orange-deep" : "bg-neutral-100 text-neutral-400"}`}>
+              <span key={n} className={`w-5 h-5 rounded-full flex items-center justify-center ${step === n ? "bg-orange text-white" : step > n ? "bg-orange/15 text-orange-deep" : "bg-charcoal/5 text-charcoal-40"}`}>
                 {step > n ? "✓" : n}
               </span>
             ))}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-bold tracking-tight truncate">
+            <div className="text-sm font-display font-bold tracking-tight text-ink truncate">
               {step === 1 && "Which project is this for?"}
               {step === 2 && (
                 <>
-                  <button type="button" onClick={() => setProject(null)} className="inline-flex items-center gap-1.5 mr-2 text-neutral-500 hover:text-orange align-middle">
+                  <button type="button" onClick={() => setProject(null)} className="lq-press inline-flex items-center gap-1.5 me-2 text-charcoal-60 hover:text-orange-deep align-middle">
                     {project && dot(project)}
                     <span className="text-xs font-semibold">{project?.name}</span>
                   </button>
@@ -136,7 +136,7 @@ export default function PlaybookWizard({
               )}
               {step === 3 && (
                 <>
-                  <button type="button" onClick={() => setPlaybook(null)} className="text-neutral-500 hover:text-orange text-xs font-semibold mr-2 align-middle">
+                  <button type="button" onClick={() => setPlaybook(null)} className="lq-press text-charcoal-60 hover:text-orange-deep text-xs font-semibold me-2 align-middle">
                     {playbook === "checkpoint" ? "🧠 Checkpoint" : `${(playbook as Playbook)?.icon} ${(playbook as Playbook)?.name}`} ‹
                   </button>
                   for {project?.name}
@@ -144,7 +144,7 @@ export default function PlaybookWizard({
               )}
             </div>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100">✕</button>
+          <button type="button" onClick={onClose} aria-label="Close" className="lq-press w-7 h-7 rounded-full text-charcoal-40 hover:text-ink hover:bg-charcoal/5">✕</button>
         </div>
 
         {/* body */}
@@ -156,11 +156,11 @@ export default function PlaybookWizard({
                   key={p.key}
                   type="button"
                   onClick={() => setProject(p)}
-                  className="flex items-center gap-3 rounded-xl border border-neutral-200 px-4 py-3 text-left hover:border-orange hover:shadow-sm transition-all"
+                  className="lq-press flex items-center gap-3 rounded-2xl bg-white/60 border border-charcoal/10 shadow-[inset_0_1px_0_rgba(255,255,255,.8)] px-4 py-3 text-start hover:bg-white hover:border-orange/50 transition-all"
                 >
                   {dot(p)}
-                  <span className="text-sm font-semibold text-neutral-800 truncate">{p.name}</span>
-                  {p.kind === "studio" && <span className="ml-auto text-[10px] font-semibold uppercase tracking-wide text-neutral-400">internal</span>}
+                  <span className="text-sm font-semibold text-charcoal-80 truncate">{p.name}</span>
+                  {p.kind === "studio" && <span className="ms-auto text-[10px] font-semibold uppercase tracking-wide text-charcoal-40">internal</span>}
                 </button>
               ))}
             </div>
@@ -173,22 +173,22 @@ export default function PlaybookWizard({
                   key={pb.key}
                   type="button"
                   onClick={() => pickPlaybook(pb)}
-                  className="group rounded-xl border border-neutral-200 px-4 py-3.5 text-left hover:border-orange hover:shadow-md transition-all"
+                  className="lq-press group rounded-2xl bg-white/60 border border-charcoal/10 shadow-[inset_0_1px_0_rgba(255,255,255,.8)] px-4 py-3.5 text-start hover:bg-white hover:border-orange/50 transition-all"
                 >
                   <div className="text-xl">{pb.icon}</div>
-                  <div className="mt-1 text-sm font-bold tracking-tight text-neutral-900 group-hover:text-orange-deep">{pb.name}</div>
-                  <div className="mt-0.5 text-xs text-neutral-500 leading-snug">{pb.tagline}</div>
-                  <div className="mt-1.5 text-[10px] font-semibold text-neutral-300">{pb.items.length} tasks</div>
+                  <div className="mt-1 text-sm font-display font-bold tracking-tight text-ink group-hover:text-orange-deep">{pb.name}</div>
+                  <div className="mt-0.5 text-xs text-charcoal-60 leading-snug">{pb.tagline}</div>
+                  <div className="mt-1.5 text-[10px] font-semibold text-charcoal-40">{pb.items.length} tasks</div>
                 </button>
               ))}
               <button
                 type="button"
                 onClick={() => pickPlaybook("checkpoint")}
-                className="group sm:col-span-2 rounded-xl border border-dashed border-neutral-300 px-4 py-3.5 text-left hover:border-orange transition-all"
+                className="lq-press group sm:col-span-2 rounded-2xl border border-dashed border-charcoal/20 bg-white/40 px-4 py-3.5 text-start hover:bg-white hover:border-orange/50 transition-all"
               >
                 <div className="text-xl">🧠</div>
-                <div className="mt-1 text-sm font-bold tracking-tight text-neutral-900 group-hover:text-orange-deep">Checkpoint — ask yourself</div>
-                <div className="mt-0.5 text-xs text-neutral-500">Brain-dump what this project needs, one line each — dates and priorities are picked up automatically, then it’s sorted for you.</div>
+                <div className="mt-1 text-sm font-display font-bold tracking-tight text-ink group-hover:text-orange-deep">Checkpoint — ask yourself</div>
+                <div className="mt-0.5 text-xs text-charcoal-60">Brain-dump what this project needs, one line each — dates and priorities are picked up automatically, then it’s sorted for you.</div>
               </button>
             </div>
           )}
@@ -197,7 +197,7 @@ export default function PlaybookWizard({
             <div className="space-y-3">
               <div className="flex flex-wrap gap-1.5">
                 {CHECKPOINT_PROMPTS.map((q) => (
-                  <span key={q} className="text-[11px] text-neutral-500 bg-neutral-50 border border-neutral-100 rounded-full px-2.5 py-1">{q}</span>
+                  <span key={q} className="lq-chip !text-[11px]">{q}</span>
                 ))}
               </div>
               <textarea
@@ -206,16 +206,16 @@ export default function PlaybookWizard({
                 onChange={(e) => setDump(e.target.value)}
                 rows={8}
                 placeholder={"One task per line — try:\nsend revised brandbook tomorrow !high\nfollow up on the unpaid invoice friday\nplan the ramadan campaign in 2 weeks"}
-                className="w-full rounded-xl border border-neutral-200 px-3.5 py-3 text-sm leading-relaxed focus:outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
+                className="lq-input w-full text-sm leading-relaxed"
               />
               {built.length > 0 && (
                 <ul className="space-y-1">
                   {built.map((t, i) => (
-                    <li key={i} className="ms-task flex items-center gap-2 text-xs text-neutral-600">
+                    <li key={i} className="ms-task flex items-center gap-2 text-xs text-charcoal-60">
                       <span className="w-1.5 h-1.5 rounded-full bg-orange shrink-0" />
                       <span className="flex-1 truncate">{t.title}</span>
                       {t.priority && t.priority !== "normal" && <span className={`w-2 h-2 rounded-full ${PRIORITY_META[t.priority].dot}`} />}
-                      {t.due && <span className="text-neutral-400 font-semibold">{friendlyDue(t.due)}</span>}
+                      {t.due && <span className="text-charcoal-40 font-semibold">{friendlyDue(t.due)}</span>}
                     </li>
                   ))}
                 </ul>
@@ -227,28 +227,28 @@ export default function PlaybookWizard({
             <div className="space-y-4">
               {/* scheduling */}
               <div className="flex items-center gap-2 flex-wrap text-sm">
-                <div className="inline-flex rounded-full border border-neutral-200 p-0.5 text-xs font-semibold">
-                  <button type="button" onClick={() => setMode("smart")} className={`rounded-full px-3 py-1 ${mode === "smart" ? "bg-charcoal text-white" : "text-neutral-500"}`}>
+                <div className="lq-seg text-xs font-semibold">
+                  <button type="button" onClick={() => setMode("smart")} className={`lq-seg__opt ${mode === "smart" ? "is-on" : ""}`}>
                     ✦ Sort it for me
                   </button>
-                  <button type="button" onClick={() => setMode("delivery")} className={`rounded-full px-3 py-1 ${mode === "delivery" ? "bg-charcoal text-white" : "text-neutral-500"}`}>
+                  <button type="button" onClick={() => setMode("delivery")} className={`lq-seg__opt ${mode === "delivery" ? "is-on" : ""}`}>
                     I have a delivery date
                   </button>
                 </div>
-                <label className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+                <label className="inline-flex items-center gap-1.5 text-xs text-charcoal-60">
                   starts
-                  <input type="date" value={start} onChange={(e) => e.target.value && setStart(e.target.value)} className="border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-orange" />
+                  <input type="date" value={start} onChange={(e) => e.target.value && setStart(e.target.value)} className="lq-input !px-2 !py-1 !text-xs" />
                 </label>
                 {mode === "delivery" && (
-                  <label className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-charcoal-60">
                     deliver by
-                    <input type="date" value={delivery} min={start} onChange={(e) => setDelivery(e.target.value)} className="border border-orange/50 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-orange" />
+                    <input type="date" value={delivery} min={start} onChange={(e) => setDelivery(e.target.value)} className="lq-input !px-2 !py-1 !text-xs !border-orange/50" />
                   </label>
                 )}
                 {playbook.hasWeeks && (
-                  <label className="inline-flex items-center gap-1.5 text-xs text-neutral-500">
+                  <label className="inline-flex items-center gap-1.5 text-xs text-charcoal-60">
                     for
-                    <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className="border border-neutral-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-orange">
+                    <select value={weeks} onChange={(e) => setWeeks(Number(e.target.value))} className="lq-input !px-2 !py-1 !text-xs">
                       {[2, 4, 6, 8].map((w) => <option key={w} value={w}>{w} weeks</option>)}
                     </select>
                   </label>
@@ -256,7 +256,7 @@ export default function PlaybookWizard({
               </div>
 
               {/* checklist */}
-              <ul className="divide-y divide-neutral-50 rounded-xl border border-neutral-100">
+              <ul className="lq-well !p-0 overflow-hidden divide-y divide-charcoal/5">
                 {playbook.items.map((item) => {
                   const on = selected.has(item.id);
                   const shown = resolvedTitle(item);
@@ -275,7 +275,7 @@ export default function PlaybookWizard({
                             return set;
                           })
                         }
-                        className={`flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 text-left transition-colors ${on ? "" : "opacity-45"}`}
+                        className={`lq-press flex-1 min-w-0 flex items-center gap-3 px-3.5 py-2.5 text-start transition-colors hover:bg-white/70 ${on ? "" : "opacity-45"}`}
                       >
                         <span className={`ms-check w-[17px] h-[17px] rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${on ? "bg-orange border-orange text-white" : "border-neutral-300"}`}>
                           {on && (
@@ -283,22 +283,22 @@ export default function PlaybookWizard({
                           )}
                         </span>
                         <span className="flex-1 min-w-0">
-                          <span className="block text-sm text-neutral-800 truncate">
+                          <span className="block text-sm text-charcoal-80 truncate">
                             {shown}
-                            {item.recurring && <span className="ml-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-neutral-100 text-neutral-500 align-middle">weekly</span>}
+                            {item.recurring && <span className="lq-chip ms-1.5 !text-[9px] !px-1.5 !py-px uppercase align-middle">weekly</span>}
                           </span>
-                          {item.detail && <span className="block text-[11px] text-neutral-400 truncate">{item.detail}</span>}
+                          {item.detail && <span className="block text-[11px] text-charcoal-40 truncate">{item.detail}</span>}
                         </span>
                         {item.priority && item.priority !== "normal" && <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_META[item.priority].dot}`} title={PRIORITY_META[item.priority].label} />}
-                        <span className="text-[11px] font-semibold text-neutral-400 whitespace-nowrap tabular-nums">
+                        <span className="text-[11px] font-semibold text-charcoal-40 whitespace-nowrap tabular-nums">
                           {on && preview?.due ? friendlyDue(preview.due) : ""}
                         </span>
                       </button>
                       {item.count && on && (
-                        <span className="flex items-center gap-1 pr-3 shrink-0" title={item.count.label}>
-                          <button type="button" onClick={() => bump(-1)} disabled={n <= item.count.min} className="w-5 h-5 rounded-full border border-neutral-200 text-neutral-500 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">−</button>
-                          <span className="w-5 text-center text-xs font-bold tabular-nums">{n}</span>
-                          <button type="button" onClick={() => bump(1)} disabled={n >= item.count.max} className="w-5 h-5 rounded-full border border-neutral-200 text-neutral-500 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">＋</button>
+                        <span className="flex items-center gap-1 pe-3 shrink-0" title={item.count.label}>
+                          <button type="button" onClick={() => bump(-1)} disabled={n <= item.count.min} className="lq-press w-5 h-5 rounded-full border border-charcoal/15 text-charcoal-60 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">−</button>
+                          <span className="w-5 text-center text-xs font-bold tabular-nums text-ink">{n}</span>
+                          <button type="button" onClick={() => bump(1)} disabled={n >= item.count.max} className="lq-press w-5 h-5 rounded-full border border-charcoal/15 text-charcoal-60 text-xs leading-none hover:border-orange hover:text-orange-deep disabled:opacity-30">＋</button>
                         </span>
                       )}
                     </li>
@@ -311,27 +311,27 @@ export default function PlaybookWizard({
 
         {/* footer */}
         {step === 3 && (
-          <div className="border-t border-neutral-100 px-5 py-3 flex items-center gap-3 flex-wrap">
+          <div className="border-t border-charcoal/10 px-5 py-3 flex items-center gap-3 flex-wrap shrink-0">
             {notionConnected && (
-              <label className="inline-flex items-center gap-2 text-xs text-neutral-500 cursor-pointer">
+              <label className="inline-flex items-center gap-2 text-xs text-charcoal-60 cursor-pointer">
                 <input type="checkbox" checked={mirror} onChange={(e) => setMirror(e.target.checked)} className="custom-checkbox" />
                 Also write to Notion
               </label>
             )}
-            {error && <span className="text-xs text-red-600">{error}</span>}
+            {error && <span className="text-xs text-rose-600">{error}</span>}
             <div className="flex-1" />
-            <span className="text-xs text-neutral-400 tabular-nums">{built.length} task{built.length === 1 ? "" : "s"}</span>
+            <span className="text-xs text-charcoal-40 tabular-nums">{built.length} task{built.length === 1 ? "" : "s"}</span>
             <button
               type="button"
               onClick={submit}
               disabled={busy || built.length === 0 || (mode === "delivery" && playbook !== "checkpoint" && !delivery)}
-              className="rounded-full bg-orange text-white text-sm font-semibold px-5 py-2 hover:bg-orange-deep transition-colors disabled:opacity-40"
+              className="lq-btn lq-btn--primary disabled:opacity-40"
             >
               {busy ? "Adding…" : `Add ${built.length || ""} task${built.length === 1 ? "" : "s"}`}
             </button>
           </div>
         )}
       </div>
-    </div>
+    </>
   );
 }

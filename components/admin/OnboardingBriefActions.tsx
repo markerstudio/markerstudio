@@ -76,7 +76,7 @@ function download(filename: string, text: string, type: string) {
   URL.revokeObjectURL(url);
 }
 
-const btn = "rounded-md border border-neutral-300 bg-white px-3.5 py-2 text-sm font-medium text-neutral-700 hover:border-neutral-400 hover:text-neutral-900 transition-colors";
+const btn = "lq-btn lq-btn--glass lq-btn--sm";
 
 export default function OnboardingBriefActions({ brief }: { brief: OnboardingBrief }) {
   const [copied, setCopied] = useState<"json" | "prompt" | null>(null);
@@ -93,9 +93,9 @@ export default function OnboardingBriefActions({ brief }: { brief: OnboardingBri
   };
 
   return (
-    <div className="bg-white border border-neutral-200 rounded-xl p-6 mb-6 max-w-2xl">
-      <h2 className="font-bold mb-1">Process this brief</h2>
-      <p className="text-sm text-neutral-500 mb-4">
+    <div className="lq-card p-6 mb-6 max-w-2xl">
+      <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Process this brief</h2>
+      <p className="text-sm text-charcoal-60 mb-4">
         Download the raw input, or hand it to an AI agent: <b>Copy AI prompt</b> → run it in ChatGPT / Claude → paste the JSON it returns into the
         <b> “✨ Fill the portal from the onboarding AI”</b> box below to auto-fill the Hero &amp; Dashboard.
       </p>

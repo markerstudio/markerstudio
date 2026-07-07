@@ -6,8 +6,8 @@ import type { LocalizedText } from "@/lib/clients";
 // Shared form primitives for the tabbed client editor. Extracted from the old
 // monolithic ClientForm so every tab renders identical-looking fields.
 
-export const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
-export const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
+export const input = "lq-input";
+export const lbl = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1";
 
 export const fmtIls = (n: number) => `${Math.round(n).toLocaleString("en-US")} ILS`;
 
@@ -55,11 +55,11 @@ export function Bi({ label, value, onChange, area }: { label: string; value?: Lo
       <label className={lbl}>{label}</label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <span className="block text-[10px] font-bold text-neutral-400 mb-1">EN</span>
+          <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">EN</span>
           {area ? <textarea dir="ltr" rows={2} className={input} value={v.en} onChange={(e) => onChange({ ...v, en: e.target.value })} /> : <input dir="ltr" className={input} value={v.en} onChange={(e) => onChange({ ...v, en: e.target.value })} />}
         </div>
         <div>
-          <span className="block text-[10px] font-bold text-neutral-400 mb-1">AR</span>
+          <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">AR</span>
           {area ? <textarea dir="rtl" rows={2} className={input} value={v.ar} onChange={(e) => onChange({ ...v, ar: e.target.value })} /> : <input dir="rtl" className={input} value={v.ar} onChange={(e) => onChange({ ...v, ar: e.target.value })} />}
         </div>
       </div>
@@ -71,8 +71,8 @@ export function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T
   return (
     <div className="space-y-3">
       {items.map((it, i) => (
-        <div key={i} className="border border-neutral-200 rounded-lg p-3 relative">
-          <button type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
+        <div key={i} className="bg-white/60 border border-charcoal/5 rounded-2xl p-3 relative">
+          <button type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 text-xs font-semibold text-charcoal-40 hover:text-rose-700">Remove</button>
           {render(it, (patch) => onChange(items.map((x, idx) => (idx === i ? { ...x, ...patch } : x))))}
         </div>
       ))}
@@ -87,7 +87,7 @@ export function SaveButton({ onSave, label = "Save section" }: { onSave: () => P
   const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
   return (
-    <div className="flex items-center gap-3 sticky bottom-0 bg-neutral-100/95 backdrop-blur py-3 -mx-1 px-1">
+    <div className="flex items-center gap-3 sticky bottom-0 bg-paper/95 py-3 -mx-1 px-1">
       <button
         type="button"
         disabled={pending}
@@ -98,11 +98,11 @@ export function SaveButton({ onSave, label = "Save section" }: { onSave: () => P
             setMsg(res.ok ? { text: "Saved ✓", ok: true } : { text: res.error || "Save failed.", ok: false });
           })
         }
-        className="bg-orange text-white font-semibold rounded-md px-6 py-2.5 text-sm hover:bg-orange-deep transition-colors disabled:opacity-50"
+        className="lq-btn lq-btn--primary"
       >
         {pending ? "Saving…" : label}
       </button>
-      {msg && <span className={`text-sm ${msg.ok ? "text-green-700" : "text-red-600"}`}>{msg.text}</span>}
+      {msg && <span className={`text-sm ${msg.ok ? "text-emerald-700" : "text-rose-700"}`}>{msg.text}</span>}
     </div>
   );
 }

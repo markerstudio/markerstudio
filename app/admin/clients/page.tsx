@@ -135,17 +135,18 @@ export default async function ClientsHome({
       : "";
 
   return (
-    <div>
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Client portals</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Search or filter to find anyone — what&apos;s filled, what&apos;s empty, and one click to fix it.</p>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Portals · plans · fill status</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Client portals</h1>
+          <p className="text-sm text-charcoal-60 mt-1">Search or filter to find anyone — what&apos;s filled, what&apos;s empty, and one click to fix it.</p>
         </div>
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2 flex-wrap">
           {!dbOff && clients.length > 0 && (
             <form action={autofillPortals}>
               <button
-                className="bg-white border border-neutral-300 text-neutral-800 font-semibold rounded-md px-4 py-2 text-sm hover:border-orange hover:text-orange transition-colors"
+                className="lq-btn lq-btn--glass"
                 title="Fills empty basics (hero line, watermark, plan name from the brief, section headlines) on every portal — never overwrites filled fields"
               >
                 ✨ Auto-fill blanks
@@ -154,28 +155,28 @@ export default async function ClientsHome({
           )}
           {notYetImported.length > 0 && (
             <form action={importAllNotionClients}>
-              <button className="bg-charcoal text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-ink transition-colors">
+              <button className="lq-btn lq-btn--dark">
                 Import all from Notion ({notYetImported.length})
               </button>
             </form>
           )}
         </div>
-      </div>
+      </header>
 
       {searchParams.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-5">{ERR[searchParams.error] || "Something went wrong."}</p>
+        <p className="lq-card text-sm text-rose-700 px-4 py-3 !border-rose-300/40">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/clients" />
       {bulkMsg && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-5">Notion import finished — {bulkMsg}.</p>
+        <p className="lq-card text-sm text-emerald-800 px-4 py-3 !border-emerald-300/40">Notion import finished — {bulkMsg}.</p>
       )}
       {filledMsg && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-5">{filledMsg}</p>
+        <p className="lq-card text-sm text-emerald-800 px-4 py-3 !border-emerald-300/40">{filledMsg}</p>
       )}
-      {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-5">No database configured.</p>}
+      {dbOff && <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">No database configured.</p>}
 
       {!dbOff && clients.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
           {[
             { label: "Active", value: String(active.length), note: "with a running plan", green: active.length > 0 },
             { label: "Pending review", value: String(pending.length), note: "from onboarding", accent: pending.length > 0 },
@@ -183,41 +184,41 @@ export default async function ClientsHome({
             debt != null
               ? { label: "Clients owe us", value: fmtILS(debt), note: "live from the Budget Tracker" }
               : { label: "Clients owe us", value: savedBalances ? `${savedBalances.toLocaleString("en-US")} ₪` : "—", note: "sum of saved money-left figures (may be stale)" },
-          ].map((s) => (
-            <div key={s.label} className="adm-rise bg-white border border-neutral-200 rounded-xl px-4 py-3.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{s.label}</div>
-              <div className={`mt-1 text-2xl font-extrabold tabular-nums ${"green" in s && s.green ? "text-green-700" : "accent" in s && s.accent ? "text-orange-deep" : "text-neutral-900"}`}>
+          ].map((s, i) => (
+            <div key={s.label} className="lq-card lq-rise px-4 py-3.5 flex flex-col gap-1" style={{ animationDelay: `${40 + i * 50}ms` }}>
+              <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">{s.label}</div>
+              <div className={`font-display font-extrabold text-[24px] leading-none tracking-tight tabular-nums ${"green" in s && s.green ? "text-emerald-700" : "accent" in s && s.accent ? "text-orange-deep" : "text-ink"}`}>
                 {s.value}
               </div>
-              <div className="text-xs text-neutral-400">{s.note}</div>
+              <div className="text-[11.5px] text-charcoal-60 leading-tight">{s.note}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <form action={quickCreateClient} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <form action={quickCreateClient} className="lq-card lq-rise p-4 flex items-end gap-3 flex-wrap" style={{ animationDelay: "120ms" }}>
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">New client — just the name</label>
-            <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+            <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">New client — just the name</label>
+            <input name="name" required placeholder="e.g. Dr. Jack Sabat" className="lq-input w-full" />
           </div>
           {canSeePartner(user) && (
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Owner</label>
-              <select name="owner" defaultValue="marker" title="Ramzi's clients are walled off and never sync to Marker's Notion" className="border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
+              <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">Owner</label>
+              <select name="owner" defaultValue="marker" title="Ramzi's clients are walled off and never sync to Marker's Notion" className="lq-input">
                 <option value="marker">Marker</option>
                 <option value="ramzi">Ramzi</option>
               </select>
             </div>
           )}
-          <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create →</button>
+          <button className="lq-btn lq-btn--primary">Create →</button>
         </form>
 
-        <form action={quickCreateFromNotion} className="bg-white border border-neutral-200 rounded-xl p-4 flex items-end gap-3 flex-wrap">
+        <form action={quickCreateFromNotion} className="lq-card lq-rise p-4 flex items-end gap-3 flex-wrap" style={{ animationDelay: "170ms" }}>
           <div className="flex-1 min-w-[180px]">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Or import one from Notion</label>
+            <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">Or import one from Notion</label>
             {notionClients.length > 0 ? (
-              <select name="notionPageId" required className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
+              <select name="notionPageId" required className="lq-input w-full">
                 <option value="">Choose a client…</option>
                 {notionClients.map((c) => (
                   <option key={c.id} value={c.id}>
@@ -227,10 +228,10 @@ export default async function ClientsHome({
                 ))}
               </select>
             ) : (
-              <input name="notionPageId" required placeholder="Clients Database row URL / ID" className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange" />
+              <input name="notionPageId" required placeholder="Clients Database row URL / ID" className="lq-input w-full" />
             )}
           </div>
-          <button className="bg-neutral-800 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-neutral-900 transition-colors">Import →</button>
+          <button className="lq-btn lq-btn--dark">Import →</button>
         </form>
       </div>
 

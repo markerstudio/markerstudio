@@ -4,8 +4,7 @@ import { useState } from "react";
 import { saveProposalTimeline } from "@/app/admin/actions";
 import type { TimelinePhase } from "@/lib/clients";
 
-const field =
-  "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const field = "lq-input";
 
 // Ordered phases shown on the client's proposal as a vertical timeline.
 export default function ProposalTimelineEditor({ slug, initial }: { slug: string; initial: TimelinePhase[] }) {
@@ -27,22 +26,22 @@ export default function ProposalTimelineEditor({ slug, initial }: { slug: string
   const cleaned = rows.filter((r) => r.phase.trim() || (r.detail || "").trim());
 
   return (
-    <form action={saveProposalTimeline} className="border border-neutral-200 rounded-lg p-4 mb-4">
-      <div className="mb-1 font-semibold text-sm">Timeline</div>
-      <p className="text-xs text-neutral-400 mb-3">Ordered phases shown on the proposal as a vertical timeline. Leave empty to hide it.</p>
+    <form action={saveProposalTimeline} className="lq-card p-5 mb-4">
+      <div className="mb-1 font-display font-bold text-[15px] tracking-tight text-ink">Timeline</div>
+      <p className="text-xs text-charcoal-60 mb-3">Ordered phases shown on the proposal as a vertical timeline. Leave empty to hide it.</p>
 
       <input type="hidden" name="slug" value={slug} />
       <input type="hidden" name="timeline" value={JSON.stringify(cleaned)} />
 
       <div className="space-y-3">
         {rows.map((r, i) => (
-          <div key={i} className="rounded-lg border border-neutral-200 p-3 relative">
-            <div className="absolute top-2 right-2 flex items-center gap-1.5 text-xs">
-              <button type="button" onClick={() => move(i, -1)} className="text-neutral-300 hover:text-neutral-700" aria-label="Move up">↑</button>
-              <button type="button" onClick={() => move(i, 1)} className="text-neutral-300 hover:text-neutral-700" aria-label="Move down">↓</button>
-              <button type="button" onClick={() => removeRow(i)} className="font-medium text-neutral-400 hover:text-red-600">Remove</button>
+          <div key={i} className="lq-well p-3 relative">
+            <div className="absolute top-2 end-2 flex items-center gap-1.5 text-xs">
+              <button type="button" onClick={() => move(i, -1)} className="lq-press text-charcoal-40 hover:text-charcoal-80" aria-label="Move up">↑</button>
+              <button type="button" onClick={() => move(i, 1)} className="lq-press text-charcoal-40 hover:text-charcoal-80" aria-label="Move down">↓</button>
+              <button type="button" onClick={() => removeRow(i)} className="font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-2 pr-20">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_140px] gap-2 pe-20">
               <input className={field} placeholder="Phase — e.g. Discovery" value={r.phase} onChange={(e) => update(i, "phase", e.target.value)} />
               <input className={field} placeholder="Duration — Week 1" value={r.duration || ""} onChange={(e) => update(i, "duration", e.target.value)} />
             </div>
@@ -51,10 +50,10 @@ export default function ProposalTimelineEditor({ slug, initial }: { slug: string
         ))}
       </div>
 
-      <button type="button" onClick={addRow} className="mt-2 text-sm font-medium text-neutral-600 hover:text-orange">+ Add phase</button>
+      <button type="button" onClick={addRow} className="mt-2 text-sm font-medium text-charcoal-60 hover:text-orange-deep">+ Add phase</button>
 
       <div>
-        <button className="mt-3 bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Save timeline</button>
+        <button className="lq-btn lq-btn--primary lq-btn--sm mt-3">Save timeline</button>
       </div>
     </form>
   );

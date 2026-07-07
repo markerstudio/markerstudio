@@ -18,7 +18,7 @@ export default function FinanceTabs() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <div className="flex items-center gap-1.5 mb-5 border-b border-neutral-200 -mt-1">
+    <div className="lq-seg mb-5" role="tablist">
       {TABS.map((t) => {
         const active = isActive(t.href);
         return (
@@ -26,11 +26,7 @@ export default function FinanceTabs() {
             key={t.href}
             href={t.href}
             aria-current={active ? "page" : undefined}
-            className={`relative -mb-px rounded-t-md px-3.5 py-2 text-sm font-semibold transition-colors ${
-              active
-                ? "text-charcoal border-b-2 border-orange"
-                : "text-neutral-500 hover:text-neutral-900 border-b-2 border-transparent"
-            }`}
+            className={`lq-seg__opt no-underline whitespace-nowrap ${active ? "is-on" : ""}`}
           >
             {t.label}
           </Link>

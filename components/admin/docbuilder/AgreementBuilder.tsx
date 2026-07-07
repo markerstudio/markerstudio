@@ -95,42 +95,38 @@ export default function AgreementBuilder({
   };
 
   const statusPill = useMemo(() => {
-    if (signed) return <span className="text-xs font-bold rounded-full px-2.5 py-1 bg-green-100 text-green-800">Signed ✓</span>;
-    if (sent) return <span className="text-xs font-bold rounded-full px-2.5 py-1 bg-orange-100 text-orange-deep">Sent — awaiting signature</span>;
-    return <span className="text-xs font-bold rounded-full px-2.5 py-1 bg-neutral-100 text-neutral-600">Draft — hidden from client</span>;
+    if (signed) return <span className="lq-chip lq-chip--green !text-[11px]">Signed ✓</span>;
+    if (sent) return <span className="lq-chip lq-chip--orange !text-[11px]">Sent — awaiting signature</span>;
+    return <span className="lq-chip !text-[11px]">Draft — hidden from client</span>;
   }, [signed, sent]);
 
   return (
     <div className="-mx-4 sm:-mx-6">
-      <div className="sticky top-0 z-40 bg-white/95 backdrop-blur border-b border-neutral-200 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
-        <Link href="/admin/agreements" className="text-sm font-medium text-neutral-500 hover:text-neutral-900">← Agreements</Link>
-        <div className="font-bold tracking-tight">{clientName}</div>
+      <div className="sticky top-0 z-40 bg-white/85 backdrop-blur-md border-b border-charcoal/10 px-4 sm:px-6 py-3 flex items-center gap-3 flex-wrap">
+        <Link href="/admin/agreements" className="text-sm font-medium text-charcoal-60 hover:text-ink no-underline">← Agreements</Link>
+        <div className="font-display font-bold tracking-tight text-ink">{clientName}</div>
         {statusPill}
-        {sentAt && <span className="text-[11px] text-neutral-400">sent {new Date(sentAt).toLocaleDateString("en-GB")}</span>}
+        {sentAt && <span className="text-[11px] text-charcoal-40">sent {new Date(sentAt).toLocaleDateString("en-GB")}</span>}
         <div className="flex-1" />
-        {errMsg && <span className="text-xs font-medium text-red-600">{errMsg}</span>}
+        {errMsg && <span className="text-xs font-medium text-rose-600">{errMsg}</span>}
         {signed && (
-          <button onClick={resetSig} className="text-xs font-semibold text-neutral-400 hover:text-red-600">
+          <button onClick={resetSig} className="text-xs font-semibold text-charcoal-40 hover:text-rose-600">
             Reset signature
           </button>
         )}
-        <a href={`/portal/${slug}/agreement`} target="_blank" className="text-sm font-semibold text-neutral-600 hover:text-orange">
+        <a href={`/portal/${slug}/agreement`} target="_blank" className="text-sm font-semibold text-charcoal-60 hover:text-orange-deep no-underline">
           Client view ↗
         </a>
         <button
           onClick={save}
-          className={`text-sm font-semibold rounded-md px-4 py-2 border transition-colors ${
-            dirty ? "bg-charcoal text-white border-charcoal hover:bg-ink" : "bg-white text-neutral-500 border-neutral-200"
-          }`}
+          className={`lq-btn lq-btn--sm ${dirty ? "lq-btn--dark" : "lq-btn--glass"}`}
         >
           {saving === "saving" ? "Saving…" : saving === "saved" ? "Saved ✓" : saving === "error" ? "Retry save" : dirty ? "Save changes" : "Saved"}
         </button>
         <button
           onClick={toggleSend}
           disabled={sending}
-          className={`text-sm font-semibold rounded-md px-4 py-2 transition-colors disabled:opacity-60 ${
-            sent ? "bg-white border border-neutral-300 text-neutral-700 hover:border-neutral-500" : "bg-orange text-white hover:bg-orange-deep"
-          }`}
+          className={`lq-btn lq-btn--sm disabled:opacity-60 ${sent ? "lq-btn--glass" : "lq-btn--primary"}`}
         >
           {sending ? "…" : sent ? "Unsend" : "Send for signature →"}
         </button>

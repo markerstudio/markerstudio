@@ -437,7 +437,7 @@ export default function TasksBoard({
           <button
             type="button"
             onClick={() => toggleSelected(t.key)}
-            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${sel ? "bg-orange/[0.07] ring-1 ring-orange/40" : "hover:bg-neutral-50"}`}
+            className={`w-full flex items-center gap-3 px-2.5 py-2 rounded-xl text-left transition-colors ${sel ? "bg-orange/[0.07] ring-1 ring-orange/40" : "hover:bg-white/70"}`}
           >
             <span className={`w-[18px] h-[18px] rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${sel ? "bg-orange border-orange text-white" : "border-neutral-300"}`}>
               {sel && (
@@ -477,7 +477,7 @@ export default function TasksBoard({
         }}
         className={`ms-task group relative rounded-xl transition-all duration-200 ${dragKey === t.key ? "opacity-40" : ""} ${
           dropHint?.beforeKey === t.key ? "ms-drop-before" : ""
-        } ${t.priority === "urgent" && !done ? "bg-red-50/40" : "hover:bg-neutral-50"}`}
+        } ${t.priority === "urgent" && !done ? "bg-rose-500/[0.06]" : "hover:bg-white/70"}`}
       >
         <div className="flex items-start gap-3 px-2.5 py-2">
           {/* check */}
@@ -524,12 +524,12 @@ export default function TasksBoard({
                 title={done ? undefined : "Click to rename"}
               >
                 {t.title}
-                {t.kind === "recurring" && <span className="ml-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-neutral-100 text-neutral-500">↻</span>}
+                {t.kind === "recurring" && <span className="ms-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-charcoal/10 text-charcoal-60">↻</span>}
               </button>
             )}
             {/* meta line */}
             <div className="mt-0.5 flex items-center gap-2 flex-wrap text-[11px] text-neutral-400">
-              <span className="inline-flex items-center gap-1.5 font-medium text-neutral-500">
+              <span className="inline-flex items-center gap-1.5 font-medium text-charcoal-60">
                 {t.sourceKind === "notion" ? (
                   <span className="w-3 h-3 rounded-[3px] bg-neutral-900 text-white text-[8px] font-bold leading-3 text-center">N</span>
                 ) : (
@@ -561,7 +561,7 @@ export default function TasksBoard({
                   const v = e.target.value.trim();
                   if (v !== (t.note || "")) mutate(t.key, { note: v });
                 }}
-                className="mt-1.5 w-full bg-white border border-neutral-200 rounded-lg px-2.5 py-1.5 text-xs text-neutral-700 focus:outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
+                className="lq-input mt-1.5 w-full !rounded-lg !px-2.5 !py-1.5 !text-xs"
               />
             )}
           </div>
@@ -601,13 +601,13 @@ export default function TasksBoard({
                   setPopover(popover?.key === t.key && popover.kind === "due" ? null : { key: t.key, kind: "due" });
                 }}
                 className={`text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors ${
-                  overdue ? "text-red-600 bg-red-50" : t.due === today ? "text-orange-deep bg-orange/10" : t.due ? "text-neutral-500 hover:bg-neutral-100" : "text-neutral-300 hover:text-neutral-500 hover:bg-neutral-100"
+                  overdue ? "text-rose-700 bg-rose-500/10" : t.due === today ? "text-orange-deep bg-orange/10" : t.due ? "text-charcoal-60 hover:bg-charcoal/5" : "text-charcoal-40 hover:text-charcoal-60 hover:bg-charcoal/5"
                 }`}
               >
                 {t.due ? `${friendlyDue(t.due)}${t.time ? ` · ${t.time}` : ""}` : "＋ date"}
               </button>
               {popover?.key === t.key && popover.kind === "due" && (
-                <div onClick={(e) => e.stopPropagation()} className="ms-pop absolute right-0 top-full mt-1 z-30 w-52 rounded-xl border border-neutral-200 bg-white shadow-xl p-2 space-y-1.5">
+                <div onClick={(e) => e.stopPropagation()} className="lq-pop lq-chrome absolute end-0 top-full mt-1 z-30 w-52 p-2 space-y-1.5">
                   <div className="grid grid-cols-3 gap-1">
                     {[
                       { l: "Today", v: today },
@@ -655,9 +655,9 @@ export default function TasksBoard({
                 <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
               </button>
               {popover?.key === t.key && popover.kind === "prio" && (
-                <div onClick={(e) => e.stopPropagation()} className="ms-pop absolute right-0 top-full mt-1 z-30 w-36 rounded-xl border border-neutral-200 bg-white shadow-xl p-1.5">
+                <div onClick={(e) => e.stopPropagation()} className="lq-pop lq-chrome absolute end-0 top-full mt-1 z-30 w-36 p-1.5">
                   {(Object.keys(PRIORITY_META) as TaskPriority[]).map((p) => (
-                    <button key={p} type="button" onClick={() => { setPopover(null); mutate(t.key, { priority: p }); }} className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-neutral-50 ${t.priority === p ? "font-bold" : "text-neutral-600"}`}>
+                    <button key={p} type="button" onClick={() => { setPopover(null); mutate(t.key, { priority: p }); }} className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-left hover:bg-white/70 ${t.priority === p ? "font-bold" : "text-charcoal-60"}`}>
                       <span className={`w-2.5 h-2.5 rounded-full ${PRIORITY_META[p].dot}`} />
                       {PRIORITY_META[p].label}
                     </button>
@@ -695,23 +695,20 @@ export default function TasksBoard({
     <div className="space-y-5" onClick={() => popover && setPopover(null)}>
       {/* header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">
-            Everything you owe — across clients, the studio{notionConnected ? " and Notion" : ""}. Type naturally: dates, times, <span className="font-mono text-[12px]">!priority</span> and <span className="font-mono text-[12px]">@client</span> are picked up as you write.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+        <p className="text-sm text-charcoal-60 max-w-xl">
+          Everything you owe — across clients, the studio{notionConnected ? " and Notion" : ""}. Type naturally: dates, times, <span className="font-mono text-[12px]">!priority</span> and <span className="font-mono text-[12px]">@client</span> are picked up as you write.
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={() => setWizardOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-charcoal text-white text-sm font-semibold pl-3.5 pr-4 py-2 hover:bg-black transition-colors shadow-sm"
+            className="lq-btn lq-btn--dark lq-btn--sm"
             title="Add a whole playbook of tasks — onboarding, branding, monthly marketing…"
           >
             <span className="text-orange">✦</span> Playbook
           </button>
           {/* week progress ring */}
-          <div className="flex items-center gap-2.5 bg-white border border-neutral-200 rounded-full pl-1.5 pr-4 py-1.5">
+          <div className="flex items-center gap-2.5 bg-white/70 border border-charcoal/10 rounded-full ps-1.5 pe-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_2px_8px_rgba(48,48,48,.06)]">
             <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
               <circle cx="18" cy="18" r="15" fill="none" stroke="#EEE9E2" strokeWidth="4" />
               <circle
@@ -721,17 +718,17 @@ export default function TasksBoard({
               />
             </svg>
             <div className="leading-tight">
-              <div className="text-sm font-extrabold tabular-nums">{weekPct}%</div>
-              <div className="text-[10px] text-neutral-400 -mt-0.5">this week</div>
+              <div className="text-sm font-display font-extrabold tabular-nums text-ink">{weekPct}%</div>
+              <div className="text-[10px] text-charcoal-40 -mt-0.5">this week</div>
             </div>
           </div>
           {notionConnected ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-white border border-neutral-200 rounded-full px-3 py-1.5" title="Two-way sync with the Notion Tasks database">
-              <span className="w-3.5 h-3.5 rounded-[4px] bg-neutral-900 text-white text-[9px] font-bold leading-[14px] text-center">N</span>
+            <span className="lq-chip" title="Two-way sync with the Notion Tasks database">
+              <span className="w-3.5 h-3.5 rounded-[4px] bg-charcoal text-white text-[9px] font-bold leading-[14px] text-center">N</span>
               Synced with Notion
             </span>
           ) : notionHint ? (
-            <span className="text-[11px] text-neutral-400 max-w-[220px]" title={notionHint}>⚠ {notionHint}</span>
+            <span className="text-[11px] text-charcoal-40 max-w-[220px]" title={notionHint}>⚠ {notionHint}</span>
           ) : null}
         </div>
       </div>
@@ -747,17 +744,17 @@ export default function TasksBoard({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setQuery("")}
             placeholder="Search tasks…"
-            className="w-52 border border-neutral-200 bg-white rounded-full pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
+            className="lq-input w-52 !rounded-full !ps-8 !pe-3 !py-1.5 !text-sm"
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300 text-xs">⌕</span>
+          <span className="absolute start-3 top-1/2 -translate-y-1/2 text-charcoal-40 text-xs pointer-events-none">⌕</span>
         </div>
-        <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className="border border-neutral-200 bg-white rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-orange">
+        <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className="lq-input !w-auto !rounded-full !px-3 !py-1.5 !text-sm">
           <option value="all">All lists</option>
           {listOptions.map(([k, v]) => (
             <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
-        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as TaskPriority | "all")} className="border border-neutral-200 bg-white rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-orange">
+        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as TaskPriority | "all")} className="lq-input !w-auto !rounded-full !px-3 !py-1.5 !text-sm">
           <option value="all">Any priority</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
@@ -770,21 +767,19 @@ export default function TasksBoard({
             setSelectMode((m) => !m);
             setSelectedKeys(new Set());
           }}
-          className={`text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors ${
-            selectMode ? "bg-charcoal text-white border-charcoal" : "border-neutral-200 text-neutral-500 hover:border-neutral-300 bg-white"
-          }`}
+          className={`lq-btn lq-btn--sm ${selectMode ? "lq-btn--dark" : "lq-btn--glass"}`}
           title="Select several tasks to delete or complete together"
         >
           {selectMode ? "Done selecting" : "Select"}
         </button>
         <div className="flex-1" />
-        <span className="text-xs text-neutral-400">
-          {overdueCount > 0 && <b className="text-red-600">{overdueCount} overdue · </b>}
+        <span className="text-xs text-charcoal-40">
+          {overdueCount > 0 && <b className="text-rose-600">{overdueCount} overdue · </b>}
           {todayCount > 0 && <b className="text-orange-deep">{todayCount} today · </b>}
           {open.length} open
         </span>
         {tasks.some((t) => t.status === "done" && t.sourceKind !== "notion") && (
-          <button type="button" onClick={sweepDone} className="text-xs font-semibold text-neutral-400 hover:text-red-600">
+          <button type="button" onClick={sweepDone} className="text-xs font-semibold text-charcoal-40 hover:text-rose-600 transition-colors">
             Clear done
           </button>
         )}
@@ -792,20 +787,20 @@ export default function TasksBoard({
 
       {/* client requests */}
       {pendingRequests.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <h2 className="font-bold tracking-tight text-amber-800 text-sm mb-2">
+        <div className="lq-card lq-rise p-4 !border-amber-300/40">
+          <h2 className="font-display font-bold tracking-tight text-amber-800 text-sm mb-2">
             Client requests <span className="font-medium text-amber-600">· {pendingRequests.length} waiting</span>
           </h2>
-          <ul className="divide-y divide-amber-200/60">
+          <ul className="divide-y divide-amber-200/40">
             {pendingRequests.map((t) => (
               <li key={t.key} className="py-2 flex items-center gap-3 flex-wrap">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-neutral-900 truncate">{t.title}</div>
-                  <div className="text-[11px] text-neutral-500">{t.listName}{t.due ? ` · wants it by ${friendlyDue(t.due)}` : ""}{t.detail ? ` · ${t.detail}` : ""}</div>
+                  <div className="text-sm font-semibold text-ink truncate">{t.title}</div>
+                  <div className="text-[11px] text-charcoal-60">{t.listName}{t.due ? ` · wants it by ${friendlyDue(t.due)}` : ""}{t.detail ? ` · ${t.detail}` : ""}</div>
                 </div>
-                <button type="button" onClick={() => decideRequest(t.key, true)} className="text-xs font-semibold rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 px-3 py-1 hover:bg-emerald-100">Approve</button>
-                <button type="button" onClick={() => decideRequest(t.key, false)} className="text-xs font-semibold rounded-full border border-neutral-300 text-neutral-500 px-3 py-1 hover:border-red-300 hover:text-red-600">Reject</button>
+                <button type="button" onClick={() => decideRequest(t.key, true)} className="lq-press text-xs font-display font-semibold rounded-full border border-emerald-300/60 text-emerald-700 bg-emerald-500/10 px-3 py-1 hover:bg-emerald-500/20">Approve</button>
+                <button type="button" onClick={() => decideRequest(t.key, false)} className="lq-press text-xs font-display font-semibold rounded-full border border-charcoal/10 text-charcoal-60 bg-white/60 px-3 py-1 hover:border-rose-300 hover:text-rose-600">Reject</button>
               </li>
             ))}
           </ul>
@@ -814,11 +809,11 @@ export default function TasksBoard({
 
       {/* groups */}
       {visible.length === 0 && pendingRequests.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-14 text-center">
+        <div className="lq-card lq-rise px-6 py-14 text-center">
           <div className="text-3xl mb-2">☀️</div>
-          <p className="text-sm font-semibold text-neutral-700">All clear.</p>
-          <p className="text-xs text-neutral-400 mt-1">Add a task above — try “Post reel for @vivid tomorrow at 5pm !high”.</p>
-          <button type="button" onClick={() => setWizardOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-orange hover:text-orange-deep transition-colors">
+          <p className="text-sm font-display font-semibold text-charcoal-80">All clear.</p>
+          <p className="text-xs text-charcoal-40 mt-1">Add a task above — try “Post reel for @vivid tomorrow at 5pm !high”.</p>
+          <button type="button" onClick={() => setWizardOpen(true)} className="lq-btn lq-btn--glass lq-btn--sm mt-4">
             <span className="text-orange">✦</span> Start from a playbook
           </button>
         </div>
@@ -839,13 +834,19 @@ export default function TasksBoard({
                 e.preventDefault();
                 onDrop(g, dropHint?.group === g ? dropHint.beforeKey : null);
               }}
-              className={`bg-white border rounded-2xl px-3 py-2.5 transition-colors ${dropHint?.group === g && dragKey ? "border-orange bg-orange/[0.03]" : "border-neutral-200"}`}
+              className={`lq-card lq-rise px-3 py-2.5 transition-shadow ${dropHint?.group === g && dragKey ? "ring-2 ring-orange/50 !border-orange/50" : ""}`}
             >
-              <div className="w-full flex items-center gap-2 px-1.5 py-1 select-none">
+              <div className={`w-full flex items-center gap-2 px-1.5 py-1 select-none rounded-2xl ${g === "today" ? "bg-orange/[0.06] -mx-0.5 px-2" : ""}`}>
                 <button type="button" onClick={() => toggleGroup(g)} className="flex items-center gap-2">
-                  <span className={`text-[13px] font-bold tracking-tight ${tone || "text-neutral-800"}`}>{label}</span>
-                  <span className="text-[11px] font-semibold text-neutral-300 tabular-nums">{items.length}</span>
-                  {g === "done" && items.length > 0 && <span className="text-[10px] text-neutral-300">· kept 2 weeks</span>}
+                  <span className={`text-[13px] font-display font-bold tracking-tight ${tone || "text-ink"}`}>{label}</span>
+                  <span
+                    className={`lq-chip !px-2 !py-0.5 !text-[10px] tabular-nums ${
+                      g === "overdue" ? "lq-chip--red" : g === "today" ? "lq-chip--orange" : g === "done" ? "lq-chip--green" : ""
+                    }`}
+                  >
+                    {items.length}
+                  </span>
+                  {g === "done" && items.length > 0 && <span className="text-[10px] text-charcoal-40">· kept 2 weeks</span>}
                 </button>
                 {selectMode && items.length > 0 && (
                   <button
@@ -858,17 +859,24 @@ export default function TasksBoard({
                         return n;
                       })
                     }
-                    className="text-[10px] font-semibold text-neutral-400 hover:text-orange border border-neutral-200 rounded-full px-2 py-0.5"
+                    className="lq-press text-[10px] font-display font-semibold text-charcoal-60 hover:text-orange-deep border border-charcoal/10 bg-white/60 rounded-full px-2 py-0.5"
                   >
                     {items.every((t) => selectedKeys.has(t.key)) ? "none" : "all"}
                   </button>
                 )}
-                <button type="button" onClick={() => toggleGroup(g)} aria-label="Collapse group" className={`ml-auto text-neutral-300 text-[10px] transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}>▼</button>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(g)}
+                  aria-label="Collapse group"
+                  className={`lq-press ms-auto w-6 h-6 rounded-full text-charcoal-40 hover:text-charcoal-80 hover:bg-charcoal/5 text-[10px] transition-transform duration-300 [transition-timing-function:var(--lq-spring)] ${isCollapsed ? "-rotate-90" : ""}`}
+                >
+                  ▼
+                </button>
               </div>
               {!isCollapsed && (
                 <ul className="mt-0.5">
                   {items.length === 0 ? (
-                    <li className="px-2 py-2.5 text-xs text-neutral-300">Nothing due today — drag something here or add one above.</li>
+                    <li className="px-2 py-2.5 text-xs text-charcoal-40">Nothing due today — drag something here or add one above.</li>
                   ) : (
                     items.map(row)
                   )}
@@ -893,7 +901,7 @@ export default function TasksBoard({
       {/* bulk action bar */}
       {selectMode && (
         <div className="fixed bottom-16 left-1/2 -translate-x-1/2 z-50">
-          <div className="ms-toast flex items-center gap-2 bg-white border border-neutral-200 rounded-full shadow-2xl pl-4 pr-2 py-2">
+          <div className="ms-toast lq-chrome flex items-center gap-2 rounded-full ps-4 pe-2 py-2">
             <span className="text-sm font-bold tabular-nums text-neutral-900">{selectedKeys.size}</span>
             <span className="text-xs text-neutral-400 mr-1">selected</span>
             <button

@@ -13,6 +13,7 @@ import {
   TASK_BADGE,
 } from "@/lib/photo";
 import PhotographerStatusButton from "@/components/admin/PhotographerStatusButton";
+import { StatTile, EmptyState } from "@/components/ui/glass";
 import { setShotStatusById, setSessionStatusById } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +35,12 @@ export default async function PhotographerPage() {
 
   if (!isDbEnabled()) {
     return (
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Photography</h1>
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mt-4">No database configured.</p>
+      <div className="space-y-5">
+        <header>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Shoots &amp; shot lists</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Photography</h1>
+        </header>
+        <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">No database configured.</p>
       </div>
     );
   }
@@ -68,51 +72,50 @@ export default async function PhotographerPage() {
     0,
   );
 
-  const stat = (label: string, value: string | number, sub?: string, dark = false) => (
-    <div className={`${dark ? "bg-charcoal text-white" : "bg-white border border-neutral-200"} rounded-xl px-5 py-4`}>
-      <div className={`text-[11px] font-semibold uppercase tracking-wider ${dark ? "text-white/60" : "text-neutral-500"}`}>{label}</div>
-      <div className={`mt-2 text-3xl font-extrabold tracking-tight tabular-nums ${dark ? "text-orange" : "text-neutral-900"}`}>{value}</div>
-      {sub && <div className={`text-[11px] mt-1 ${dark ? "text-white/50" : "text-neutral-400"}`}>{sub}</div>}
-    </div>
-  );
-
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Photography</h1>
-        <p className="text-sm text-neutral-500 mt-0.5">
+    <div className="space-y-5">
+      <header>
+        <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Shoots &amp; shot lists</p>
+        <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Photography</h1>
+        <p className="text-sm text-charcoal-60 mt-1">
           {photographer
             ? "Your shoot schedule and shot lists across Marker clients. Tap a status to move it along."
             : "Shoot schedule and shot lists shared with the photographer (Ameer). Visible to you and all admins."}
         </p>
-      </div>
+      </header>
 
       {/* At a glance */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {stat("Upcoming shoots", upcoming.length, "not yet delivered", true)}
-        {stat("This month", shootsThisMonth, "shoots scheduled")}
-        {stat("Open shots", openShots, "to-do items left")}
-        {stat("Clients", photoClients.length, "connected to photography")}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+        <StatTile label="Upcoming shoots" value={upcoming.length} sub="not yet delivered" tone="accent" delay={40} />
+        <StatTile label="This month" value={shootsThisMonth} sub="shoots scheduled" delay={90} />
+        <StatTile label="Open shots" value={openShots} sub="to-do items left" delay={140} />
+        <StatTile label="Clients" value={photoClients.length} sub="connected to photography" delay={190} />
       </div>
 
       {/* Upcoming shoots — the schedule, newest dates first */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-5">
-        <h2 className="font-bold tracking-tight mb-3">Upcoming shoots</h2>
+      <div className="lq-card lq-rise p-5" style={{ animationDelay: "160ms" }}>
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">Upcoming shoots</h2>
         {upcoming.length === 0 ? (
-          <p className="text-sm text-neutral-400 py-6 text-center">
-            No upcoming shoots. Schedule them in a client&apos;s settings under <b>Plan &amp; Shoots</b>.
-          </p>
+          <EmptyState
+            icon="📸"
+            title="No upcoming shoots"
+            sub={
+              <>
+                Schedule them in a client&apos;s settings under <b>Plan &amp; Shoots</b>.
+              </>
+            }
+          />
         ) : (
-          <ul className="divide-y divide-neutral-100">
+          <ul className="divide-y divide-charcoal/5">
             {upcoming.map(({ client, session, idx }) => (
               <li key={`${client.slug}-${session.id ?? idx}`} className="py-3 flex items-center gap-3 flex-wrap">
-                <div className="w-20 shrink-0 text-center rounded-lg bg-neutral-50 border border-neutral-100 py-1.5">
-                  <div className="text-[11px] font-semibold uppercase tracking-wider text-orange-deep">{fmtDate(session.date).split(" ")[0]}</div>
-                  <div className="text-sm font-bold tabular-nums text-neutral-900">{fmtDate(session.date).replace(/^\S+\s/, "")}</div>
+                <div className="w-20 shrink-0 text-center lq-well py-1.5">
+                  <div className="text-[11px] font-display font-bold uppercase tracking-[0.1em] text-orange-deep">{fmtDate(session.date).split(" ")[0]}</div>
+                  <div className="text-sm font-bold tabular-nums text-ink">{fmtDate(session.date).replace(/^\S+\s/, "")}</div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-neutral-900 truncate">{session.title || "Shoot"}</div>
-                  <div className="text-[11px] text-neutral-500 truncate">
+                  <div className="text-sm font-semibold text-ink truncate">{session.title || "Shoot"}</div>
+                  <div className="text-[11px] text-charcoal-60 truncate">
                     {client.name || client.slug}
                     {session.time ? ` · ${session.time}` : ""}
                     {session.location ? ` · ${session.location}` : ""}
@@ -136,53 +139,59 @@ export default async function PhotographerPage() {
 
       {/* Per-client — full shoot schedule, shot to-do, and (if shared) the plan */}
       {photoClients.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-5">
-          <p className="text-sm text-neutral-400 py-6 text-center">
-            No clients connected to photography yet. Turn on <b>Photography</b> in a client&apos;s settings.
-          </p>
+        <div className="lq-card lq-rise p-5" style={{ animationDelay: "220ms" }}>
+          <EmptyState
+            icon="🤝"
+            title="No clients connected to photography yet"
+            sub={
+              <>
+                Turn on <b>Photography</b> in a client&apos;s settings.
+              </>
+            }
+          />
         </div>
       ) : (
-        photoClients.map(({ client: c, photo }) => {
+        photoClients.map(({ client: c, photo }, ci) => {
           const sessions = photo.sessions ?? [];
           const shots = photo.shots ?? [];
           const sharePlan = !!photo.sharePlan;
           return (
-            <div key={c.slug} className="bg-white border border-neutral-200 rounded-xl p-5">
+            <div key={c.slug} className="lq-card lq-rise p-5" style={{ animationDelay: `${220 + ci * 60}ms` }}>
               <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
                 <div>
-                  <h2 className="font-bold tracking-tight">{c.name || c.slug}</h2>
-                  <div className="text-[11px] text-neutral-500">/{c.slug}</div>
+                  <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">{c.name || c.slug}</h2>
+                  <div className="text-[11px] text-charcoal-60">/{c.slug}</div>
                 </div>
                 {!photographer && (
-                  <Link href={`/admin/clients/${c.slug}/edit?tab=content`} className="text-xs font-semibold text-neutral-400 hover:text-orange">
+                  <Link href={`/admin/clients/${c.slug}/edit?tab=content`} className="text-xs font-semibold text-charcoal-40 hover:text-orange-deep no-underline">
                     Edit shoots →
                   </Link>
                 )}
               </div>
 
               {sharePlan && c.data.plan?.name && (
-                <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400">Marker plan</div>
-                  <div className="text-sm font-semibold text-neutral-900">{c.data.plan.name}</div>
-                  <div className="text-[11px] text-neutral-500">
+                <div className="mb-4 lq-well px-4 py-3">
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-40">Marker plan</div>
+                  <div className="text-sm font-semibold text-ink">{c.data.plan.name}</div>
+                  <div className="text-[11px] text-charcoal-60">
                     {c.data.plan.end ? `${c.data.plan.start || ""} → ${c.data.plan.end}` : `${c.data.plan.start || ""}${c.data.plan.start ? " · " : ""}Ongoing`}
                   </div>
-                  {c.data.plan.note?.en && <p className="text-[11px] text-neutral-500 mt-1">{c.data.plan.note.en}</p>}
+                  {c.data.plan.note?.en && <p className="text-[11px] text-charcoal-60 mt-1">{c.data.plan.note.en}</p>}
                 </div>
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
                 {/* Shoot schedule */}
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">Shoot schedule</div>
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">Shoot schedule</div>
                   {sessions.length === 0 ? (
-                    <p className="text-sm text-neutral-400">No shoots scheduled.</p>
+                    <p className="text-sm text-charcoal-40">No shoots scheduled.</p>
                   ) : (
                     <ul className="space-y-2">
                       {sessions.map((session, idx) => (
-                        <li key={session.id ?? idx} className="rounded-lg border border-neutral-200 p-3">
+                        <li key={session.id ?? idx} className="lq-well p-3">
                           <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-semibold text-neutral-900">{fmtDate(session.date)}{session.time ? ` · ${session.time}` : ""}</div>
+                            <div className="text-sm font-semibold text-ink">{fmtDate(session.date)}{session.time ? ` · ${session.time}` : ""}</div>
                             <PhotographerStatusButton
                               slug={c.slug}
                               id={session.id}
@@ -194,9 +203,9 @@ export default async function PhotographerPage() {
                               action={setSessionStatusById}
                             />
                           </div>
-                          <div className="text-sm text-neutral-700 mt-0.5">{session.title || "Shoot"}</div>
-                          {session.location && <div className="text-[11px] text-neutral-500">{session.location}</div>}
-                          {session.brief?.en && <p className="text-[11px] text-neutral-500 mt-1">{session.brief.en}</p>}
+                          <div className="text-sm text-charcoal-80 mt-0.5">{session.title || "Shoot"}</div>
+                          {session.location && <div className="text-[11px] text-charcoal-60">{session.location}</div>}
+                          {session.brief?.en && <p className="text-[11px] text-charcoal-60 mt-1">{session.brief.en}</p>}
                         </li>
                       ))}
                     </ul>
@@ -205,13 +214,13 @@ export default async function PhotographerPage() {
 
                 {/* Shot to-do list */}
                 <div>
-                  <div className="text-[10px] font-semibold uppercase tracking-wider text-neutral-400 mb-2">Shot list — to do</div>
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">Shot list — to do</div>
                   {shots.length === 0 ? (
-                    <p className="text-sm text-neutral-400">No shots on the list.</p>
+                    <p className="text-sm text-charcoal-40">No shots on the list.</p>
                   ) : (
                     <ul className="space-y-2">
                       {shots.map((shot, idx) => (
-                        <li key={shot.id ?? idx} className="flex items-start gap-3 rounded-lg border border-neutral-100 p-2">
+                        <li key={shot.id ?? idx} className="flex items-start gap-3 lq-well p-2.5">
                           <div className="shrink-0 pt-0.5">
                             <PhotographerStatusButton
                               slug={c.slug}
@@ -228,21 +237,21 @@ export default async function PhotographerPage() {
                             <a href={shot.mediaUrl} target="_blank" rel="noreferrer" className="shrink-0" title="Open reference media">
                               {shot.mediaKind === "video" ? (
                                 // eslint-disable-next-line jsx-a11y/media-has-caption
-                                <video src={shot.mediaUrl} muted className="h-14 w-14 rounded-md object-cover border border-neutral-200 bg-neutral-100" />
+                                <video src={shot.mediaUrl} muted className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
                               ) : (
                                 // eslint-disable-next-line @next/next/no-img-element
-                                <img src={shot.mediaUrl} alt="" className="h-14 w-14 rounded-md object-cover border border-neutral-200 bg-neutral-100" />
+                                <img src={shot.mediaUrl} alt="" className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
                               )}
                             </a>
                           )}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-sm ${shot.status === "done" ? "line-through text-neutral-400" : "text-neutral-900 font-medium"}`}>{shot.title || "Shot"}</span>
-                              {shot.type && <span className="text-[10px] font-semibold uppercase tracking-wider rounded-full px-1.5 py-0.5 bg-neutral-100 text-neutral-500">{SHOT_TYPE_LABEL[shot.type] || shot.type}</span>}
+                              <span className={`text-sm ${shot.status === "done" ? "line-through text-charcoal-40" : "text-ink font-medium"}`}>{shot.title || "Shot"}</span>
+                              {shot.type && <span className="lq-chip uppercase !text-[10px] !px-2 !py-0.5">{SHOT_TYPE_LABEL[shot.type] || shot.type}</span>}
                               {shot.mediaUrl && <span className="text-[10px] font-semibold text-emerald-700">{shot.mediaKind === "video" ? "🎬 video" : "🖼 photo"}</span>}
                             </div>
                             {(shot.due || shot.note) && (
-                              <div className="text-[11px] text-neutral-500 mt-0.5">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
+                              <div className="text-[11px] text-charcoal-60 mt-0.5">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
                             )}
                           </div>
                         </li>

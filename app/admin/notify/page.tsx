@@ -32,12 +32,13 @@ export default async function NotifyPage() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Notify</h1>
-        <p className="text-sm text-neutral-500 mt-0.5">
+      <header className="lq-rise">
+        <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Push notifications</p>
+        <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Notify</h1>
+        <p className="text-sm text-charcoal-60 mt-1.5">
           Send a push notification to phones and computers — yours, the studio&apos;s, or a client&apos;s. Works even when the site is closed.
         </p>
-      </div>
+      </header>
       <NotifyComposer clients={clients} counts={counts} configured={isPushConfigured()} />
     </div>
   );

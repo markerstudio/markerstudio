@@ -62,48 +62,49 @@ export default async function BackfillPage({
   const done = searchParams.created != null;
 
   return (
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center justify-between gap-3 flex-wrap">
+    <div className="space-y-5 max-w-3xl">
+      <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stories backfill — 2026</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">One-off import tool</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Stories backfill — 2026</h1>
+          <p className="text-sm text-charcoal-60 mt-1">
             One-off import of Ramzi&apos;s received stories payments. Ramzi-only — never Marker income, never synced to Notion.
           </p>
         </div>
-        <Link href="/admin/partner" className="text-sm font-medium text-neutral-500 hover:text-orange">← Ramzi</Link>
-      </div>
+        <Link href="/admin/partner" className="lq-btn lq-btn--glass lq-btn--sm no-underline shrink-0">← Ramzi</Link>
+      </header>
 
       {done && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="lq-card !border-emerald-300/40 px-4 py-3 text-sm text-emerald-800">
           Done — created <b>{searchParams.created}</b> payment{searchParams.created === "1" ? "" : "s"}, skipped{" "}
           <b>{searchParams.skipped}</b> already-existing. The numbers below now reflect the new state.
         </div>
       )}
 
       {searchParams.removed != null && (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+        <div className="lq-card !border-emerald-300/40 px-4 py-3 text-sm text-emerald-800">
           Removed <b>{searchParams.removed}</b> duplicate client{searchParams.removed === "1" ? "" : "s"} and{" "}
           <b>{searchParams.removedRows}</b> backfilled payment{searchParams.removedRows === "1" ? "" : "s"}.
         </div>
       )}
 
       {dupes.length > 0 && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-5">
-          <h2 className="font-bold tracking-tight text-red-800">Duplicate clients to remove</h2>
-          <p className="text-xs text-red-700/80 mt-1 mb-3">
+        <div className="lq-card lq-rise !border-rose-300/50 p-5">
+          <h2 className="font-display font-bold text-[16px] tracking-tight text-rose-800">Duplicate clients to remove</h2>
+          <p className="text-xs text-rose-700/80 mt-1 mb-3">
             An earlier run created empty copies of these clients at the wrong slug. Removing them deletes the copy and its
             backfilled payments only — your real client (and any real data) is never touched.
           </p>
           <ul className="space-y-1.5 mb-4">
             {dupes.map((d) => (
-              <li key={d.autoSlug} className="text-sm text-red-900 flex items-center gap-2 flex-wrap">
+              <li key={d.autoSlug} className="text-sm text-rose-900 flex items-center gap-2 flex-wrap">
                 <b>{d.name}</b>
-                <span className="text-red-700/70">delete copy <code>/{d.autoSlug}</code> ({d.bf} payment{d.bf === 1 ? "" : "s"}) · keep <code>/{d.realSlug}</code></span>
+                <span className="text-rose-700/70">delete copy <code>/{d.autoSlug}</code> ({d.bf} payment{d.bf === 1 ? "" : "s"}) · keep <code>/{d.realSlug}</code></span>
               </li>
             ))}
           </ul>
           <form action={removeBackfillDuplicatesAction}>
-            <button className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+            <button className="lq-btn lq-btn--danger">
               Remove {dupes.length} duplicate{dupes.length === 1 ? "" : "s"}
             </button>
           </form>
@@ -111,33 +112,31 @@ export default async function BackfillPage({
       )}
 
       <div className="space-y-3">
-        {rows.map((r) => (
-          <div key={r.entry.name} className="rounded-lg border border-neutral-200 bg-white p-4">
+        {rows.map((r, i) => (
+          <div key={r.entry.name} className="lq-card lq-rise p-4" style={{ animationDelay: `${80 + i * 50}ms` }}>
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div>
-                <div className="text-sm font-bold text-neutral-900">{r.entry.name}</div>
-                <div className="text-[11px] text-neutral-500">
+                <div className="text-sm font-bold text-ink">{r.entry.name}</div>
+                <div className="text-[11px] text-charcoal-60">
                   {ils(r.entry.fee)}/cycle ·{" "}
                   {r.client ? (
-                    <>matched <span className="text-neutral-700">/{r.client.slug}</span></>
+                    <>matched <span className="text-charcoal-80">/{r.client.slug}</span></>
                   ) : (
                     <span className="text-amber-700">no portal yet — will be created</span>
                   )}
                   {r.existingCount > 0 ? ` · ${r.existingCount} stories payment(s) already on file` : ""}
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm font-bold tabular-nums text-neutral-900">{ils(r.newAmount)}</div>
-                <div className="text-[11px] text-neutral-400">{r.newCount} to add</div>
+              <div className="text-end">
+                <div className="text-sm font-bold tabular-nums text-ink">{ils(r.newAmount)}</div>
+                <div className="text-[11px] text-charcoal-40">{r.newCount} to add</div>
               </div>
             </div>
             <div className="mt-3 flex flex-wrap gap-1.5">
               {r.cycles.map((c) => (
                 <span
                   key={c.date}
-                  className={`text-[11px] font-semibold rounded-full border px-2.5 py-0.5 ${
-                    c.dup ? "text-neutral-400 bg-neutral-50 border-neutral-200 line-through" : "text-emerald-700 bg-emerald-50 border-emerald-200"
-                  }`}
+                  className={`lq-chip !text-[11px] ${c.dup ? "line-through !text-charcoal-40" : "lq-chip--green"}`}
                   title={c.dup ? "Already recorded — will be skipped" : "Will be created"}
                 >
                   {monthLabel(c.date)}
@@ -148,23 +147,20 @@ export default async function BackfillPage({
         ))}
       </div>
 
-      <div className="rounded-xl border border-neutral-200 bg-white p-5">
+      <div className="lq-card lq-rise p-5" style={{ animationDelay: "200ms" }}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
-          <div className="text-sm text-neutral-600">
+          <div className="text-sm text-charcoal-80">
             Will create <b>{totalNewCount}</b> payment{totalNewCount === 1 ? "" : "s"} totalling{" "}
             <b className="tabular-nums">{ils(totalNew)}</b>
             {totalSkip > 0 ? <> · skipping <b>{totalSkip}</b> already recorded</> : ""}.
           </div>
           <form action={runStoriesBackfillAction}>
-            <button
-              disabled={totalNewCount === 0}
-              className="rounded-md bg-charcoal px-5 py-2.5 text-sm font-semibold text-white hover:bg-black transition-colors disabled:opacity-40"
-            >
+            <button disabled={totalNewCount === 0} className="lq-btn lq-btn--dark">
               {totalNewCount === 0 ? "Nothing to add" : `Apply backfill (${ils(totalNew)})`}
             </button>
           </form>
         </div>
-        <p className="text-[11px] text-neutral-400 mt-3">
+        <p className="text-[11px] text-charcoal-40 mt-3">
           Re-running is safe — anything already on file (matched by client + month + amount) is skipped, never duplicated.
         </p>
       </div>

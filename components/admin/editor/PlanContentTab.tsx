@@ -23,8 +23,8 @@ const SessionRow = memo(function SessionRow({ session, onChange, onRemove }: { s
   const id = session.id!;
   const brief = session.brief ?? { en: "", ar: "" };
   return (
-    <div className="border border-neutral-200 rounded-lg p-3 relative pr-10 bg-white">
-      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-medium text-neutral-300 hover:text-red-600">✕</button>
+    <div className="bg-white/60 border border-charcoal/5 rounded-2xl p-3 relative pr-10">
+      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-semibold text-charcoal-40 hover:text-rose-700">✕</button>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className={lbl}>Date</label>
@@ -175,7 +175,7 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
   return (
     <div className="space-y-6">
       {/* Slim header — name/cycle/active inline; plan details & AI fill behind toggles. */}
-      <div className="bg-white border border-neutral-200 rounded-xl p-4">
+      <div className="lq-card p-4">
         <div className="flex items-end gap-3 flex-wrap">
           <div className="flex-1 min-w-[200px]">
             <label className={lbl}>Plan</label>
@@ -184,39 +184,39 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
           <div className="w-24"><label className={lbl}>Start</label><input className={input} value={plan.start} placeholder="Feb 26" onChange={(e) => patchPlan({ start: e.target.value })} /></div>
           <div className="w-24"><label className={lbl}>End</label><input className={input} value={plan.end} placeholder="ongoing" onChange={(e) => patchPlan({ end: e.target.value })} /></div>
           <label className="flex items-center gap-2 text-sm h-[38px] whitespace-nowrap"><input type="checkbox" className="custom-checkbox" checked={plan.active} onChange={(e) => patchPlan({ active: e.target.checked })} /> Active</label>
-          <button type="button" onClick={() => setShowAi((v) => !v)} className="h-[38px] rounded-md bg-orange text-white font-semibold px-3.5 text-sm hover:bg-orange-deep transition-colors">✨ AI fill</button>
-          <button type="button" onClick={() => setShowDetails((v) => !v)} className="h-[38px] rounded-md border border-neutral-300 px-3.5 text-sm font-medium hover:bg-neutral-50">{showDetails ? "Hide details" : "Plan details"}</button>
+          <button type="button" onClick={() => setShowAi((v) => !v)} className="lq-btn lq-btn--primary">✨ AI fill</button>
+          <button type="button" onClick={() => setShowDetails((v) => !v)} className="lq-btn lq-btn--glass">{showDetails ? "Hide details" : "Plan details"}</button>
         </div>
 
         {showAi && (
-          <div className="mt-4 border-t border-neutral-100 pt-4">
-            <p className="text-sm text-neutral-600 mb-3">Copy the prompt (it already includes this plan + current shoots & posts), add your ideas in ChatGPT / Claude, then paste the JSON reply and Apply — it fills the shoot schedule, shot list, and calendar.</p>
+          <div className="mt-4 border-t border-charcoal/5 pt-4">
+            <p className="text-sm text-charcoal-60 mb-3">Copy the prompt (it already includes this plan + current shoots & posts), add your ideas in ChatGPT / Claude, then paste the JSON reply and Apply — it fills the shoot schedule, shot list, and calendar.</p>
             <div className="flex items-center gap-3 flex-wrap mb-3">
-              <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">{aiCopied ? "Copied ✓" : "Copy prompt"}</button>
-              <button type="button" onClick={applyAi} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply paste</button>
-              {aiMsg && <span className="text-sm text-neutral-700">{aiMsg}</span>}
+              <button type="button" onClick={copyPrompt} className="lq-btn lq-btn--primary lq-btn--sm">{aiCopied ? "Copied ✓" : "Copy prompt"}</button>
+              <button type="button" onClick={applyAi} className="lq-btn lq-btn--glass lq-btn--sm">Apply paste</button>
+              {aiMsg && <span className="text-sm text-charcoal-80">{aiMsg}</span>}
             </div>
             <textarea value={aiPaste} onChange={(e) => setAiPaste(e.target.value)} rows={4} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
           </div>
         )}
 
         {showDetails && (
-          <div className="mt-4 border-t border-neutral-100 pt-4 space-y-4">
+          <div className="mt-4 border-t border-charcoal/5 pt-4 space-y-4">
             <Text label="Notion / plan link (optional)" value={plan.notionUrl ?? ""} onChange={(notionUrl) => patchPlan({ notionUrl })} placeholder="https://notion.so/…" />
             <Bi label="Plan note" value={plan.note} onChange={(note) => patchPlan({ note })} area />
             <Bi label="Content plan headline" value={headline} onChange={(h) => { setHeadline(h); mark(); }} />
             <div>
               <span className={lbl}>Photography sharing</span>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <label className="flex items-start gap-2 text-sm lq-well px-3 py-2">
                   <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.active} onChange={(e) => setToggle({ active: e.target.checked })} />
                   <span className="leading-relaxed"><b>Photographer portal</b> — share schedule + shot list.</span>
                 </label>
-                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <label className="flex items-start gap-2 text-sm lq-well px-3 py-2">
                   <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.sharePlan} onChange={(e) => setToggle({ sharePlan: e.target.checked })} />
                   <span className="leading-relaxed"><b>Share the plan</b> for context.</span>
                 </label>
-                <label className="flex items-start gap-2 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-3 py-2">
+                <label className="flex items-start gap-2 text-sm lq-well px-3 py-2">
                   <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
                   <span className="leading-relaxed"><b>Show shoots</b> in the client&apos;s portal.</span>
                 </label>
@@ -226,35 +226,37 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
         )}
       </div>
 
-      {/* Shoot schedule + shot list — their own full-width row, side by side. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-        <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
-          <legend className="px-2 -ml-2 font-bold text-sm">Shoot schedule</legend>
+      {/* Shoot schedule + shot list — their own full-width row, side by side.
+          id="photography" is the jump target for the editor's Photography rail
+          item (shoots save with the plan, so they live in this tab). */}
+      <div id="photography" className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start scroll-mt-24">
+        <fieldset className="lq-card p-5">
+          <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Shoot schedule</legend>
           <div className="space-y-3">
-            {sessions.length === 0 && <p className="text-sm text-neutral-400">No shoots scheduled.</p>}
+            {sessions.length === 0 && <p className="text-sm text-charcoal-40">No shoots scheduled.</p>}
             {sessions.map((s) => <SessionRow key={s.id} session={s} onChange={changeSession} onRemove={removeSession} />)}
             <button type="button" onClick={addSession} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shoot</button>
           </div>
         </fieldset>
 
-        <fieldset className="bg-white border border-neutral-200 rounded-xl p-5">
-          <legend className="px-2 -ml-2 font-bold text-sm">Shot list</legend>
-          <p className="text-xs text-neutral-400 mb-3">Drag a shot onto a day in the calendar below to schedule it as a post.</p>
+        <fieldset className="lq-card p-5">
+          <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Shot list</legend>
+          <p className="text-xs text-charcoal-40 mb-3">Drag a shot onto a day in the calendar below to schedule it as a post.</p>
           <ShotRail shots={photo.shots ?? []} onChange={setShots} />
         </fieldset>
       </div>
 
       {/* Content calendar — full width on its own line. */}
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-5 min-w-0">
-        <legend className="px-2 -ml-2 font-bold text-sm">Content calendar</legend>
+      <fieldset className="lq-card p-5 min-w-0">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Content calendar</legend>
         <SocialCalendar posts={posts} editable lang="en" onChange={(p) => { setPosts(p); mark(); }} onDropShot={onDropShot} onNeedsShoot={onNeedsShoot} />
       </fieldset>
 
-      <div className="flex items-center gap-3 sticky bottom-0 bg-neutral-100/95 backdrop-blur py-3">
-        <button type="button" onClick={save} disabled={pending || !dirty} className="bg-orange text-white font-semibold rounded-md px-6 py-2.5 text-sm hover:bg-orange-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+      <div className="flex items-center gap-3 sticky bottom-0 bg-paper/95 py-3">
+        <button type="button" onClick={save} disabled={pending || !dirty} className="lq-btn lq-btn--primary">
           {pending ? "Saving…" : "Save Plan & Content"}
         </button>
-        {msg && <span className="text-sm text-neutral-600">{msg}</span>}
+        {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
         {dirty && !pending && <span className="text-xs text-amber-700">Unsaved changes</span>}
       </div>
     </div>

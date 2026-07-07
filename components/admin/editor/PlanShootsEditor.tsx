@@ -5,8 +5,8 @@ import { savePhotoSection } from "@/app/admin/clients/section-actions";
 import { ensurePhotoIds, genPhotoId } from "@/lib/photo";
 import type { ClientPhoto, PhotoSession, PhotoTask, LocalizedText } from "@/lib/clients";
 
-const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
-const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
+const input = "lq-input";
+const lbl = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1";
 
 // --- One shoot row. Memoised + keyed by id so a keystroke re-renders ONLY this
 // row (not the whole list), and editing/removing rows never scrambles focus. ----
@@ -23,8 +23,8 @@ const SessionRow = memo(function SessionRow({
   const brief = session.brief ?? { en: "", ar: "" };
   const setBrief = (b: LocalizedText) => onChange(id, { brief: b });
   return (
-    <div className="border border-neutral-200 rounded-lg p-3 relative pr-16">
-      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
+    <div className="lq-well p-3 relative pe-16">
+      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 end-2 text-xs font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
       <div className="grid grid-cols-2 md:grid-cols-[140px_110px_1fr_130px] gap-3 items-end">
         <div>
           <label className={lbl}>Date</label>
@@ -56,11 +56,11 @@ const SessionRow = memo(function SessionRow({
         <label className={lbl}>Brief — what to capture</label>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div>
-            <span className="block text-[10px] font-bold text-neutral-400 mb-1">EN</span>
+            <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">EN</span>
             <textarea dir="ltr" rows={2} className={input} value={brief.en} onChange={(e) => setBrief({ ...brief, en: e.target.value })} />
           </div>
           <div>
-            <span className="block text-[10px] font-bold text-neutral-400 mb-1">AR</span>
+            <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">AR</span>
             <textarea dir="rtl" rows={2} className={input} value={brief.ar} onChange={(e) => setBrief({ ...brief, ar: e.target.value })} />
           </div>
         </div>
@@ -81,9 +81,9 @@ const ShotRow = memo(function ShotRow({
 }) {
   const id = shot.id!;
   return (
-    <div className="border border-neutral-200 rounded-lg p-3 relative">
-      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_140px] gap-3 pr-16 items-end">
+    <div className="lq-well p-3 relative">
+      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 end-2 text-xs font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
+      <div className="grid grid-cols-1 md:grid-cols-[1fr_120px_140px] gap-3 pe-16 items-end">
         <div>
           <label className={lbl}>Shot</label>
           <input className={input} value={shot.title} placeholder="Hero shot — flat lay" onChange={(e) => onChange(id, { title: e.target.value })} />
@@ -155,7 +155,7 @@ export default function PlanShootsEditor({ slug, initialPhoto }: { slug: string;
   }
 
   return (
-    <div className="rounded-xl border border-neutral-200 p-4">
+    <div className="lq-card p-5">
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.active} onChange={(e) => setToggle({ active: e.target.checked })} />
         <span className="leading-relaxed">
@@ -167,11 +167,11 @@ export default function PlanShootsEditor({ slug, initialPhoto }: { slug: string;
       {photo.active && (
         <div className="mt-4 space-y-5">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
               <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.sharePlan} onChange={(e) => setToggle({ sharePlan: e.target.checked })} />
               <span className="leading-relaxed"><b>Send the plan to the photographer.</b> Shares this client&apos;s plan on the photographer portal for context. Off = the plan stays Marker-only.</span>
             </label>
-            <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+            <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
               <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!photo.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
               <span className="leading-relaxed"><b>Show shoots in the client&apos;s portal.</b> Reveals the schedule &amp; shot list to the client too. Off = visible to Marker and the photographer only.</span>
             </label>
@@ -204,11 +204,11 @@ export default function PlanShootsEditor({ slug, initialPhoto }: { slug: string;
           type="button"
           onClick={save}
           disabled={pending || !dirty}
-          className="bg-orange text-white font-semibold rounded-md px-5 py-2 text-sm hover:bg-orange-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="lq-btn lq-btn--primary lq-btn--sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {pending ? "Saving…" : "Save shoots"}
         </button>
-        {msg && <span className="text-sm text-neutral-600">{msg}</span>}
+        {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
         {dirty && !pending && <span className="text-xs text-amber-700">Unsaved changes</span>}
       </div>
     </div>

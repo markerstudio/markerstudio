@@ -12,8 +12,8 @@ export default function ConsentLinkActions({ token, label }: { token: string; la
   const message = `Marker Studio® — please review and sign this photo/video consent form: ${url}`;
 
   return (
-    <div className="flex items-center gap-3 text-sm whitespace-nowrap">
-      <a href={`/consent/${token}`} target="_blank" className="font-semibold text-charcoal hover:text-orange">
+    <div className="flex items-center gap-2 text-sm whitespace-nowrap">
+      <a href={`/consent/${token}`} target="_blank" className="lq-btn lq-btn--glass lq-btn--sm no-underline">
         Open ↗
       </a>
       <button
@@ -23,7 +23,7 @@ export default function ConsentLinkActions({ token, label }: { token: string; la
           setCopied(true);
           setTimeout(() => setCopied(false), 1500);
         }}
-        className="font-medium text-orange hover:text-orange-deep"
+        className="lq-btn lq-btn--primary lq-btn--sm"
       >
         {copied ? "Copied ✓" : "Copy link"}
       </button>
@@ -31,13 +31,13 @@ export default function ConsentLinkActions({ token, label }: { token: string; la
         href={`https://wa.me/?text=${encodeURIComponent(message)}`}
         target="_blank"
         rel="noreferrer"
-        className="font-medium text-neutral-600 hover:text-orange"
+        className="font-medium text-charcoal-60 hover:text-orange-deep no-underline"
       >
         WhatsApp
       </a>
       <a
         href={`mailto:?subject=${encodeURIComponent(`Consent form — ${label}`)}&body=${encodeURIComponent(message)}`}
-        className="font-medium text-neutral-600 hover:text-orange"
+        className="font-medium text-charcoal-60 hover:text-orange-deep no-underline"
       >
         Email
       </a>

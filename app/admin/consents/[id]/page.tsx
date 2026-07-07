@@ -26,14 +26,17 @@ export default async function ConsentRecordPage({ params }: { params: { id: stri
       {/* Hide the admin chrome when printing so only the record prints. */}
       <style>{`@media print { header { display: none !important; } }`}</style>
 
-      <div className="print:hidden mb-5 flex items-center justify-between gap-3">
-        <Link href="/admin/consents" className="text-sm font-medium text-neutral-500 hover:text-charcoal">
+      <div className="print:hidden mb-5 flex items-center justify-between gap-3 lq-rise">
+        <Link href="/admin/consents" className="lq-btn lq-btn--glass lq-btn--sm no-underline">
           ← Consent forms
         </Link>
         <PrintButton label="Print / save PDF" />
       </div>
 
-      <div dir={lang === "ar" ? "rtl" : "ltr"} className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-10">
+      <div
+        dir={lang === "ar" ? "rtl" : "ltr"}
+        className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-10 shadow-[0_24px_60px_-28px_rgba(31,31,31,.28)] print:shadow-none print:border-0 print:rounded-none"
+      >
         <div className="mb-6 flex items-start justify-between gap-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-8 w-auto" />

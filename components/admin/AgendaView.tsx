@@ -131,12 +131,13 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
             Agenda
           </h1>
         </div>
-        <div className="flex items-center gap-2">
+        {/* One composed count strip instead of a row of separate chips. */}
+        <div className="lq-well px-4 py-2 flex items-center text-[12.5px] font-semibold tabular-nums [&>*+*]:border-s [&>*+*]:border-charcoal/10">
           {agenda.counts.overdue > 0 && (
-            <span className="lq-chip lq-chip--red">{agenda.counts.overdue} overdue</span>
+            <span className="pe-3 text-rose-700">{agenda.counts.overdue} overdue</span>
           )}
-          <span className="lq-chip lq-chip--orange">{agenda.counts.today} today</span>
-          <span className="lq-chip">{agenda.counts.soon} coming up</span>
+          <span className="px-3 first:ps-0 text-orange-deep">{agenda.counts.today} today</span>
+          <span className="ps-3 text-charcoal-60">{agenda.counts.soon} coming up</span>
         </div>
       </header>
 
@@ -177,7 +178,7 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
                   >
                     {c.name}
                   </Link>
-                  <span className="ms-auto flex items-center gap-1.5" style={{ marginInlineStart: "auto" }}>
+                  <span className="ms-auto flex items-center gap-1.5">
                     {c.overdue > 0 && <span className="lq-chip lq-chip--red !px-2 !py-1">{c.overdue}</span>}
                     {c.today > 0 && <span className="lq-chip lq-chip--orange !px-2 !py-1">{c.today}</span>}
                   </span>

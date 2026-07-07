@@ -8,9 +8,10 @@ import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
 import { blankClientData, computeClientFinance, type Client, type ClientData, type LocalizedText, type Vital, type StoryCard, type MetricRow, type Campaign, type Invoice, type DocItem } from "@/lib/clients";
 import PlanShootsEditor from "@/components/admin/editor/PlanShootsEditor";
+import { Toggle } from "@/components/ui/glass";
 
-const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
-const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
+const input = "lq-input";
+const lbl = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1";
 
 const fmtIls = (n: number) => `${Math.round(n).toLocaleString("en-US")} ILS`;
 
@@ -107,13 +108,17 @@ Below is a CSV with columns: field,en,ar,value. Fill ONLY the social rows:
 ${csv}`;
 }
 
-function Group({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+// One stage of the form. The step eyebrow keeps the human path feeling like a
+// short guided walk (identity → plan → money → portal copy) instead of a wall
+// of settings.
+function Group({ step, title, hint, children }: { step?: string; title: string; hint?: string; children: React.ReactNode }) {
   return (
-    <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-      <legend className="px-2 -ml-2 font-bold">{title}</legend>
-      {hint && <p className="text-xs text-neutral-400 mb-3">{hint}</p>}
-      <div className={hint ? "" : "mt-2"}>{children}</div>
-    </fieldset>
+    <section className="lq-card lq-rise p-5">
+      {step && <p className="text-[10px] font-display font-bold uppercase tracking-[0.14em] text-orange-deep mb-0.5">{step}</p>}
+      <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">{title}</h2>
+      {hint && <p className="text-xs text-charcoal-40 mt-1 mb-3">{hint}</p>}
+      <div className={hint ? "" : "mt-3"}>{children}</div>
+    </section>
   );
 }
 
@@ -137,11 +142,11 @@ function Bi({ label, value, onChange, area }: { label: string; value?: Localized
       <label className={lbl}>{label}</label>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <div>
-          <span className="block text-[10px] font-bold text-neutral-400 mb-1">EN</span>
+          <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">EN</span>
           {area ? <textarea dir="ltr" rows={2} className={input} value={v.en} onChange={(e) => onChange({ ...v, en: e.target.value })} /> : <input dir="ltr" className={input} value={v.en} onChange={(e) => onChange({ ...v, en: e.target.value })} />}
         </div>
         <div>
-          <span className="block text-[10px] font-bold text-neutral-400 mb-1">AR</span>
+          <span className="block text-[10px] font-display font-bold text-charcoal-40 mb-1">AR</span>
           {area ? <textarea dir="rtl" rows={2} className={input} value={v.ar} onChange={(e) => onChange({ ...v, ar: e.target.value })} /> : <input dir="rtl" className={input} value={v.ar} onChange={(e) => onChange({ ...v, ar: e.target.value })} />}
         </div>
       </div>
@@ -153,12 +158,12 @@ function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T[]; onC
   return (
     <div className="space-y-3">
       {items.map((it, i) => (
-        <div key={i} className="border border-neutral-200 rounded-lg p-3 relative">
-          <button type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
+        <div key={i} className="lq-well p-3 relative">
+          <button type="button" onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="absolute top-2 end-2 text-xs font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
           {render(it, (patch) => onChange(items.map((x, idx) => (idx === i ? { ...x, ...patch } : x))))}
         </div>
       ))}
-      <button type="button" onClick={() => onChange([...items, { ...blank }])} className="text-sm font-semibold text-orange hover:text-orange-deep">+ {addLabel}</button>
+      <button type="button" onClick={() => onChange([...items, { ...blank }])} className="text-sm font-display font-semibold text-orange hover:text-orange-deep">+ {addLabel}</button>
     </div>
   );
 }
@@ -314,11 +319,11 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
   void _photo;
 
   return (
-    <form ref={formRef} action={saveClient} className="space-y-6">
+    <form ref={formRef} action={saveClient} className="space-y-5">
       {client && <input type="hidden" name="originalSlug" value={client.slug} />}
       <input type="hidden" name="data" value={JSON.stringify(persistedNoPhoto)} />
 
-      <Group title="Identity">
+      <Group step="Step 1" title="Identity">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
           <div><label className={lbl}>Slug</label><input name="slug" defaultValue={client?.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" /></div>
           <div><label className={lbl}>Client name</label><input name="name" defaultValue={client?.name} required className={input} placeholder="Dr. Jack Sabat" /></div>
@@ -328,17 +333,17 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
               <option value="marker">Marker</option>
               <option value="ramzi">Ramzi (partner)</option>
             </select>
-            <p className="text-[11px] text-neutral-400 mt-1">Ramzi&apos;s clients are visible only to Ramzi and the super admin.</p>
+            <p className="text-[11px] text-charcoal-40 mt-1">Ramzi&apos;s clients are visible only to Ramzi and the super admin.</p>
           </div>
           <div className="md:col-span-2">
             <label className={lbl}>Logo</label>
             <input type="hidden" name="logo" value={logo} />
             <div className="flex items-start gap-3 flex-wrap">
-              <div className="h-14 w-14 shrink-0 rounded-lg border border-neutral-200 bg-neutral-900 flex items-center justify-center overflow-hidden">
+              <div className="h-14 w-14 shrink-0 rounded-xl border border-charcoal/10 bg-charcoal flex items-center justify-center overflow-hidden">
                 {logo
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={logo} alt="" className="max-h-[80%] max-w-[80%] object-contain" />
-                  : <span className="text-[10px] text-neutral-500">No logo</span>}
+                  : <span className="text-[10px] text-white/50">No logo</span>}
               </div>
               <div className="flex-1 min-w-[220px] space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -355,7 +360,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
                       ))}
                     </select>
                   )}
-                  {logo && <button type="button" onClick={() => setLogo("")} className="text-xs font-medium text-neutral-400 hover:text-red-600">Clear</button>}
+                  {logo && <button type="button" onClick={() => setLogo("")} className="text-xs font-medium text-charcoal-40 hover:text-rose-600">Clear</button>}
                 </div>
                 <input value={logo} onChange={(e) => setLogo(e.target.value)} className={input} placeholder="…or paste a logo URL" />
               </div>
@@ -364,42 +369,19 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           <div>
             <label className={lbl}>Brand colour</label>
             <div className="flex items-center gap-2">
-              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 rounded border border-neutral-300 bg-white p-1" aria-label="Brand colour" />
+              <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-10 w-12 shrink-0 rounded-lg border border-charcoal/10 bg-white/75 p-1" aria-label="Brand colour" />
               <input name="color" value={color} onChange={(e) => setColor(e.target.value)} className={input} />
             </div>
           </div>
         </div>
       </Group>
 
-      {hasOnboarding && (
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-          <h2 className="font-bold mb-1">✨ Fill the portal from the onboarding AI</h2>
-          <p className="text-sm text-neutral-600 mb-3">
-            <b>1.</b> Use <b>Copy AI prompt</b> above and run it in ChatGPT / Claude.
-            <b> 2.</b> Paste the AI&apos;s JSON reply below and Apply — it fills the
-            <b> Hero</b> and <b>Dashboard</b> (headline, diagnosis, story cards) here. Then Save.
-          </p>
-          <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
-          <div className="mt-2 flex items-center gap-3">
-            <button type="button" onClick={applyPortalJson} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">Apply portal content</button>
-            {portalMsg && <span className="text-sm text-neutral-700">{portalMsg}</span>}
-          </div>
-        </div>
-      )}
-
-      <Group title="Hero">
-        <Bi label="Intro line" value={data.hero} onChange={(hero) => patch({ hero })} area />
-        <Text label="Watermark word (optional)" value={data.accent ?? ""} onChange={(accent) => patch({ accent })} placeholder="JACK" />
-      </Group>
-
-      <Group title="Plan & Shoots" hint="The plan the client sees, plus the photography schedule and shot list shared with the photographer. Each sharing toggle below is off until you turn it on.">
+      <Group step="Step 2" title="Plan & Shoots" hint="The plan the client sees, plus the photography schedule and shot list shared with the photographer. Each sharing toggle below is off until you turn it on.">
         {/* --- The plan ------------------------------------------------------ */}
-        <div className="rounded-xl border border-neutral-200 p-4 mb-5">
+        <div className="lq-well p-4 mb-5">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold text-sm">The plan</h3>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" className="custom-checkbox" checked={data.plan.active} onChange={(e) => patch({ plan: { ...data.plan, active: e.target.checked } })} /> Active
-            </label>
+            <h3 className="font-display font-bold text-sm tracking-tight text-ink">The plan</h3>
+            <Toggle label="Active" checked={data.plan.active} onChange={(e) => patch({ plan: { ...data.plan, active: e.target.checked } })} />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 mb-4">
             <Text label="Plan name" value={data.plan.name} onChange={(name) => patch({ plan: { ...data.plan, name } })} placeholder="Monthly social media management" />
@@ -414,15 +396,15 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         {client ? (
           <PlanShootsEditor slug={client.slug} initialPhoto={data.photo} />
         ) : (
-          <div className="rounded-xl border border-dashed border-neutral-300 p-4 text-sm text-neutral-500">
+          <div className="rounded-2xl border border-dashed border-charcoal/20 p-4 text-sm text-charcoal-60">
             <b>Photography</b> (Ameer) — save the client first, then add the shoot schedule and shot list here. Shoots save on their own, separately from the rest of the form.
           </div>
         )}
       </Group>
 
-      <Group title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
+      <Group step="Step 3" title="Finance" hint="Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Fees are reference only. Stories fee is collected for Ramzi: it stays on the client's invoice but never counts as Marker income or syncs to Notion.">
         {linkedToNotion && (
-          <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-relaxed">
+          <div className="mb-4 lq-well px-4 py-3 text-sm text-charcoal-60 leading-relaxed">
             Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b>{" "}
             come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving
             here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
@@ -435,31 +417,26 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesFee } })} placeholder="e.g. 30 ILS / day" />
           <div>
             <label className={lbl}>Money left · auto</label>
-            <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
+            <div className="w-full lq-well px-3 py-2.5 text-sm font-display font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
           </div>
         </div>
-        <label className="flex items-start gap-3 text-sm mb-5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
-          <input
-            type="checkbox"
-            className="custom-checkbox mt-0.5"
+        <div className="mb-5 lq-well px-4 py-3">
+          <Toggle
+            label="This client has stories (Ramzi)"
+            sub="Connects them to Ramzi's portal, where he tracks the stories work and what's been collected. Stories money stays on the client's invoice and combined total, but is never Marker income or synced to Notion."
             checked={!!data.finance?.storiesActive}
             onChange={(e) => patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, storiesActive: e.target.checked } })}
           />
-          <span className="leading-relaxed">
-            <b>This client has stories</b> (Ramzi). Turning this on connects them to <b>Ramzi&apos;s portal</b>, where he
-            tracks the stories work and what&apos;s been collected. Stories money stays on the client&apos;s invoice and in
-            the client&apos;s combined total, but is never Marker income or synced to Notion.
-          </span>
-        </label>
+        </div>
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1">
             <span className={lbl + " mb-0"}>Paid · auto</span>
-            <span className="text-sm font-bold tabular-nums text-neutral-900">{fin.paidPct}%</span>
+            <span className="text-sm font-display font-bold tabular-nums text-ink">{fin.paidPct}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
-            <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
+          <div className="h-2 w-full rounded-full bg-charcoal/10 overflow-hidden">
+            <div className="h-full rounded-full bg-gradient-to-r from-[#FFA226] to-[#F57F00]" style={{ width: `${fin.paidPct}%` }} />
           </div>
-          <p className="text-[11px] text-neutral-400 mt-1 tabular-nums">
+          <p className="text-[11px] text-charcoal-40 mt-1 tabular-nums">
             {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
             {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
           </p>
@@ -469,7 +446,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           render={(inv, set) => {
             const { num, cur } = splitAmount(inv.amount);
             return (
-              <div className="grid grid-cols-2 md:grid-cols-[1fr_120px_96px_110px] gap-3 pr-16 items-end">
+              <div className="grid grid-cols-2 md:grid-cols-[1fr_120px_96px_110px] gap-3 pe-16 items-end">
                 <div className="col-span-2 md:col-span-1"><Text label="Cycle" value={inv.cycle} onChange={(cycle) => set({ cycle })} placeholder="Cycle 01 · Feb → Mar" /></div>
                 <div>
                   <label className={lbl}>Amount</label>
@@ -494,13 +471,18 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           }} />
       </Group>
 
-      <Group title="Dashboard" hint="The Dashboard is an auto quick-view (plan, money left, next post, top result). You just set a one-line headline and a few optional health bars.">
+      <Group step="Step 4" title="Hero">
+        <Bi label="Intro line" value={data.hero} onChange={(hero) => patch({ hero })} area />
+        <Text label="Watermark word (optional)" value={data.accent ?? ""} onChange={(accent) => patch({ accent })} placeholder="JACK" />
+      </Group>
+
+      <Group step="Step 5" title="Dashboard" hint="The Dashboard is an auto quick-view (plan, money left, next post, top result). You just set a one-line headline and a few optional health bars.">
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
         <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
         <label className={`${lbl} mt-2`}>Story cards (optional)</label>
         <Rows<StoryCard> items={data.dashboard.cards} onChange={(cards) => patch({ dashboard: { ...data.dashboard, cards } })} blank={{ tag: "", value: "", desc: "" }} addLabel="Add card"
           render={(c, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pe-16">
               <Text label="Tag" value={c.tag} onChange={(tag) => set({ tag })} placeholder="Reach" />
               <Text label="Value" value={c.value} onChange={(value) => set({ value })} placeholder="×4" />
               <Text label="Description" value={c.desc} onChange={(desc) => set({ desc })} />
@@ -509,7 +491,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         <label className={`${lbl} mt-4`}>Account health bars (optional)</label>
         <Rows<Vital> items={data.dashboard.vitals} onChange={(vitals) => patch({ dashboard: { ...data.dashboard, vitals } })} blank={{ label: "", pct: 50, note: "" }} addLabel="Add vital"
           render={(v, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pr-16">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pe-16">
               <Text label="Label" value={v.label} onChange={(label) => set({ label })} />
               <div>
                 <label className={lbl}>Strength: {v.pct}%</label>
@@ -520,50 +502,18 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Social Media Plan" hint="Click a day on the calendar to add or edit posts — or fill the whole month with AI below.">
+      <Group step="Step 6" title="Social Media Plan" hint="Click a day on the calendar to add or edit posts — or fill the whole month from ✨ Fill with AI at the bottom of the page.">
         <Bi label="Headline" value={data.social.headline} onChange={(headline) => patch({ social: { ...data.social, headline } })} />
         <SocialCalendar posts={data.social.posts} editable lang="en" onChange={(posts) => patch({ social: { ...data.social, posts } })} />
-
-        <div className="bg-orange-50 border border-orange-200 rounded-xl p-5 mt-5">
-          <h3 className="font-bold mb-1">✨ Fill the calendar with AI</h3>
-          <p className="text-sm text-neutral-600 mb-3">
-            <b>1.</b> Copy the prompt. <b>2.</b> Paste it into ChatGPT / Claude with a short brief.
-            <b> 3.</b> Paste the AI&apos;s reply below and Apply — it fills the <b>calendar above</b>. Then Save.
-          </p>
-          <button type="button" onClick={copySocialPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
-            {socialCopied ? "Copied ✓" : "Copy social plan prompt"}
-          </button>
-          <textarea value={socialPaste} onChange={(e) => setSocialPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
-          <div className="mt-2 flex items-center gap-3">
-            <button type="button" onClick={applySocialPaste} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply calendar</button>
-            {socialMsg && <span className="text-sm text-neutral-700">{socialMsg}</span>}
-          </div>
-        </div>
       </Group>
 
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h2 className="font-bold mb-1">✨ Fill analytics with AI</h2>
-        <p className="text-sm text-neutral-600 mb-3">
-          <b>1.</b> Copy the prompt. <b>2.</b> Paste it into ChatGPT / Claude with your Meta / Instagram export.
-          <b> 3.</b> Paste the AI&apos;s reply below and Apply — it fills only the <b>Analysis</b> fields below. Then Save.
-        </p>
-        <button type="button" onClick={copyPrompt} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
-          {aiCopied ? "Copied ✓" : "Copy analytics prompt"}
-        </button>
-        <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={applyPaste} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply analytics</button>
-          {csvMsg && <span className="text-sm text-neutral-700">{csvMsg}</span>}
-        </div>
-      </div>
-
-      <Group title="Analysis — Organic">
+      <Group step="Step 7" title="Analysis — Organic">
         <Bi label="Headline" value={data.analysis.organic.headline} onChange={(headline) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, headline } } })} />
         <Bi label="Reading (optional)" value={data.analysis.organic.reading} onChange={(reading) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, reading } } })} area />
         <label className={lbl}>Metrics — the number + what it means</label>
         <Rows<MetricRow> items={data.analysis.organic.metrics} onChange={(metrics) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, metrics } } })} blank={{ label: "", value: "", delta: "", note: "" }} addLabel="Add metric"
           render={(m, set) => (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pr-16">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pe-16">
               <Text label="Metric" value={m.label} onChange={(label) => set({ label })} placeholder="Views" />
               <Text label="Number" value={m.value ?? m.after ?? ""} onChange={(value) => set({ value })} placeholder="301,274" />
               <Text label="Change (optional)" value={m.delta ?? ""} onChange={(delta) => set({ delta })} placeholder="+312%" />
@@ -572,7 +522,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Analysis — Paid">
+      <Group step="Step 7" title="Analysis — Paid">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <Text label="Total spend" value={data.analysis.paid.spend} onChange={(spend) => patch({ analysis: { ...data.analysis, paid: { ...data.analysis.paid, spend } } })} placeholder="$292.22" />
         </div>
@@ -580,7 +530,7 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
         <label className={lbl}>Campaigns</label>
         <Rows<Campaign> items={data.analysis.paid.campaigns} onChange={(campaigns) => patch({ analysis: { ...data.analysis, paid: { ...data.analysis.paid, campaigns } } })} blank={{ name: "", period: "", type: "", spend: "", reach: "", impressions: "", freq: "", cpm: "", desc: "" }} addLabel="Add campaign"
           render={(c, set) => (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pr-16">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pe-16">
               <Text label="Name" value={c.name} onChange={(name) => set({ name })} />
               <Text label="Period" value={c.period} onChange={(period) => set({ period })} />
               <Text label="Type" value={c.type} onChange={(type) => set({ type })} />
@@ -594,10 +544,10 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
           )} />
       </Group>
 
-      <Group title="Documents" hint="Proposal, agreement, etc. Upload a PDF (or image) or paste a link — clients can open / download these.">
+      <Group step="Step 8" title="Documents" hint="Proposal, agreement, etc. Upload a PDF (or image) or paste a link — clients can open / download these.">
         <Rows<DocItem> items={data.documents} onChange={(documents) => patch({ documents })} blank={{ title: "", type: "PDF", url: "" }} addLabel="Add document"
           render={(doc, set) => (
-            <div className="pr-16">
+            <div className="pe-16">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <Text label="Title" value={doc.title} onChange={(title) => set({ title })} placeholder="Proposal" />
                 <Text label="Type" value={doc.type} onChange={(type) => set({ type })} placeholder="PDF" />
@@ -606,31 +556,82 @@ export default function ClientForm({ client, projectLogos = [] }: { client?: Cli
               <div className="mt-2 flex items-center gap-3 flex-wrap">
                 <FileUpload accept="application/pdf,image/*" label="Upload PDF" compact
                   onUploaded={({ url, name, contentType }) => set({ url, title: doc.title || name.replace(/\.[^.]+$/, ""), type: contentType.includes("pdf") ? "PDF" : doc.type || "File" })} />
-                {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-neutral-600 hover:text-orange">Open ↗</a>}
+                {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-charcoal-60 hover:text-orange-deep no-underline">Open ↗</a>}
               </div>
             </div>
           )} />
       </Group>
 
-      <div className="bg-cream border border-neutral-200 rounded-xl p-6">
-        <h2 className="font-bold mb-1">Bulk-fill with a spreadsheet (CSV)</h2>
-        <p className="text-sm text-neutral-600 mb-3">Optional — download, fill anywhere, upload, then Save.</p>
+      {/* AI is the shortcut, not the front door: every prompt/paste helper
+          lives in this one collapsed drawer. The handlers are unchanged —
+          they still merge into the same state the fields above edit. */}
+      <details className="lq-card lq-rise">
+        <summary className="cursor-pointer select-none px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+          <span className="font-display font-bold text-[14px] tracking-tight text-charcoal-80">✨ Fill with AI (optional)</span>
+          <span className="text-xs text-charcoal-40">Copy a prompt, run it in ChatGPT / Claude, paste the reply — it fills the fields above.</span>
+        </summary>
+        <div className="px-5 pb-5 border-t border-charcoal/5 pt-4 space-y-6">
+          {hasOnboarding && (
+            <div>
+              <h3 className="font-display font-bold text-[14px] tracking-tight text-ink mb-1">Portal content — from the onboarding AI</h3>
+              <p className="text-sm text-charcoal-60 mb-3">
+                Use <b>Copy AI prompt</b> on the onboarding brief, then paste the JSON reply — it fills the <b>Hero</b> and <b>Dashboard</b> (headline, diagnosis, story cards). Then Save.
+              </p>
+              <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+              <div className="mt-2 flex items-center gap-3">
+                <button type="button" onClick={applyPortalJson} className="lq-btn lq-btn--glass lq-btn--sm">Apply portal content</button>
+                {portalMsg && <span className="text-sm text-charcoal-80">{portalMsg}</span>}
+              </div>
+            </div>
+          )}
+
+          <div>
+            <h3 className="font-display font-bold text-[14px] tracking-tight text-ink mb-1">Social calendar</h3>
+            <p className="text-sm text-charcoal-60 mb-3">Copy the prompt, add a short brief in ChatGPT / Claude, paste the reply — it fills the <b>Social Media Plan</b> calendar. Then Save.</p>
+            <button type="button" onClick={copySocialPrompt} className="lq-btn lq-btn--glass lq-btn--sm mb-3">
+              {socialCopied ? "Copied ✓" : "Copy social plan prompt"}
+            </button>
+            <textarea value={socialPaste} onChange={(e) => setSocialPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
+            <div className="mt-2 flex items-center gap-3">
+              <button type="button" onClick={applySocialPaste} className="lq-btn lq-btn--glass lq-btn--sm">Apply calendar</button>
+              {socialMsg && <span className="text-sm text-charcoal-80">{socialMsg}</span>}
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-display font-bold text-[14px] tracking-tight text-ink mb-1">Analytics</h3>
+            <p className="text-sm text-charcoal-60 mb-3">Copy the prompt, run it with your Meta / Instagram export, paste the reply — it fills only the <b>Analysis</b> fields. Then Save.</p>
+            <button type="button" onClick={copyPrompt} className="lq-btn lq-btn--glass lq-btn--sm mb-3">
+              {aiCopied ? "Copied ✓" : "Copy analytics prompt"}
+            </button>
+            <textarea value={pasteText} onChange={(e) => setPasteText(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
+            <div className="mt-2 flex items-center gap-3">
+              <button type="button" onClick={applyPaste} className="lq-btn lq-btn--glass lq-btn--sm">Apply analytics</button>
+              {csvMsg && <span className="text-sm text-charcoal-80">{csvMsg}</span>}
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <div className="lq-card lq-rise p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Bulk-fill with a spreadsheet (CSV)</h2>
+        <p className="text-sm text-charcoal-60 mb-3">Optional — download, fill anywhere, upload, then Save.</p>
         <div className="flex items-center gap-3 flex-wrap">
-          <button type="button" onClick={downloadCsv} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Download CSV</button>
-          <label className="bg-neutral-800 text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-neutral-900 transition-colors cursor-pointer">
+          <button type="button" onClick={downloadCsv} className="lq-btn lq-btn--glass lq-btn--sm">Download CSV</button>
+          <label className="lq-btn lq-btn--dark lq-btn--sm cursor-pointer">
             Upload CSV
             <input type="file" accept=".csv,text/csv" className="hidden" onChange={onUpload} />
           </label>
-          {csvMsg && <span className="text-sm text-neutral-700">{csvMsg}</span>}
+          {csvMsg && <span className="text-sm text-charcoal-80">{csvMsg}</span>}
         </div>
       </div>
 
-      <div className="flex items-center gap-3 sticky bottom-0 bg-neutral-100 py-3">
-        <button className="bg-orange text-white font-semibold rounded-md px-6 py-2.5 text-sm hover:bg-orange-deep transition-colors">
+      <div className="lq-card sticky bottom-3 z-10 flex items-center gap-3 px-4 py-3">
+        <button className="lq-btn lq-btn--primary">
           {client ? "Save changes" : "Create client"}
         </button>
-        {client && <Link href={`/portal/${client.slug}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">View portal ↗</Link>}
-        <Link href="/admin/clients" className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</Link>
+        {client && <Link href={`/portal/${client.slug}`} target="_blank" className="text-sm font-medium text-charcoal-60 hover:text-orange-deep no-underline">View portal ↗</Link>}
+        <Link href="/admin/clients" className="text-sm font-medium text-charcoal-60 hover:text-ink no-underline">Cancel</Link>
       </div>
     </form>
   );
