@@ -87,8 +87,17 @@ export default async function StatementPage({ params }: { params: { slug: string
     money = null;
   }
 
+  const ar = client.data.onboarding?.lang === "ar";
   return (
     <main style={{ background: "#33312e", minHeight: "100vh" }}>
+      {/* Way back home — the document is a dead end without it. */}
+      <a
+        href={`/portal/${client.slug}`}
+        dir={ar ? "rtl" : "ltr"}
+        className="print:hidden fixed top-4 start-4 z-50 lq-btn lq-btn--glass lq-btn--sm no-underline"
+      >
+        {ar ? "→ البوابة" : "← Portal"}
+      </a>
       <StatementDocument
         clientName={client.name || client.slug}
         clientSlug={client.slug}

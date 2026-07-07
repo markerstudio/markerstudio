@@ -43,7 +43,10 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
     <main className="lq-app min-h-screen px-4 py-8">
       <div className="mx-auto max-w-3xl lq-rise">
         <div className="print:hidden mb-6 flex items-center justify-between gap-3">
-          <a href={`/portal/${client.slug}/invoices`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">← Invoices</a>
+          <div className="flex items-center gap-2">
+            <a href={`/portal/${client.slug}`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">← Portal</a>
+            <a href={`/portal/${client.slug}/invoices`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">Invoices</a>
+          </div>
           <PrintButton label="Download PDF" />
         </div>
 

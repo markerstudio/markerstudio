@@ -23,8 +23,8 @@ const SessionRow = memo(function SessionRow({
   const brief = session.brief ?? { en: "", ar: "" };
   const setBrief = (b: LocalizedText) => onChange(id, { brief: b });
   return (
-    <div className="lq-well p-3 relative pe-16">
-      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 end-2 text-xs font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
+    <div className="relative pe-16">
+      <button type="button" onClick={() => onRemove(id)} className="absolute top-0 end-0 text-xs font-medium text-charcoal-40 hover:text-rose-600">Remove</button>
       <div className="grid grid-cols-2 md:grid-cols-[140px_110px_1fr_130px] gap-3 items-end">
         <div>
           <label className={lbl}>Date</label>
@@ -69,15 +69,19 @@ const SessionRow = memo(function SessionRow({
   );
 });
 
-// --- One shot-list row, same memoisation strategy. -----------------------------
+// --- One shot-list row, same memoisation strategy. When `assignOptions` is given
+// (unassigned/legacy shots), a small select lets you move the shot under a shoot
+// by setting its sessionId. --------------------------------------------------
 const ShotRow = memo(function ShotRow({
   shot,
   onChange,
   onRemove,
+  assignOptions,
 }: {
   shot: PhotoTask;
   onChange: (id: string, patch: Partial<PhotoTask>) => void;
   onRemove: (id: string) => void;
+  assignOptions?: PhotoSession[];
 }) {
   const id = shot.id!;
   return (
@@ -104,6 +108,23 @@ const ShotRow = memo(function ShotRow({
           <label className={lbl}>Note (optional)</label>
           <input className={input} value={shot.note ?? ""} onChange={(e) => onChange(id, { note: e.target.value })} />
         </div>
+        {assignOptions && assignOptions.length > 0 && (
+          <div className="md:col-span-3">
+            <label className={lbl}>Assign to shoot</label>
+            <select
+              className={input}
+              value={shot.sessionId && assignOptions.some((s) => s.id === shot.sessionId) ? shot.sessionId : ""}
+              onChange={(e) => onChange(id, { sessionId: e.target.value || undefined })}
+            >
+              <option value="">Unassigned</option>
+              {assignOptions.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {(s.title || "Shoot") + (s.date ? ` — ${s.date}` : "")}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -144,7 +165,13 @@ export default function PlanShootsEditor({ slug, initialPhoto }: { slug: string;
 
   const setToggle = (patch: Partial<ClientPhoto>) => { setPhoto((p) => ({ ...p, ...patch })); mark(); };
   const addSession = () => { setPhoto((p) => ({ ...p, sessions: [...(p.sessions ?? []), { id: genPhotoId(), date: "", time: "", location: "", title: "", brief: { en: "", ar: "" }, status: "planned" }] })); mark(); };
-  const addShot = () => { setPhoto((p) => ({ ...p, shots: [...(p.shots ?? []), { id: genPhotoId(), title: "", status: "todo", due: "", note: "" }] })); mark(); };
+  // Add a shot — under a specific shoot (sessionId) or loose/general when omitted.
+  const addShot = (sessionId?: string) => { setPhoto((p) => ({ ...p, shots: [...(p.shots ?? []), { id: genPhotoId(), title: "", status: "todo", due: "", note: "", ...(sessionId ? { sessionId } : {}) }] })); mark(); };
+
+  // Group shots under their shoot; anything with no sessionId (legacy rows) or a
+  // stale one (its shoot was removed) falls into the Unassigned section below.
+  const sessionIds = new Set(sessions.map((s) => s.id).filter(Boolean));
+  const unassignedShots = shots.filter((t) => !t.sessionId || !sessionIds.has(t.sessionId));
 
   function save() {
     startTransition(async () => {
@@ -178,22 +205,39 @@ export default function PlanShootsEditor({ slug, initialPhoto }: { slug: string;
           </div>
 
           <div>
-            <label className={lbl}>Shoot schedule</label>
+            <label className={lbl}>Shoots — each with its own shot list</label>
             <div className="space-y-3">
-              {sessions.map((s) => (
-                <SessionRow key={s.id} session={s} onChange={changeSession} onRemove={removeSession} />
-              ))}
+              {sessions.map((s) => {
+                const own = shots.filter((t) => t.sessionId && t.sessionId === s.id);
+                return (
+                  <div key={s.id} className="lq-well p-3">
+                    <SessionRow session={s} onChange={changeSession} onRemove={removeSession} />
+                    <div className="mt-3 pt-3 border-t border-charcoal/5">
+                      <span className={lbl}>Shot list for this shoot</span>
+                      <div className="space-y-2">
+                        {own.map((t) => (
+                          <ShotRow key={t.id} shot={t} onChange={changeShot} onRemove={removeShot} />
+                        ))}
+                        <button type="button" onClick={() => addShot(s.id)} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shot</button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
               <button type="button" onClick={addSession} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shoot</button>
             </div>
           </div>
 
           <div>
-            <label className={lbl}>Shot list — the photo-session to-do</label>
+            <label className={lbl}>Unassigned shots — general list</label>
             <div className="space-y-3">
-              {shots.map((t) => (
-                <ShotRow key={t.id} shot={t} onChange={changeShot} onRemove={removeShot} />
+              {unassignedShots.map((t) => (
+                <ShotRow key={t.id} shot={t} onChange={changeShot} onRemove={removeShot} assignOptions={sessions} />
               ))}
-              <button type="button" onClick={addShot} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add shot</button>
+              {unassignedShots.length === 0 && (
+                <p className="text-xs text-charcoal-40">Nothing loose — every shot lives under a shoot. Shots added here stay general until assigned.</p>
+              )}
+              <button type="button" onClick={() => addShot()} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add general shot</button>
             </div>
           </div>
         </div>

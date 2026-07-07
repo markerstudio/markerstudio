@@ -18,6 +18,8 @@ import {
   Italic,
   List,
   ListOrdered,
+  Maximize2,
+  Minimize2,
   NotebookPen,
   Pin,
   PinOff,
@@ -81,16 +83,58 @@ function autoGrow(el: HTMLTextAreaElement | null) {
 // Where a note points: Studio (default) · an existing client · "Someone
 // new…" (a freeform label for a prospect or anything extra). Used by both
 // the composer and the editor.
+/* The Write-mode backdrop: the exact same text as the textarea, with markdown
+   marks (##, -, - [ ], 1., **, *) faded to whispers so the source reads as
+   structure instead of "weird symbols". Same font metrics — never changes
+   weight or size, only color, so it stays aligned under the real caret. */
+const LINE_MARK = /^(#{1,2} |- \[[ xX]\] |- |\d+\. )(.*)$/;
+function DimmedSource({ body }: { body: string }) {
+  const dim = (t: string, k: number | string) => (
+    <span key={k} className="text-charcoal-40/45">
+      {t}
+    </span>
+  );
+  const inline = (text: string, base: string) =>
+    text.split(/(\*\*|\*)/).map((part, i) => (part === "**" || part === "*" ? dim(part, `${base}-${i}`) : <span key={`${base}-${i}`}>{part}</span>));
+  const lines = body.split("\n");
+  return (
+    <>
+      {lines.map((line, i) => {
+        const m = line.match(LINE_MARK);
+        return (
+          <span key={i}>
+            {m ? (
+              <>
+                {dim(m[1], `m${i}`)}
+                {inline(m[2], `l${i}`)}
+              </>
+            ) : (
+              inline(line, `l${i}`)
+            )}
+            {i < lines.length - 1 ? "\n" : null}
+          </span>
+        );
+      })}
+      {/* trailing brace keeps the backdrop as tall as the textarea's last empty line */}
+      {"​"}
+    </>
+  );
+}
+
 function LinkPicker({
   clients,
   value,
   onChange,
   drop = "down",
+  align = "end",
 }: {
   clients: SlimClient[];
   value: LinkChoice;
   onChange: (v: LinkChoice) => void;
   drop?: "down" | "up";
+  /** Which trigger edge the popover hugs — use "start" when the trigger sits
+      at the start of a row, or the panel walks off the window. */
+  align?: "start" | "end";
 }) {
   const [open, setOpen] = useState(false);
   const [newMode, setNewMode] = useState(false);
@@ -158,7 +202,7 @@ function LinkPicker({
       </button>
       {open && (
         <div
-          className={`lq-pop lq-chrome absolute end-0 z-30 w-60 p-1.5 ${
+          className={`lq-pop lq-chrome absolute z-30 w-[min(15rem,calc(100vw-32px))] p-1.5 ${align === "start" ? "start-0" : "end-0"} ${
             drop === "up" ? "bottom-full mb-2" : "top-full mt-2"
           }`}
         >
@@ -500,16 +544,19 @@ export default function NotesApp({
     if (editingId == null) return;
     const ta = editorBodyRef.current;
     if (!ta) return;
-    if (fullscreen) ta.style.height = ""; // meeting mode: the textarea fills the modal instead
-    else autoGrow(ta);
+    // Always auto-grow — the wrapper scrolls in full-screen mode, which keeps
+    // the dimmed-syntax backdrop perfectly in step with the text.
+    autoGrow(ta);
   }, [editingId, fullscreen, editorTab]);
 
   const openNote = useCallback((n: Note) => {
     if (n.id < 0) return; // still being created — one beat later it's editable
     snapRef.current = n;
     dirtyRef.current = false;
-    setEditorTab("write");
-    setFullscreen(false);
+    // Read first: notes with content open formatted (no raw markdown in the
+    // face); empty ones open ready to type. Meeting notes reopen full-screen.
+    setEditorTab(n.body.trim() ? "preview" : "write");
+    setFullscreen(/^meeting\b/i.test(n.title.trim()));
     setEditingId(n.id);
   }, []);
 
@@ -710,9 +757,24 @@ export default function NotesApp({
     }
   }, [editing, setErr]);
 
+  // Two-step inline confirm — no window.confirm: browsers can suppress those
+  // dialogs entirely, which made Delete look dead. First tap arms the button
+  // ("Sure? Delete"), a second tap within 4s deletes, anything else disarms.
+  const [armDelete, setArmDelete] = useState(false);
+  useEffect(() => {
+    if (!armDelete) return;
+    const t = setTimeout(() => setArmDelete(false), 4000);
+    return () => clearTimeout(t);
+  }, [armDelete]);
+  useEffect(() => setArmDelete(false), [editingId]);
+
   const deleteEditing = useCallback(async () => {
     if (!editing) return;
-    if (!window.confirm("Delete this note for good? There’s no undo.")) return;
+    if (!armDelete) {
+      setArmDelete(true);
+      return;
+    }
+    setArmDelete(false);
     const n = editing;
     if (saveTimer.current) clearTimeout(saveTimer.current);
     dirtyRef.current = false;
@@ -723,7 +785,7 @@ export default function NotesApp({
       setNotes((xs) => [n, ...xs]);
       setErr(res.error || "Couldn’t delete the note.");
     }
-  }, [editing, setErr]);
+  }, [editing, armDelete, setErr]);
 
   /* ---- render bits ---- */
 
@@ -1014,14 +1076,25 @@ export default function NotesApp({
       >
         {editing && (
           <div className={fullscreen ? "flex flex-col h-full min-h-0 gap-3" : "space-y-3"}>
-            <input
-              value={editing.title}
-              onChange={(e) => editPatch({ title: e.target.value })}
-              placeholder="Title"
-              className={`w-full bg-transparent focus:outline-none font-display font-bold tracking-tight text-ink placeholder:text-charcoal-40/70 ${
-                fullscreen ? "text-[22px]" : "text-[18px]"
-              }`}
-            />
+            <div className="flex items-start gap-2">
+              <input
+                value={editing.title}
+                onChange={(e) => editPatch({ title: e.target.value })}
+                placeholder="Title"
+                className={`w-full bg-transparent focus:outline-none font-display font-bold tracking-tight text-ink placeholder:text-charcoal-40/70 ${
+                  fullscreen ? "text-[22px]" : "text-[18px]"
+                }`}
+              />
+              <button
+                type="button"
+                title={fullscreen ? "Shrink" : "Full screen"}
+                aria-label={fullscreen ? "Shrink editor" : "Expand editor to full screen"}
+                onClick={() => setFullscreen((f) => !f)}
+                className="lq-press shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-charcoal-60 hover:text-ink hover:bg-charcoal/5"
+              >
+                {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+              </button>
+            </div>
             {/* Write / Preview + the formatting toolbar */}
             <div className="flex flex-wrap items-center gap-2">
               <Seg<"write" | "preview">
@@ -1061,31 +1134,44 @@ export default function NotesApp({
               )}
             </div>
             {editorTab === "write" ? (
-              <textarea
-                ref={editorBodyRef}
-                value={editing.body}
-                onChange={(e) => {
-                  editPatch({ body: e.target.value });
-                  if (!fullscreen) autoGrow(e.currentTarget);
-                }}
-                onKeyDown={(e) => {
-                  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
-                    const k = e.key.toLowerCase();
-                    if (k === "b") {
-                      e.preventDefault();
-                      applyInline("**");
-                    } else if (k === "i") {
-                      e.preventDefault();
-                      applyInline("*");
+              <div className={`relative ${fullscreen ? "flex-1 min-h-0 overflow-y-auto" : ""}`}>
+                {/* Backdrop: the same text with markdown marks faded out, so
+                    ## and - [ ] read as structure, not weird symbols. Colors
+                    only — identical font metrics keep it glued to the caret. */}
+                <div
+                  aria-hidden
+                  className={`absolute inset-0 pointer-events-none whitespace-pre-wrap break-words leading-relaxed text-charcoal-80 ${
+                    fullscreen ? "text-[16px]" : "text-[15px]"
+                  }`}
+                >
+                  <DimmedSource body={editing.body} />
+                </div>
+                <textarea
+                  ref={editorBodyRef}
+                  value={editing.body}
+                  onChange={(e) => {
+                    editPatch({ body: e.target.value });
+                    autoGrow(e.currentTarget);
+                  }}
+                  onKeyDown={(e) => {
+                    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+                      const k = e.key.toLowerCase();
+                      if (k === "b") {
+                        e.preventDefault();
+                        applyInline("**");
+                      } else if (k === "i") {
+                        e.preventDefault();
+                        applyInline("*");
+                      }
                     }
-                  }
-                }}
-                placeholder="Write it down…"
-                rows={4}
-                className={`w-full resize-none bg-transparent focus:outline-none leading-relaxed text-charcoal-80 placeholder:text-charcoal-40/70 ${
-                  fullscreen ? "flex-1 min-h-0 overflow-y-auto text-[16px]" : "min-h-[120px] text-[15px]"
-                }`}
-              />
+                  }}
+                  placeholder="Write it down…"
+                  rows={4}
+                  className={`relative w-full resize-none bg-transparent focus:outline-none leading-relaxed text-transparent caret-charcoal placeholder:text-charcoal-40/70 ${
+                    fullscreen ? "text-[16px]" : "min-h-[120px] text-[15px]"
+                  }`}
+                />
+              </div>
             ) : (
               <div className={fullscreen ? "flex-1 min-h-0 overflow-y-auto" : "min-h-[120px]"}>
                 {editing.body.trim() ? (
@@ -1101,6 +1187,7 @@ export default function NotesApp({
                 value={editingLink}
                 onChange={(v) => editPatch({ client_slug: v.slug, context_label: v.label })}
                 drop="up"
+                align="start"
               />
               <span className="text-[11px] text-charcoal-40 tabular-nums">
                 Created {timeAgo(editing.created_at)} · edited {timeAgo(editing.updated_at)}
@@ -1114,9 +1201,13 @@ export default function NotesApp({
                 Archive
               </button>
               <span className="flex-1" />
-              <button type="button" className="lq-btn lq-btn--danger lq-btn--sm lq-press" onClick={() => void deleteEditing()}>
+              <button
+                type="button"
+                className={`lq-btn lq-btn--danger lq-btn--sm lq-press ${armDelete ? "!bg-none !bg-rose-700 animate-pulse" : ""}`}
+                onClick={() => void deleteEditing()}
+              >
                 <Trash2 className="w-3.5 h-3.5" />
-                Delete
+                {armDelete ? "Sure? Delete forever" : "Delete"}
               </button>
               <button type="button" className="lq-btn lq-btn--primary lq-btn--sm lq-press" onClick={closeEditor}>
                 Done

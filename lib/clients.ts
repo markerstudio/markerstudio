@@ -93,6 +93,7 @@ export type PhotoTaskStatus = "todo" | "doing" | "done";
 // be dragged onto the calendar to schedule a linked post.
 export type PhotoTask = {
   id?: string;
+  sessionId?: string; // links the shot to its PhotoSession.id (JSONB-additive; legacy rows lack it = unassigned/general)
   title: string;
   status: PhotoTaskStatus;
   due?: string;

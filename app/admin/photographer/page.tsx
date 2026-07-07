@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getSession, canSeePhotographer, isPhotographerOnly } from "@/lib/auth";
 import { isDbEnabled } from "@/lib/db";
-import { getClients, hasPhotography, type Client, type PhotoSession } from "@/lib/clients";
+import { getClients, hasPhotography, type Client, type PhotoSession, type PhotoTask } from "@/lib/clients";
 import {
   ensurePhotoIds,
   SESSION_ORDER,
@@ -24,6 +24,48 @@ function fmtDate(iso: string): string {
   if (!iso) return "—";
   const d = new Date(`${iso}T00:00:00`);
   return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString("en-GB", { weekday: "short", day: "2-digit", month: "short" });
+}
+
+// One shot line — status chip, optional reference media, title + meta. `idx` is the
+// shot's index in the ORIGINAL photo.shots array (the status action's fallback target).
+function ShotLine({ slug, shot, idx }: { slug: string; shot: PhotoTask; idx: number }) {
+  return (
+    <>
+      <div className="shrink-0 pt-0.5">
+        <PhotographerStatusButton
+          slug={slug}
+          id={shot.id}
+          idx={idx}
+          status={shot.status}
+          order={TASK_ORDER}
+          labels={TASK_LABEL}
+          badges={TASK_BADGE}
+          action={setShotStatusById}
+        />
+      </div>
+      {shot.mediaUrl && (
+        <a href={shot.mediaUrl} target="_blank" rel="noreferrer" className="shrink-0" title="Open reference media">
+          {shot.mediaKind === "video" ? (
+            // eslint-disable-next-line jsx-a11y/media-has-caption
+            <video src={shot.mediaUrl} muted className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={shot.mediaUrl} alt="" className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
+          )}
+        </a>
+      )}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`text-sm ${shot.status === "done" ? "line-through text-charcoal-40" : "text-ink font-medium"}`}>{shot.title || "Shot"}</span>
+          {shot.type && <span className="lq-chip uppercase !text-[10px] !px-2 !py-0.5">{SHOT_TYPE_LABEL[shot.type] || shot.type}</span>}
+          {shot.mediaUrl && <span className="text-[10px] font-semibold text-emerald-700">{shot.mediaKind === "video" ? "🎬 video" : "🖼 photo"}</span>}
+        </div>
+        {(shot.due || shot.note) && (
+          <div className="text-[11px] text-charcoal-60 mt-0.5">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
+        )}
+      </div>
+    </>
+  );
 }
 
 export default async function PhotographerPage() {
@@ -155,6 +197,11 @@ export default async function PhotographerPage() {
           const sessions = photo.sessions ?? [];
           const shots = photo.shots ?? [];
           const sharePlan = !!photo.sharePlan;
+          // Keep each shot's index in the original array — the status action's fallback
+          // target — then group by sessionId; loose/stale shots go to the general list.
+          const shotEntries = shots.map((shot, idx) => ({ shot, idx }));
+          const sessionIds = new Set(sessions.map((s) => s.id).filter(Boolean));
+          const generalShots = shotEntries.filter(({ shot }) => !shot.sessionId || !sessionIds.has(shot.sessionId));
           return (
             <div key={c.slug} className="lq-card lq-rise p-5" style={{ animationDelay: `${220 + ci * 60}ms` }}>
               <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
@@ -180,85 +227,63 @@ export default async function PhotographerPage() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-                {/* Shoot schedule */}
+              <div className="space-y-4">
+                {/* Shoots — each with its own shot list nested under it */}
                 <div>
-                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">Shoot schedule</div>
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">Shoots &amp; shot lists</div>
                   {sessions.length === 0 ? (
                     <p className="text-sm text-charcoal-40">No shoots scheduled.</p>
                   ) : (
                     <ul className="space-y-2">
-                      {sessions.map((session, idx) => (
-                        <li key={session.id ?? idx} className="lq-well p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-semibold text-ink">{fmtDate(session.date)}{session.time ? ` · ${session.time}` : ""}</div>
-                            <PhotographerStatusButton
-                              slug={c.slug}
-                              id={session.id}
-                              idx={idx}
-                              status={session.status}
-                              order={SESSION_ORDER}
-                              labels={SESSION_LABEL}
-                              badges={SESSION_BADGE}
-                              action={setSessionStatusById}
-                            />
-                          </div>
-                          <div className="text-sm text-charcoal-80 mt-0.5">{session.title || "Shoot"}</div>
-                          {session.location && <div className="text-[11px] text-charcoal-60">{session.location}</div>}
-                          {session.brief?.en && <p className="text-[11px] text-charcoal-60 mt-1">{session.brief.en}</p>}
-                        </li>
-                      ))}
+                      {sessions.map((session, idx) => {
+                        const own = session.id ? shotEntries.filter(({ shot }) => shot.sessionId === session.id) : [];
+                        return (
+                          <li key={session.id ?? idx} className="lq-well p-3">
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="text-sm font-semibold text-ink">{fmtDate(session.date)}{session.time ? ` · ${session.time}` : ""}</div>
+                              <PhotographerStatusButton
+                                slug={c.slug}
+                                id={session.id}
+                                idx={idx}
+                                status={session.status}
+                                order={SESSION_ORDER}
+                                labels={SESSION_LABEL}
+                                badges={SESSION_BADGE}
+                                action={setSessionStatusById}
+                              />
+                            </div>
+                            <div className="text-sm text-charcoal-80 mt-0.5">{session.title || "Shoot"}</div>
+                            {session.location && <div className="text-[11px] text-charcoal-60">{session.location}</div>}
+                            {session.brief?.en && <p className="text-[11px] text-charcoal-60 mt-1">{session.brief.en}</p>}
+                            {own.length > 0 && (
+                              <ul className="mt-2.5 pt-1 border-t border-charcoal/5 divide-y divide-charcoal/5">
+                                {own.map(({ shot, idx: shotIdx }) => (
+                                  <li key={shot.id ?? shotIdx} className="flex items-start gap-3 py-2.5">
+                                    <ShotLine slug={c.slug} shot={shot} idx={shotIdx} />
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
 
-                {/* Shot to-do list */}
-                <div>
-                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">Shot list — to do</div>
-                  {shots.length === 0 ? (
-                    <p className="text-sm text-charcoal-40">No shots on the list.</p>
-                  ) : (
+                {/* Loose shots — no shoot (legacy rows) or their shoot was removed */}
+                {generalShots.length > 0 && (
+                  <div>
+                    <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-2">General shot list</div>
                     <ul className="space-y-2">
-                      {shots.map((shot, idx) => (
+                      {generalShots.map(({ shot, idx }) => (
                         <li key={shot.id ?? idx} className="flex items-start gap-3 lq-well p-2.5">
-                          <div className="shrink-0 pt-0.5">
-                            <PhotographerStatusButton
-                              slug={c.slug}
-                              id={shot.id}
-                              idx={idx}
-                              status={shot.status}
-                              order={TASK_ORDER}
-                              labels={TASK_LABEL}
-                              badges={TASK_BADGE}
-                              action={setShotStatusById}
-                            />
-                          </div>
-                          {shot.mediaUrl && (
-                            <a href={shot.mediaUrl} target="_blank" rel="noreferrer" className="shrink-0" title="Open reference media">
-                              {shot.mediaKind === "video" ? (
-                                // eslint-disable-next-line jsx-a11y/media-has-caption
-                                <video src={shot.mediaUrl} muted className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
-                              ) : (
-                                // eslint-disable-next-line @next/next/no-img-element
-                                <img src={shot.mediaUrl} alt="" className="h-14 w-14 rounded-xl object-cover border border-charcoal/10 bg-charcoal/5" />
-                              )}
-                            </a>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className={`text-sm ${shot.status === "done" ? "line-through text-charcoal-40" : "text-ink font-medium"}`}>{shot.title || "Shot"}</span>
-                              {shot.type && <span className="lq-chip uppercase !text-[10px] !px-2 !py-0.5">{SHOT_TYPE_LABEL[shot.type] || shot.type}</span>}
-                              {shot.mediaUrl && <span className="text-[10px] font-semibold text-emerald-700">{shot.mediaKind === "video" ? "🎬 video" : "🖼 photo"}</span>}
-                            </div>
-                            {(shot.due || shot.note) && (
-                              <div className="text-[11px] text-charcoal-60 mt-0.5">{shot.due ? `Due ${shot.due}` : ""}{shot.due && shot.note ? " · " : ""}{shot.note || ""}</div>
-                            )}
-                          </div>
+                          <ShotLine slug={c.slug} shot={shot} idx={idx} />
                         </li>
                       ))}
                     </ul>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </div>
           );
