@@ -9,7 +9,8 @@ import { getBoardData } from "@/lib/taskBoard";
 import { getAgenda } from "@/lib/agenda";
 import TodayTasks from "@/components/admin/tasks/TodayTasks";
 import TodayAgenda from "@/components/admin/TodayAgenda";
-import { StatTile, Skeleton } from "@/components/ui/glass";
+import type { CSSProperties } from "react";
+import { Skeleton } from "@/components/ui/glass";
 
 export const dynamic = "force-dynamic";
 
@@ -145,6 +146,56 @@ export default async function AdminDashboard() {
   const maxBilled = Math.max(1, ...d.months.map((m) => m.billed));
   const hasMoney = d.months.some((m) => m.billed > 0 || m.collected > 0);
 
+  // KPI cells — one glass panel, internal dividers instead of six boxed tiles.
+  const kpis: {
+    label: string;
+    value: string;
+    sub: string;
+    href: string;
+    accent?: boolean;
+    subTone?: string;
+  }[] = [
+    {
+      label: "Outstanding",
+      value: fmtMoney(d.outstanding),
+      sub: d.outstanding > 0 ? "across due & partial invoices" : "nothing owed right now",
+      href: "/admin/invoices",
+      accent: true,
+    },
+    {
+      label: "Overdue",
+      value: d.overdueCount ? fmtMoney(d.overdueTotal) : "None",
+      sub: d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule",
+      href: "/admin/invoices?f=overdue",
+      subTone: d.overdueCount ? "text-rose-700" : "text-emerald-700",
+    },
+    {
+      label: "This month",
+      value: fmtMoney(d.thisMonthCollected),
+      sub: `collected · ${fmtMoney(d.thisMonthBilled)} billed`,
+      href: "/admin/finance",
+    },
+    {
+      label: "Collected this year",
+      value: fmtMoney(d.collectedYear),
+      sub: `${d.invoiceStatusCounts.paid} invoice${d.invoiceStatusCounts.paid === 1 ? "" : "s"} fully paid`,
+      href: "/admin/invoices?f=paid",
+    },
+    {
+      label: "Active clients",
+      value: String(d.activeClients),
+      sub: `of ${d.totalClients} portal${d.totalClients === 1 ? "" : "s"} total`,
+      href: "/admin/clients",
+    },
+    {
+      label: "Awaiting reply",
+      value: String(d.unreadInquiries + d.unreadApplications),
+      sub: `${d.unreadInquiries} inquir${d.unreadInquiries === 1 ? "y" : "ies"} · ${d.unreadApplications} application${d.unreadApplications === 1 ? "" : "s"}`,
+      href: "/admin/inquiries",
+      subTone: d.unreadInquiries + d.unreadApplications > 0 ? "text-amber-700" : undefined,
+    },
+  ];
+
   return (
     <div className="space-y-5">
       {/* ---- Greeting — type on the field, no box ---- */}
@@ -191,14 +242,34 @@ export default async function AdminDashboard() {
         <TodayAgendaCard />
       </Suspense>
 
-      {/* ---- KPI tiles ---- */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3.5">
-        <StatTile label="Outstanding" value={fmtMoney(d.outstanding)} sub={d.outstanding > 0 ? "across due & partial invoices" : "nothing owed right now"} href="/admin/invoices" tone="accent" delay={40} />
-        <StatTile label="Overdue" value={d.overdueCount ? fmtMoney(d.overdueTotal) : "None"} sub={d.overdueCount ? `${d.overdueCount} invoice${d.overdueCount === 1 ? "" : "s"} past due` : "all on schedule"} href="/admin/invoices?f=overdue" tone={d.overdueCount ? "bad" : "good"} delay={90} />
-        <StatTile label="This month" value={fmtMoney(d.thisMonthCollected)} sub={`collected · ${fmtMoney(d.thisMonthBilled)} billed`} href="/admin/finance" delay={140} />
-        <StatTile label="Collected this year" value={fmtMoney(d.collectedYear)} sub={`${d.invoiceStatusCounts.paid} invoice${d.invoiceStatusCounts.paid === 1 ? "" : "s"} fully paid`} href="/admin/invoices?f=paid" delay={190} />
-        <StatTile label="Active clients" value={String(d.activeClients)} sub={`of ${d.totalClients} portal${d.totalClients === 1 ? "" : "s"} total`} href="/admin/clients" delay={240} />
-        <StatTile label="Awaiting reply" value={String(d.unreadInquiries + d.unreadApplications)} sub={`${d.unreadInquiries} inquir${d.unreadInquiries === 1 ? "y" : "ies"} · ${d.unreadApplications} application${d.unreadApplications === 1 ? "" : "s"}`} href="/admin/inquiries" tone={d.unreadInquiries + d.unreadApplications > 0 ? "warn" : "neutral"} delay={290} />
+      {/* ---- KPI panel — one surface, six cells with internal dividers ---- */}
+      <div className="lq-card lq-rise overflow-hidden" style={{ animationDelay: "60ms" }}>
+        <div className="grid grid-cols-2 lg:grid-cols-3 -ms-px -mt-px lq-stagger">
+          {kpis.map((s, i) => (
+            <Link
+              key={s.label}
+              href={s.href}
+              className={`lq-press border-s border-t border-charcoal/5 p-4 flex flex-col gap-1 min-w-0 no-underline transition-colors ${
+                s.accent ? "bg-orange/10 hover:bg-orange/15" : "hover:bg-white/60"
+              }`}
+              style={{ "--i": i } as CSSProperties}
+            >
+              <span
+                className={`text-[10px] font-display font-bold uppercase tracking-[0.12em] ${
+                  s.accent ? "text-orange-deep" : "text-charcoal-60"
+                }`}
+              >
+                {s.label}
+              </span>
+              <span className="font-display font-extrabold text-[22px] leading-none tracking-tight text-ink break-words">
+                {s.value}
+              </span>
+              <span className={`text-[11.5px] font-semibold leading-tight ${s.subTone || "text-charcoal-60"}`}>
+                {s.sub}
+              </span>
+            </Link>
+          ))}
+        </div>
       </div>
 
       {/* ---- Today's tasks + attention ---- */}

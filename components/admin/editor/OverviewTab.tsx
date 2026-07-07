@@ -221,17 +221,18 @@ export default function OverviewTab({
         </div>
       </div>
 
-      {/* ---- At a glance ------------------------------------------------------ */}
-      <div className="lq-card lq-rise p-5" style={{ "--i": 2 } as CSSProperties}>
-        <SectionHead title="At a glance" sub="Read-only — jump in to change anything." className="mb-4" />
-        <div className="grid grid-cols-2 min-[900px]:grid-cols-3 gap-3">
-          {glance.map((g) => (
+      {/* ---- At a glance — one card, stat strip with internal dividers ------- */}
+      <div className="lq-card lq-rise overflow-hidden" style={{ "--i": 2 } as CSSProperties}>
+        <SectionHead title="At a glance" sub="Read-only — jump in to change anything." className="p-5 pb-4" />
+        <div className="grid grid-cols-2 min-[900px]:grid-cols-3 -ms-px lq-stagger">
+          {glance.map((g, i) => (
             <button
               key={g.label}
               type="button"
               onClick={() => onNavigate(g.tab)}
-              className="lq-well lq-press p-4 text-start flex flex-col gap-1 min-w-0"
+              className="lq-press border-s border-t border-charcoal/5 px-5 py-4 text-start flex flex-col gap-1 min-w-0 hover:bg-white/60 transition-colors"
               title={`Open ${g.manage}`}
+              style={{ "--i": i } as CSSProperties}
             >
               <span className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
                 {g.label}

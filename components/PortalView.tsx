@@ -368,21 +368,23 @@ export default function PortalView({
                 );
               })()}
 
-              {/* Auto overview — always populated from the client's data. */}
+              {/* Auto overview — one glass panel, stats separated by hairlines. */}
               <section className="lq-rise" style={{ animationDelay: "80ms" }}>
                 <p className={MICRO}>{ui("At a glance", "نظرة سريعة")}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3.5 mt-3 lq-stagger">
-                  {autoStats.map((s, i) => (
-                    <div key={i} className="lq-card p-4" style={{ "--i": i } as React.CSSProperties}>
-                      <span className={`block ${MICRO_TILE}`}>{s.label}</span>
-                      <span className="block mt-1 text-[18px] font-display font-extrabold tracking-tight tabular-nums text-ink truncate" title={s.value}>{s.value}</span>
-                      {s.sub && (
-                        <span className={`block mt-0.5 text-[11.5px] truncate ${s.tone === "good" ? "text-emerald-700 font-semibold" : s.tone === "warn" ? "text-orange-deep font-semibold" : "text-charcoal-60"}`}>
-                          {s.sub}
-                        </span>
-                      )}
-                    </div>
-                  ))}
+                <div className="lq-card overflow-hidden mt-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 -ms-px -mt-px lq-stagger">
+                    {autoStats.map((s, i) => (
+                      <div key={i} className="border-s border-t border-charcoal/5 px-4 py-3.5 min-w-0" style={{ "--i": i } as React.CSSProperties}>
+                        <span className={`block ${MICRO_TILE}`}>{s.label}</span>
+                        <span className="block mt-1 text-[18px] font-display font-extrabold tracking-tight tabular-nums text-ink truncate" title={s.value}>{s.value}</span>
+                        {s.sub && (
+                          <span className={`block mt-0.5 text-[11.5px] truncate ${s.tone === "good" ? "text-emerald-700 font-semibold" : s.tone === "warn" ? "text-orange-deep font-semibold" : "text-charcoal-60"}`}>
+                            {s.sub}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </section>
 
@@ -545,41 +547,44 @@ export default function PortalView({
                     )}
                   </div>
 
-                  {sessions.length > 0 && (
-                    <div className="grid gap-3 lq-stagger">
-                      {sessions.map((s, i) => {
-                        const st = sessionStatusLabel[s.status] ?? sessionStatusLabel.planned;
-                        return (
-                          <div key={i} className="lq-card p-5" style={{ "--i": i } as React.CSSProperties}>
-                            <div className="flex items-start justify-between gap-3 flex-wrap">
-                              <div>
-                                <div className={MICRO_TILE}>{fmtShootDate(s.date)}{s.time ? ` · ${s.time}` : ""}</div>
-                                <div className="font-display font-bold text-[15.5px] text-ink mt-1">{s.title || ui("Shoot", "جلسة")}</div>
-                                {s.location && <div className="text-sm text-charcoal-60 mt-0.5">{s.location}</div>}
+                  {/* One surface: session rows, then the shot list under a divider. */}
+                  <div className="lq-card p-5">
+                    {sessions.length > 0 && (
+                      <div className="divide-y divide-charcoal/5 lq-stagger">
+                        {sessions.map((s, i) => {
+                          const st = sessionStatusLabel[s.status] ?? sessionStatusLabel.planned;
+                          return (
+                            <div key={i} className="py-3.5 first:pt-0 last:pb-0" style={{ "--i": i } as React.CSSProperties}>
+                              <div className="flex items-start justify-between gap-3 flex-wrap">
+                                <div className="min-w-0">
+                                  <div className={MICRO_TILE}>{fmtShootDate(s.date)}{s.time ? ` · ${s.time}` : ""}</div>
+                                  <div className="font-display font-bold text-[15.5px] text-ink mt-1">{s.title || ui("Shoot", "جلسة")}</div>
+                                  {s.location && <div className="text-sm text-charcoal-60 mt-0.5">{s.location}</div>}
+                                </div>
+                                <span className={`lq-chip ${st.cls}`}>{ui(st.en, st.ar)}</span>
                               </div>
-                              <span className={`lq-chip ${st.cls}`}>{ui(st.en, st.ar)}</span>
+                              {tr(s.brief) && <p className="text-sm text-charcoal-60 leading-relaxed mt-2">{tr(s.brief)}</p>}
                             </div>
-                            {tr(s.brief) && <p className="text-sm text-charcoal-60 leading-relaxed mt-2.5">{tr(s.brief)}</p>}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
+                          );
+                        })}
+                      </div>
+                    )}
 
-                  {shots.length > 0 && (
-                    <div className="lq-card p-5">
-                      <p className={MICRO}>{ui("Shot list", "قائمة اللقطات")}</p>
-                      <ul className="mt-2 divide-y divide-charcoal/5">
-                        {shots.map((t, i) => (
-                          <li key={i} className="flex items-center gap-3 py-2.5">
-                            <span aria-hidden className={t.status === "done" ? "text-orange" : "text-charcoal-20"}>{t.status === "done" ? "✓" : "○"}</span>
-                            <span className={`flex-1 text-sm ${t.status === "done" ? "line-through text-charcoal-40" : "text-charcoal-80"}`}>{t.title}</span>
-                            {t.status === "doing" && <span className="lq-chip lq-chip--blue">{ui("In progress", "قيد التنفيذ")}</span>}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    {shots.length > 0 && (
+                      <div className={sessions.length > 0 ? "mt-4 pt-4 border-t border-charcoal/5" : ""}>
+                        <p className={MICRO}>{ui("Shot list", "قائمة اللقطات")}</p>
+                        <ul className="mt-2 divide-y divide-charcoal/5">
+                          {shots.map((t, i) => (
+                            <li key={i} className="flex items-center gap-3 py-2.5">
+                              <span aria-hidden className={t.status === "done" ? "text-orange" : "text-charcoal-20"}>{t.status === "done" ? "✓" : "○"}</span>
+                              <span className={`flex-1 text-sm ${t.status === "done" ? "line-through text-charcoal-40" : "text-charcoal-80"}`}>{t.title}</span>
+                              {t.status === "doing" && <span className="lq-chip lq-chip--blue">{ui("In progress", "قيد التنفيذ")}</span>}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -828,46 +833,56 @@ export default function PortalView({
                 </div>
               </header>
 
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 lq-stagger">
-                {(edit || d.finance?.monthlyFee) && (
-                  <div className="lq-card p-4" style={{ "--i": 0 } as React.CSSProperties}>
-                    <span className={`block ${MICRO_TILE}`}>{ui("Monthly fee (marketing)", "الاشتراك الشهري (تسويق)")}</span>
-                    <div className="font-display font-extrabold text-[22px] tracking-tight tabular-nums text-ink mt-2">{f(d.finance?.monthlyFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.monthlyFee = v; }), false, "—")}</div>
-                  </div>
-                )}
-                {(edit || d.plan?.balance) && (
-                  /* The one dark emphasis tile on this tab */
-                  <div className="lq-dark p-4" style={{ "--i": 1 } as React.CSSProperties}>
-                    <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Money left", "المبلغ المتبقّي")}</span>
-                    <div className="font-display font-extrabold text-[22px] tracking-tight tabular-nums mt-2">{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
-                  </div>
-                )}
-                {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
-                  <div className="lq-card p-4" style={{ "--i": 2 } as React.CSSProperties}>
-                    <span className={`block ${MICRO_TILE}`}>{ui("Paid", "نسبة السداد")}</span>
-                    {edit ? (
-                      <input type="range" min={0} max={100} value={d.finance?.progress ?? 0} className="w-full accent-orange" style={{ marginTop: 12 }} onChange={(e) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.progress = Number(e.target.value); })} />
-                    ) : (
-                      <>
-                        <div className="font-display font-extrabold text-[22px] tracking-tight tabular-nums text-ink mt-2">{d.finance?.progress ?? 0}%</div>
-                        <div className="h-1.5 rounded-full bg-charcoal/10 overflow-hidden mt-2.5">
-                          <div className="h-full rounded-full bg-gradient-to-r from-[#FFA226] to-[#F57F00]" style={{ width: `${d.finance?.progress ?? 0}%` }} />
+              {/* One money panel — the tab's single dark emphasis surface:
+                  balance as the hero number, paid progress beside it, fees in a
+                  divided strip below. */}
+              {(edit || d.plan?.balance || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0 || d.finance?.brandingFee) && (
+                <section className="lq-dark lq-rise p-5 sm:p-6" style={{ animationDelay: "60ms" }}>
+                  <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+                    {(edit || d.plan?.balance) && (
+                      <div className="min-w-0">
+                        <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Money left", "المبلغ المتبقّي")}</span>
+                        <div className="font-display font-extrabold text-[32px] sm:text-[38px] leading-none tracking-tight tabular-nums mt-2">{f(d.plan?.balance ?? "", (v) => up((c) => (c.plan.balance = v)), false, "—")}</div>
+                      </div>
+                    )}
+                    {(edit || d.finance?.monthlyFee || (d.finance?.progress ?? 0) > 0) && (
+                      <div className="w-full sm:w-[240px]">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Paid", "نسبة السداد")}</span>
+                          {!edit && <span className="font-display font-extrabold text-[15px] tabular-nums">{d.finance?.progress ?? 0}%</span>}
                         </div>
-                      </>
+                        {edit ? (
+                          <input type="range" min={0} max={100} value={d.finance?.progress ?? 0} className="w-full accent-orange" style={{ marginTop: 12 }} onChange={(e) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.progress = Number(e.target.value); })} />
+                        ) : (
+                          <div className="h-1.5 rounded-full bg-white/15 overflow-hidden mt-2">
+                            <div className="h-full rounded-full bg-gradient-to-r from-[#FFA226] to-[#F57F00]" style={{ width: `${d.finance?.progress ?? 0}%` }} />
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
 
-                {/* Branding fee is shown for reference only — the "Money left"
-                    figure above is the single combined balance (branding +
-                    marketing + extras − paid). No separate branding balance. */}
-                {(edit || d.finance?.brandingFee) && (
-                  <div className="lq-card p-4" style={{ "--i": 3 } as React.CSSProperties}>
-                    <span className={`block ${MICRO_TILE}`}>{ui("Branding fee (fixed)", "رسوم الهوية (ثابتة)")}</span>
-                    <div className="font-display font-extrabold text-[22px] tracking-tight tabular-nums text-ink mt-2">{f(d.finance?.brandingFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.brandingFee = v; }), false, "—")}</div>
-                  </div>
-                )}
-              </div>
+                  {/* Branding fee is shown for reference only — the "Money left"
+                      figure above is the single combined balance (branding +
+                      marketing + extras − paid). No separate branding balance. */}
+                  {(edit || d.finance?.monthlyFee || d.finance?.brandingFee) && (
+                    <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap gap-y-3 [&>*+*]:border-s [&>*+*]:border-white/10">
+                      {(edit || d.finance?.monthlyFee) && (
+                        <div className="min-w-0 ps-6 pe-6 first:ps-0">
+                          <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Monthly fee (marketing)", "الاشتراك الشهري (تسويق)")}</span>
+                          <div className="font-display font-extrabold text-[18px] tracking-tight tabular-nums mt-1">{f(d.finance?.monthlyFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.monthlyFee = v; }), false, "—")}</div>
+                        </div>
+                      )}
+                      {(edit || d.finance?.brandingFee) && (
+                        <div className="min-w-0 ps-6 pe-6 first:ps-0">
+                          <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Branding fee (fixed)", "رسوم الهوية (ثابتة)")}</span>
+                          <div className="font-display font-extrabold text-[18px] tracking-tight tabular-nums mt-1">{f(d.finance?.brandingFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.brandingFee = v; }), false, "—")}</div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
 
               <section className="pt-2">
                 <p className={MICRO}>{ui("Payment history", "سجلّ المدفوعات")}</p>
