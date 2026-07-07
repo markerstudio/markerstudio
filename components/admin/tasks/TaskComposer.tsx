@@ -160,7 +160,7 @@ export default function TaskComposer({
     >
       <span aria-hidden className="text-[11px] leading-none">{KIND_ICON[kind]}</span>
       {label}
-      <span className="w-3.5 h-3.5 rounded-full bg-charcoal/8 text-charcoal-40 group-hover:bg-charcoal/15 group-hover:text-charcoal-80 text-[9px] leading-[14px] text-center">✕</span>
+      <span className="w-3.5 h-3.5 rounded-full bg-charcoal/10 text-charcoal-40 group-hover:bg-charcoal/15 group-hover:text-charcoal-80 text-[9px] leading-[14px] text-center">✕</span>
     </button>
   );
 

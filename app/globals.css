@@ -898,17 +898,29 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
   --lq-dur: 320ms;
 }
 
-/* ---- Ambient field — the light the glass refracts ---- */
+/* ---- Ambient field — the light the glass refracts ----
+   The gradient lives on a fixed pseudo-element, NOT background-attachment:
+   fixed (broken/janky on iOS Safari). Content stacks above via z-index. */
 .lq-app {
+  position: relative;
+  isolation: isolate;
   min-height: 100vh;
   min-height: 100dvh;
+  background-color: #F3F0E9;
+  -webkit-tap-highlight-color: transparent;
+}
+.lq-app::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
   background-color: #F3F0E9;
   background-image:
     radial-gradient(1100px 520px at 12% -8%, rgba(255,145,0,0.14), transparent 62%),
     radial-gradient(900px 480px at 96% 4%, rgba(255,179,71,0.12), transparent 60%),
     radial-gradient(1200px 700px at 50% 118%, rgba(48,48,48,0.10), transparent 58%),
     linear-gradient(180deg, #FAF8F4 0%, #F3F0E9 46%, #EFEBE2 100%);
-  background-attachment: fixed;
 }
 
 /* ---- Chrome material — real glass (nav, sheets, popovers) ---- */
@@ -1125,8 +1137,9 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 /* Stagger children — set --i on each child */
 .lq-stagger > * { animation: lq-rise 520ms var(--lq-out) both; animation-delay: calc(var(--i, 0) * 55ms); }
 
-/* Content clears the fixed chrome */
-.lq-main { padding: 22px 20px calc(96px + env(safe-area-inset-bottom, 0px)); }
+/* Content clears the fixed chrome. On mobile the extra top padding keeps
+   page headers clear of the floating bell/search chips. */
+.lq-main { padding: calc(58px + env(safe-area-inset-top, 0px)) 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
 @media (min-width: 900px) {
   .lq-main { padding: 26px 32px 48px; margin-inline-start: 258px; }
   .lq-tabbar { display: none; }

@@ -175,7 +175,7 @@ export default function CommandK({ clients }: { clients: PaletteClient[] }) {
       >
         <Search className="w-3.5 h-3.5" />
         Search
-        <kbd className="font-mono text-[10px] bg-charcoal/8 rounded-md px-1.5 py-0.5">⌘K</kbd>
+        <kbd className="font-mono text-[10px] bg-charcoal/10 rounded-md px-1.5 py-0.5">⌘K</kbd>
       </button>
     );
 
@@ -198,7 +198,7 @@ export default function CommandK({ clients }: { clients: PaletteClient[] }) {
             placeholder="Jump to a client, a page, or an action…"
             className="flex-1 bg-transparent outline-none text-[15px] font-medium text-ink placeholder:text-charcoal-40"
           />
-          <kbd className="font-mono text-[10px] text-charcoal-40 bg-charcoal/8 rounded-md px-1.5 py-0.5">esc</kbd>
+          <kbd className="font-mono text-[10px] text-charcoal-40 bg-charcoal/10 rounded-md px-1.5 py-0.5">esc</kbd>
         </div>
         <div ref={listRef} className="max-h-[46vh] overflow-y-auto p-2" onKeyDown={onKey}>
           {cmds.length === 0 ? (
@@ -234,7 +234,7 @@ export default function CommandK({ clients }: { clients: PaletteClient[] }) {
                         )}
                         <span className="flex-1 text-[13.5px] font-semibold truncate">{cmd.label}</span>
                         {cmd.hint && (
-                          <kbd className={`font-mono text-[10px] rounded-md px-1.5 py-0.5 ${active ? "bg-white/20 text-white" : "bg-charcoal/8 text-charcoal-60"}`}>
+                          <kbd className={`font-mono text-[10px] rounded-md px-1.5 py-0.5 ${active ? "bg-white/20 text-white" : "bg-charcoal/10 text-charcoal-60"}`}>
                             {cmd.hint}
                           </kbd>
                         )}

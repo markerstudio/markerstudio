@@ -524,7 +524,7 @@ export default function TasksBoard({
                 title={done ? undefined : "Click to rename"}
               >
                 {t.title}
-                {t.kind === "recurring" && <span className="ms-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-charcoal/8 text-charcoal-60">↻</span>}
+                {t.kind === "recurring" && <span className="ms-1.5 align-middle text-[9px] font-semibold uppercase tracking-wide rounded-full px-1.5 py-px bg-charcoal/10 text-charcoal-60">↻</span>}
               </button>
             )}
             {/* meta line */}

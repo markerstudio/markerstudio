@@ -91,9 +91,7 @@ export function StatTile({
       : "text-charcoal-60";
   const body = (
     <div
-      className={`lq-card lq-card--hover h-full p-4 flex flex-col gap-1.5 ${
-        tone === "accent" ? "!bg-none lq-accent" : ""
-      }`}
+      className={`${tone === "accent" ? "lq-accent" : "lq-card"} lq-card--hover h-full p-4 flex flex-col gap-1.5`}
       style={{ animationDelay: `${delay}ms` }}
     >
       <span

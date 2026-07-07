@@ -159,7 +159,7 @@ export default async function AdminDashboard() {
           <Link href="/admin/invoices" className="lq-btn lq-btn--primary no-underline">+ Invoice</Link>
           <Link href="/admin/payments/new" className="lq-btn lq-btn--glass no-underline">+ Payment</Link>
           <Link href="/admin/proposals" className="lq-btn lq-btn--glass no-underline">+ Proposal</Link>
-          <Link href="/admin/clients" className="lq-btn lq-btn--glass no-underline">+ Client</Link>
+          <Link href="/admin/clients/new" className="lq-btn lq-btn--glass no-underline">+ Client</Link>
         </div>
       </header>
 
