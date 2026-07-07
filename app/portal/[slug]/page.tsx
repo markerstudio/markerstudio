@@ -146,6 +146,15 @@ export default async function PortalPage({ params }: { params: { slug: string } 
           </div>
         </div>
       )}
+      {/* Admins previewing a client's portal get a way back to its settings. */}
+      {s.role !== "client" && (
+        <Link
+          href={`/admin/clients/${client.slug}/edit`}
+          className="lq-btn lq-btn--dark lq-btn--sm no-underline print:hidden fixed z-[70] left-1/2 -translate-x-1/2 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] min-[900px]:bottom-auto min-[900px]:top-3"
+        >
+          ← Back to settings
+        </Link>
+      )}
       <PortalView client={client} metaLive={metaLive} />
     </>
   );
