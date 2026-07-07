@@ -582,7 +582,7 @@ export default async function EditClientPage({
               </form>
             </div>
           ) : (
-            <a href={`/admin/clients/${client.slug}/edit?tab=settings`} className="text-sm font-semibold text-orange hover:text-orange-deep whitespace-nowrap">
+            <a href={`/admin/clients/${client.slug}/edit?tab=setup`} className="text-sm font-semibold text-orange hover:text-orange-deep whitespace-nowrap">
               Set up Notion link →
             </a>
           )}
@@ -616,7 +616,7 @@ export default async function EditClientPage({
         ) : (
           <p className="text-sm text-charcoal-80">
             Not linked to Notion yet. Plan &amp; finance live in your Notion Budget Tracker — set up the link under{" "}
-            <a href={`/admin/clients/${client.slug}/edit?tab=settings`} className="font-semibold text-orange hover:text-orange-deep">Settings → Integrations</a>.
+            <a href={`/admin/clients/${client.slug}/edit?tab=setup`} className="font-semibold text-orange hover:text-orange-deep">Setup → Integrations</a>.
           </p>
         )}
       </div>

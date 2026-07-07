@@ -31,8 +31,8 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
               </div>
             </div>
           )} />
-        <SaveButton onSave={() => saveSection(slug, { documents: data.documents })} />
-      </fieldset>
+        <SaveButton onSave={() => saveSection(slug, { documents: data.documents })} label="Save files" />
+      </section>
     </div>
   );
 }

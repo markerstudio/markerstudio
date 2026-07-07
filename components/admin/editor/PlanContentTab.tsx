@@ -226,8 +226,10 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
         )}
       </div>
 
-      {/* Shoot schedule + shot list — their own full-width row, side by side. */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+      {/* Shoot schedule + shot list — their own full-width row, side by side.
+          id="photography" is the jump target for the editor's Photography rail
+          item (shoots save with the plan, so they live in this tab). */}
+      <div id="photography" className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start scroll-mt-24">
         <fieldset className="lq-card p-5">
           <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Shoot schedule</legend>
           <div className="space-y-3">
