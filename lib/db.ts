@@ -2,7 +2,13 @@
 // Vercel's serverless/edge functions. When no connection string is configured
 // (e.g. local dev or this sandbox) the app falls back to seed data — see
 // lib/projects.ts.
-import { neon } from "@neondatabase/serverless";
+import { neon, neonConfig } from "@neondatabase/serverless";
+
+// Local end-to-end testing: point the driver's HTTP endpoint at a plain
+// Postgres via a tiny shim (never set in production).
+if (process.env.NEON_LOCAL_HTTP) {
+  neonConfig.fetchEndpoint = process.env.NEON_LOCAL_HTTP;
+}
 
 // Accept whichever variable the host set — Vercel's native Postgres/Neon
 // integration may expose DATABASE_URL or POSTGRES_URL (and unpooled variants).

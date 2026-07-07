@@ -4,7 +4,6 @@
 // every action guards the session, returns { ok } / { ok:false, error }, and
 // revalidates the notes page. Partner-only (Ramzi) and photographer-only
 // (Ameer) accounts are confined to their own areas — no notes access.
-import { revalidatePath } from "next/cache";
 import { getSession, isPartnerOnly, isPhotographerOnly } from "@/lib/auth";
 import {
   createNote,
@@ -51,7 +50,6 @@ export async function createNoteAction(input: {
   try {
     const note = await createNote({ title, body, ...cleanLink(input) });
     if (!note) return { ok: false, error: "Save failed — no database." };
-    revalidatePath("/admin/notes");
     return { ok: true, note };
   } catch {
     return { ok: false, error: "Save failed — try again." };
@@ -81,7 +79,6 @@ export async function updateNoteAction(
   try {
     const ok = await updateNote(id, p);
     if (!ok) return { ok: false, error: "Note not found — refresh the page." };
-    revalidatePath("/admin/notes");
     return { ok: true };
   } catch {
     return { ok: false, error: "Save failed — try again." };
@@ -95,7 +92,6 @@ export async function setNotePinnedAction(id: number, pinned: boolean): Promise<
   try {
     const ok = await setNotePinned(id, !!pinned);
     if (!ok) return { ok: false, error: "Save failed — no database." };
-    revalidatePath("/admin/notes");
     return { ok: true };
   } catch {
     return { ok: false, error: "Save failed — try again." };
@@ -109,7 +105,6 @@ export async function archiveNoteAction(id: number): Promise<Result> {
   try {
     const ok = await archiveNote(id);
     if (!ok) return { ok: false, error: "Save failed — no database." };
-    revalidatePath("/admin/notes");
     return { ok: true };
   } catch {
     return { ok: false, error: "Archive failed — try again." };
@@ -123,7 +118,6 @@ export async function deleteNoteAction(id: number): Promise<Result> {
   try {
     const ok = await deleteNote(id);
     if (!ok) return { ok: false, error: "Save failed — no database." };
-    revalidatePath("/admin/notes");
     return { ok: true };
   } catch {
     return { ok: false, error: "Delete failed — try again." };

@@ -64,7 +64,7 @@ export default function ProjectForm({ project }: { project?: Project }) {
         <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-4">Basics</h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
           <Row label="Slug" hint="URL-safe, e.g. canaan-hotel">
-            <input name="slug" defaultValue={p?.slug} required pattern="[a-z0-9-]+" className={inputCls} />
+            <input name="slug" defaultValue={p?.slug} required pattern="[a-z0-9\-]+" className={inputCls} />
           </Row>
           <Row label="Year">
             <input name="year" defaultValue={p?.year} className={inputCls} />

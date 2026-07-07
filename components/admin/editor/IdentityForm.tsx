@@ -27,7 +27,7 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
             <input name="name" defaultValue={client.name} required className={input} placeholder="Dr. Jack Sabat" />
           </Field>
           <Field label="Slug" hint={`Sets the portal address: /portal/${client.slug}. Lowercase letters, numbers and dashes.`}>
-            <input name="slug" defaultValue={client.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" />
+            <input name="slug" defaultValue={client.slug} required pattern="[a-z0-9\-]+" className={input} placeholder="dr-jack-sabat" />
           </Field>
         </div>
       </div>
