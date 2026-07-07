@@ -187,6 +187,8 @@ export default function AdminShell({
           </span>
         </Link>
 
+        {!restricted && <CommandK clients={paletteClients} />}
+
         <nav className="lq-rail__nav">
           {groups.map((g, gi) => (
             <div key={gi} className="contents">
@@ -245,9 +247,6 @@ export default function AdminShell({
           </p>
         </div>
       </aside>
-
-      {/* ---------- ⌘K palette (full admins only) ---------- */}
-      {!restricted && <CommandK clients={paletteClients} />}
 
       {/* ---------- Mobile floating bell ----------
           NOT .lq-chrome: backdrop-filter turns this wrapper into the containing
