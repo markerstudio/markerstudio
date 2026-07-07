@@ -7,6 +7,7 @@ import FinanceTabs from "@/components/admin/FinanceTabs";
 import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
+import { StatTile, EmptyState } from "@/components/ui/glass";
 import { setInvoiceArchivedAction, deleteInvoiceAction, duplicateInvoiceAction } from "../invoice-actions";
 
 export const dynamic = "force-dynamic";
@@ -94,87 +95,84 @@ export default async function InvoicesAdmin({
   const fmt = (n: number) => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
   return (
-    <div>
+    <div className="space-y-5">
       <FinanceTabs />
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+      <header className="lq-rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Create, send, track payments — printable from the portal.</p>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Billing</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Invoices</h1>
+          <p className="text-sm text-charcoal-60 mt-1">Create, send, track payments — printable from the portal.</p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Link href="/admin/payments/new" className="rounded-full px-3 py-1.5 font-semibold bg-green-600 text-white hover:bg-green-700">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Link href="/admin/payments/new" className="lq-btn lq-btn--primary lq-btn--sm no-underline">
             + Record payment
           </Link>
           <Link
             href="/admin/invoices"
-            className={`rounded-full px-3 py-1.5 font-semibold ${!showArchived ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
+            className={`lq-btn lq-btn--sm no-underline ${!showArchived ? "lq-btn--dark" : "lq-btn--glass"}`}
           >
             Active
           </Link>
           <Link
             href="/admin/invoices?archived=1"
-            className={`rounded-full px-3 py-1.5 font-semibold ${showArchived ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
+            className={`lq-btn lq-btn--sm no-underline ${showArchived ? "lq-btn--dark" : "lq-btn--glass"}`}
           >
             Archived <span className="tabular-nums opacity-60">{archivedCount}</span>
           </Link>
         </div>
-      </div>
+      </header>
 
       {searchParams.ok && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">
+        <p className="lq-card text-sm text-emerald-800 px-4 py-2.5 !border-emerald-300/40">
           Invoice <b className="font-mono">{searchParams.ok}</b> created.
         </p>
       )}
       {searchParams.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>
+        <p className="lq-card text-sm text-rose-700 px-4 py-2.5 !border-rose-300/40">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back={backHref || "/admin/invoices"} />
-      {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>}
-      {failed && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">Database connected, but not initialised yet.</p>}
+      {dbOff && <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">No database configured.</p>}
+      {failed && <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">Database connected, but not initialised yet.</p>}
 
       {!dbOff && !failed && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {[
-            { label: "Outstanding", value: fmt(outstanding), note: "still owed on open invoices", accent: outstanding > 0 },
-            { label: "Overdue", value: overdueCount ? `${overdueCount} · ${fmt(overdueTotal)}` : "None", note: "past their due date", red: overdueCount > 0 },
-            { label: "Collected this month", value: fmt(collectedThisMonth), note: now.toLocaleDateString("en-GB", { month: "long", year: "numeric" }) },
-            { label: "Open invoices", value: String(counts.due + counts.partial), note: `${counts.draft} draft${counts.draft === 1 ? "" : "s"} waiting` },
-          ].map((s) => (
-            <div key={s.label} className="adm-rise bg-white border border-neutral-200 rounded-xl px-4 py-3.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{s.label}</div>
-              <div className={`mt-1 text-2xl font-extrabold tabular-nums ${s.red ? "text-red-600" : s.accent ? "text-orange-deep" : "text-neutral-900"}`}>
-                {s.value}
-              </div>
-              <div className="text-xs text-neutral-400">{s.note}</div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatTile label="Outstanding" value={fmt(outstanding)} sub="still owed on open invoices" tone={outstanding > 0 ? "accent" : "neutral"} delay={40} />
+          <StatTile
+            label="Overdue"
+            value={overdueCount ? `${overdueCount} · ${fmt(overdueTotal)}` : "None"}
+            sub="past their due date"
+            tone={overdueCount > 0 ? "bad" : "good"}
+            delay={90}
+          />
+          <StatTile label="Collected this month" value={fmt(collectedThisMonth)} sub={now.toLocaleDateString("en-GB", { month: "long", year: "numeric" })} delay={140} />
+          <StatTile label="Open invoices" value={String(counts.due + counts.partial)} sub={`${counts.draft} draft${counts.draft === 1 ? "" : "s"} waiting`} delay={190} />
         </div>
       )}
 
       {!dbOff && !failed && (
-        <details className="bg-white border border-neutral-200 rounded-xl mb-6 group" open={searchParams.error === "empty" || searchParams.error === "client"}>
-          <summary className="cursor-pointer select-none px-4 py-3.5 font-semibold text-sm flex items-center gap-2 text-neutral-800 hover:text-orange transition-colors">
-            <span className="inline-flex w-5 h-5 rounded-full bg-orange text-white items-center justify-center text-sm leading-none group-open:rotate-45 transition-transform">+</span>
+        <details className="lq-card lq-rise group" open={searchParams.error === "empty" || searchParams.error === "client"}>
+          <summary className="cursor-pointer select-none px-5 py-4 font-display font-bold text-[15px] tracking-tight flex items-center gap-2.5 text-ink hover:text-orange-deep transition-colors">
+            <span className="inline-flex w-6 h-6 rounded-full bg-orange text-white items-center justify-center text-sm leading-none shadow-[0_4px_10px_-4px_rgba(255,145,0,.6)] group-open:rotate-45 transition-transform">+</span>
             New invoice
           </summary>
-          <div className="px-4 pb-4 border-t border-neutral-100 pt-4">
+          <div className="px-5 pb-5 border-t border-charcoal/5 pt-4">
             <InvoiceCreateFromTab clients={clients} balances={clientBalances} />
           </div>
         </details>
       )}
 
       {!dbOff && !failed && base.length > 0 && (
-        <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
           {FILTERS.map((f) => (
             <Link
               key={f}
               href={`/admin/invoices?${showArchived ? "archived=1&" : ""}${f === "all" ? "" : `f=${f}`}`.replace(/[?&]$/, "")}
-              className={`rounded-full px-3 py-1 text-xs font-semibold capitalize transition-colors ${
+              className={`lq-press rounded-full px-3 py-1 text-xs font-semibold capitalize no-underline transition-colors ${
                 filter === f
                   ? f === "overdue"
-                    ? "bg-red-600 text-white"
-                    : "bg-charcoal text-white"
-                  : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                    ? "bg-rose-600 text-white shadow-[0_4px_12px_-6px_rgba(225,29,72,.6)]"
+                    : "bg-charcoal text-white shadow-[0_4px_12px_-6px_rgba(31,31,31,.5)]"
+                  : "bg-white/60 border border-charcoal/10 text-charcoal-60 hover:bg-white"
               }`}
             >
               {f} <span className="tabular-nums opacity-60">{counts[f]}</span>
@@ -183,7 +181,7 @@ export default async function InvoicesAdmin({
         </div>
       )}
 
-      <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100">
+      <div className="lq-card lq-rise divide-y divide-charcoal/5 overflow-hidden">
         {shown.map((inv) => {
           const vat = Number(inv.vat_rate) || 0;
           const paid = Number(inv.paid_amount) || 0;
@@ -191,21 +189,21 @@ export default async function InvoicesAdmin({
           const remaining = invoiceRemaining(inv.items, vat, paid);
           const overdue = isOverdue(inv);
           return (
-            <div key={inv.id} className={`flex items-center gap-4 px-4 py-3 flex-wrap ${overdue ? "bg-red-50/40" : ""}`}>
+            <div key={inv.id} className={`flex items-center gap-4 px-5 py-3 flex-wrap transition-colors hover:bg-white/60 ${overdue ? "bg-rose-50/50" : ""}`}>
               <div className="flex-1 min-w-[160px]">
-                <div className="font-mono text-sm font-semibold text-neutral-900">
+                <div className="font-mono text-sm font-semibold text-ink">
                   {inv.number}
                   {overdue && (
-                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 rounded-full px-2 py-0.5">
+                    <span className="lq-chip lq-chip--red ms-2 uppercase !text-[9.5px] !px-2 !py-0.5">
                       Overdue
                     </span>
                   )}
                 </div>
-                <div className="text-xs text-neutral-500">
-                  <Link href={`/admin/clients/${inv.client_slug}/edit`} className="hover:text-orange">/{inv.client_slug}</Link>
+                <div className="text-xs text-charcoal-60">
+                  <Link href={`/admin/clients/${inv.client_slug}/edit`} className="hover:text-orange-deep no-underline">/{inv.client_slug}</Link>
                   {" · "}{new Date(inv.issued_date).toLocaleDateString("en-GB")}
                   {inv.due_date ? (
-                    <span className={overdue ? "text-red-600 font-semibold" : ""}>
+                    <span className={overdue ? "text-rose-600 font-semibold" : ""}>
                       {" "}· due {new Date(inv.due_date).toLocaleDateString("en-GB")}
                     </span>
                   ) : null}
@@ -214,7 +212,7 @@ export default async function InvoicesAdmin({
                 </div>
               </div>
               <div className="text-right">
-                <div className="tabular-nums font-semibold text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</div>
+                <div className="tabular-nums font-semibold text-ink">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</div>
                 {remaining > 0 && remaining < total && (
                   <div className="text-[11px] tabular-nums text-orange-deep">{remaining.toLocaleString("en-US", { maximumFractionDigits: 2 })} left</div>
                 )}
@@ -223,23 +221,23 @@ export default async function InvoicesAdmin({
               {inv.status !== "paid" && !inv.archived_at && (
                 <Link
                   href={`/admin/payments/new?invoice=${inv.id}`}
-                  className="text-sm font-semibold text-green-700 hover:text-green-800 whitespace-nowrap"
+                  className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 whitespace-nowrap no-underline"
                 >
                   + Payment
                 </Link>
               )}
-              <Link href={`/admin/invoices/${inv.id}/edit`} className="text-sm font-medium text-neutral-600 hover:text-orange">Edit</Link>
-              <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">PDF ↗</Link>
+              <Link href={`/admin/invoices/${inv.id}/edit`} className="text-sm font-medium text-charcoal-60 hover:text-orange-deep no-underline">Edit</Link>
+              <Link href={`/portal/${inv.client_slug}/invoice/${inv.id}`} target="_blank" className="text-sm font-medium text-charcoal-60 hover:text-orange-deep no-underline">PDF ↗</Link>
               <form action={duplicateInvoiceAction}>
                 <input type="hidden" name="id" value={inv.id} />
-                <button className="text-sm font-medium text-neutral-500 hover:text-charcoal" title="Duplicate as a fresh draft — handy for monthly cycles">
+                <button className="text-sm font-medium text-charcoal-40 hover:text-ink" title="Duplicate as a fresh draft — handy for monthly cycles">
                   Duplicate
                 </button>
               </form>
               <form action={setInvoiceArchivedAction}>
                 <input type="hidden" name="id" value={inv.id} />
                 <input type="hidden" name="archived" value={inv.archived_at ? "" : "1"} />
-                <button className="text-sm font-medium text-neutral-500 hover:text-charcoal">{inv.archived_at ? "Restore" : "Archive"}</button>
+                <button className="text-sm font-medium text-charcoal-40 hover:text-ink">{inv.archived_at ? "Restore" : "Archive"}</button>
               </form>
               <form action={deleteInvoiceAction}>
                 <input type="hidden" name="id" value={inv.id} />
@@ -247,7 +245,7 @@ export default async function InvoicesAdmin({
                 <input type="hidden" name="back" value={backHref || "/admin/invoices"} />
                 <ConfirmButton
                   message={`Delete invoice ${inv.number}? You'll get a chance to undo right after — archiving keeps it for your records instead.`}
-                  className="text-sm font-medium text-neutral-400 hover:text-red-600"
+                  className="text-sm font-medium text-charcoal-40 hover:text-rose-600"
                 >
                   Delete
                 </ConfirmButton>
@@ -256,9 +254,11 @@ export default async function InvoicesAdmin({
           );
         })}
         {!dbOff && !failed && shown.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-neutral-500">
-            {showArchived ? "No archived invoices." : filter !== "all" ? `No ${filter} invoices.` : "No invoices yet — create one above."}
-          </div>
+          <EmptyState
+            icon="🧾"
+            title={showArchived ? "No archived invoices" : filter !== "all" ? `No ${filter} invoices` : "No invoices yet"}
+            sub={showArchived ? "Archived invoices will land here." : filter !== "all" ? "Try another filter." : "Create one above — it's printable from the portal."}
+          />
         )}
       </div>
     </div>

@@ -46,17 +46,18 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: {
   }
 
   return (
-    <div>
+    <div className="space-y-5">
       {!partnerOnly && <FinanceTabs />}
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+      <header className="lq-rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Record a payment</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Pick any open invoice, choose how the payment splits across its lines, and a receipt is created.</p>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Billing</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Record a payment</h1>
+          <p className="text-sm text-charcoal-60 mt-1">Pick any open invoice, choose how the payment splits across its lines, and a receipt is created.</p>
         </div>
-        <Link href={partnerOnly ? "/admin/partner" : "/admin/invoices"} className="text-sm font-medium text-neutral-500 hover:text-orange">
+        <Link href={partnerOnly ? "/admin/partner" : "/admin/invoices"} className="lq-btn lq-btn--glass lq-btn--sm no-underline">
           {partnerOnly ? "← Back" : "← Invoices"}
         </Link>
-      </div>
+      </header>
       <div className="max-w-2xl">
         <RecordPaymentForm invoices={open} initialId={initialId} />
       </div>

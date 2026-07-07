@@ -25,30 +25,33 @@ export default async function ConnectMetaPage({ params }: { params: { slug: stri
   }
 
   return (
-    <div className="max-w-2xl">
-      <h1 className="text-2xl font-bold tracking-tight mb-1">Connect Facebook &amp; Instagram</h1>
-      <p className="text-sm text-neutral-500 mb-6">Pick the Page for this client&apos;s portal. We&apos;ll capture its long-lived token and the linked Instagram account automatically.</p>
+    <div className="max-w-2xl space-y-5">
+      <header className="lq-rise">
+        <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Portal integrations</p>
+        <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Connect Facebook &amp; Instagram</h1>
+        <p className="text-sm text-charcoal-60 mt-1">Pick the Page for this client&apos;s portal. We&apos;ll capture its long-lived token and the linked Instagram account automatically.</p>
+      </header>
 
       {pages.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl p-6">
-          <p className="text-sm text-neutral-600 mb-3">
+        <div className="lq-card lq-rise p-6">
+          <p className="text-sm text-charcoal-60 mb-3">
             That account doesn&apos;t manage any Pages we can read. Make sure you authorized with an account that has access to the client&apos;s Page, then try again.
           </p>
-          <Link href={`/admin/clients/${slug}/edit`} className="text-sm font-semibold text-orange hover:text-orange-deep">← Back</Link>
+          <Link href={`/admin/clients/${slug}/edit`} className="text-sm font-semibold text-orange hover:text-orange-deep no-underline">← Back</Link>
         </div>
       ) : (
-        <form action={finishMetaConnect} className="bg-white border border-neutral-200 rounded-xl p-6 space-y-5">
+        <form action={finishMetaConnect} className="lq-card lq-rise p-6 space-y-5">
           <input type="hidden" name="slug" value={slug} />
 
           <div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-2">Facebook Page</div>
-            <div className="divide-y divide-neutral-100">
+            <div className="text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-2">Facebook Page</div>
+            <div className="divide-y divide-charcoal/5">
               {pages.map((p, i) => (
-                <label key={p.id} className="flex items-center gap-3 py-2.5 cursor-pointer">
+                <label key={p.id} className="flex items-center gap-3 py-2.5 cursor-pointer rounded-lg transition-colors hover:bg-white/60">
                   <input type="radio" name="pageId" value={p.id} defaultChecked={i === 0} required className="accent-orange" />
                   <span className="flex-1 min-w-0">
-                    <span className="block text-sm font-medium truncate">{p.name}</span>
-                    <span className="block text-xs text-neutral-500 truncate">
+                    <span className="block text-sm font-medium text-ink truncate">{p.name}</span>
+                    <span className="block text-xs text-charcoal-60 truncate">
                       {p.igUsername ? `Instagram: @${p.igUsername}` : p.igId ? "Instagram linked" : "No Instagram linked"} · Page {p.id}
                     </span>
                   </span>
@@ -58,8 +61,8 @@ export default async function ConnectMetaPage({ params }: { params: { slug: stri
           </div>
 
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Ad account (optional)</label>
-            <select name="adAccountId" defaultValue={ads[0]?.id || ""} className="w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange">
+            <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Ad account (optional)</label>
+            <select name="adAccountId" defaultValue={ads[0]?.id || ""} className="lq-input w-full">
               <option value="">None — organic only</option>
               {ads.map((a) => (
                 <option key={a.id} value={a.id}>{a.name} (act_{a.id})</option>
@@ -68,8 +71,8 @@ export default async function ConnectMetaPage({ params }: { params: { slug: stri
           </div>
 
           <div className="flex items-center gap-3">
-            <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Connect this portal</button>
-            <Link href={`/admin/clients/${slug}/edit`} className="text-sm text-neutral-500 hover:text-neutral-900">Cancel</Link>
+            <button className="lq-btn lq-btn--primary">Connect this portal</button>
+            <Link href={`/admin/clients/${slug}/edit`} className="lq-btn lq-btn--ghost lq-btn--sm no-underline">Cancel</Link>
           </div>
         </form>
       )}

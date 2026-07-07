@@ -82,40 +82,40 @@ export default function TodayTasks({ initial, projects }: { initial: BoardTask[]
   );
 
   return (
-    <div className="adm-rise bg-white border border-neutral-200 rounded-xl p-5 flex flex-col" style={{ animationDelay: "200ms" }}>
+    <div className="lq-card lq-rise p-5 flex flex-col" style={{ animationDelay: "200ms" }}>
       <div className="flex items-center justify-between mb-3">
-        <h2 className="font-bold tracking-tight">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">
           Today{" "}
-          {doneToday > 0 && <span className="text-xs font-semibold text-emerald-600 ml-1">✓ {doneToday} done</span>}
+          {doneToday > 0 && <span className="text-xs font-semibold text-emerald-600 ms-1">✓ {doneToday} done</span>}
         </h2>
-        <Link href="/admin/deliverables" className="text-xs font-semibold text-neutral-500 hover:text-orange">
+        <Link href="/admin/deliverables" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">
           All tasks →
         </Link>
       </div>
 
-      {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-md px-2.5 py-1.5 mb-2">{error}</p>}
+      {error && <p className="text-xs text-rose-700 lq-well !border-rose-300/40 rounded-md px-2.5 py-1.5 mb-2">{error}</p>}
 
       {list.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center gap-1.5 py-6 text-center">
-          <span className="w-9 h-9 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span>
-          <p className="text-sm text-neutral-500">Nothing due today.</p>
+          <span className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center">✓</span>
+          <p className="text-sm text-charcoal-60">Nothing due today.</p>
         </div>
       ) : (
-        <ul className="flex-1 -my-0.5 mb-3">
+        <ul className="flex-1 -mx-2.5 mb-3">
           {list.map((t) => {
             const overdue = t.due && t.due < today;
             return (
-              <li key={t.key} className="ms-task group flex items-center gap-2.5 py-1.5">
+              <li key={t.key} className="ms-task group flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-colors hover:bg-white/70">
                 <button
                   type="button"
                   onClick={() => complete(t)}
                   aria-label="Mark as done"
-                  className={`ms-check shrink-0 w-[17px] h-[17px] rounded-full border-2 transition-colors ${overdue ? "border-red-300" : "border-neutral-300"} hover:border-orange`}
+                  className={`ms-check shrink-0 w-[17px] h-[17px] rounded-full border-2 transition-colors ${overdue ? "border-rose-300" : "border-neutral-300"} hover:border-orange`}
                 />
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} title={t.listName} />
-                <span className="flex-1 min-w-0 text-sm text-neutral-800 truncate">{t.title}</span>
+                <span className="flex-1 min-w-0 text-sm text-charcoal-80 truncate">{t.title}</span>
                 {t.priority !== "normal" && <span className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_META[t.priority].dot}`} title={PRIORITY_META[t.priority].label} />}
-                <span className={`text-[11px] font-semibold whitespace-nowrap ${overdue ? "text-red-600" : "text-neutral-400"}`}>
+                <span className={`text-[11px] font-semibold whitespace-nowrap ${overdue ? "text-rose-600" : "text-charcoal-40"}`}>
                   {t.due ? friendlyDue(t.due) : ""}
                   {t.time ? ` ${t.time}` : ""}
                 </span>

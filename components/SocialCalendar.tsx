@@ -86,7 +86,7 @@ export default function SocialCalendar({
   const [open, setOpen] = useState<number | null>(null); // expanded entry (view mode)
   const [draft, setDraft] = useState(""); // comment composer for the open entry
 
-  const APPROVAL_PILL: Record<string, string> = { approved: "ms-portal-pill--green", changes: "ms-portal-pill--red", pending: "" };
+  const APPROVAL_PILL: Record<string, string> = { approved: "lq-chip--green", changes: "lq-chip--red", pending: "" };
   const approvalLabel = (a?: string) =>
     a === "approved" ? ui("Approved", "موافَق") : a === "changes" ? ui("Changes requested", "تعديلات مطلوبة") : ui("Awaiting approval", "بانتظار الموافقة");
 
@@ -161,7 +161,7 @@ export default function SocialCalendar({
     );
 
   return (
-    <div className="ms-cal">
+    <div className="ms-cal lq-card p-4 sm:p-5">
       <div className="ms-cal-head">
         <div className="ms-cal-headline">
           <strong>{view === "week" ? weekLabel : `${MONTHS[lang][m]} ${y}`}</strong>
@@ -169,16 +169,16 @@ export default function SocialCalendar({
             {TYPES.map((t) => (
               <span key={t.id} className={`ms-cal-key ms-cal-key--${t.id}`}><i>{t.icon}</i>{countOf(t.id)} {tLabel(t.id)}</span>
             ))}
-            <span className="ms-cal-key ms-cal-key--count">{ui("Story days", "أيام الستوري")} {storyDays}/{daysInMonth}</span>
+            <span className="lq-chip lq-chip--orange">{ui("Story days", "أيام الستوري")} {storyDays}/{daysInMonth}</span>
           </div>
         </div>
-        <div className="ms-cal-nav">
-          <button type="button" onClick={() => setView(view === "month" ? "week" : "month")} className="ms-cal-today" aria-label="Toggle view">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <button type="button" onClick={() => setView(view === "month" ? "week" : "month")} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Toggle view">
             {view === "month" ? ui("Week", "أسبوع") : ui("Month", "شهر")}
           </button>
-          <button type="button" onClick={prev} aria-label="Previous">‹</button>
-          <button type="button" onClick={goToday} className="ms-cal-today" aria-label="Today">{ui("Today", "اليوم")}</button>
-          <button type="button" onClick={next} aria-label="Next">›</button>
+          <button type="button" onClick={prev} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Previous">‹</button>
+          <button type="button" onClick={goToday} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Today">{ui("Today", "اليوم")}</button>
+          <button type="button" onClick={next} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Next">›</button>
         </div>
       </div>
 
@@ -219,19 +219,19 @@ export default function SocialCalendar({
 
       {/* Selected-day panel — premium per-entry cards */}
       {sel && (
-        <div className="ms-cal-panel">
+        <div className="lq-well p-4 mt-4">
           <div className="ms-cal-panel__head">
             <b>{prettyDay(sel)}</b>
             {editable && (
               <span className="ms-cal-add-group">
                 {TYPES.map((t) => (
-                  <button key={t.id} type="button" className={`ms-cal-add ms-cal-add--${t.id}`} onClick={() => addOn(sel, t.id)}>+ {tLabel(t.id)}</button>
+                  <button key={t.id} type="button" className="lq-btn lq-btn--glass lq-btn--sm lq-press" onClick={() => addOn(sel, t.id)}>+ {tLabel(t.id)}</button>
                 ))}
               </span>
             )}
           </div>
 
-          {selEntries.length === 0 && <p className="ms-pmuted" style={{ margin: "8px 0 0" }}>{ui("Nothing planned for this day yet.", "لا شيء مخطّط لهذا اليوم بعد.")}</p>}
+          {selEntries.length === 0 && <p className="text-sm text-charcoal-60" style={{ margin: "8px 0 0" }}>{ui("Nothing planned for this day yet.", "لا شيء مخطّط لهذا اليوم بعد.")}</p>}
 
           <div className="ms-cal-entries">
             {selEntries.map(({ p, idx }) => {
@@ -281,13 +281,13 @@ export default function SocialCalendar({
                 <div key={idx} className={`ms-cal-entry ms-cal-entry--${type} ${isOpen ? "is-open" : ""}`}>
                   <button type="button" className="ms-cal-entry__row" onClick={toggle}>
                     {p.mediaUrl && <Thumb url={p.mediaUrl} kind={p.mediaKind} />}
-                    <span className={`ms-portal-pill ms-cal-type-pill ms-cal-type-pill--${type}`}>{typeMeta(type).icon} {tLabel(type)}</span>
+                    <span className={`lq-chip ms-cal-type-pill ms-cal-type-pill--${type}`}>{typeMeta(type).icon} {tLabel(type)}</span>
                     {p.platform && <span className="ms-cal-entry__plat">{p.platform}</span>}
                     <span className="ms-cal-entry__ttl">{p.title || briefLabel(type)}</span>
                     {p.approval && p.approval !== "pending" && (
-                      <span className={`ms-portal-pill ${APPROVAL_PILL[p.approval] || ""}`}>{approvalLabel(p.approval)}</span>
+                      <span className={`lq-chip ${APPROVAL_PILL[p.approval] || ""}`}>{approvalLabel(p.approval)}</span>
                     )}
-                    <span className={`ms-portal-pill ${p.status === "posted" ? "ms-portal-pill--green" : p.status === "scheduled" ? "ms-portal-pill--blue" : ""}`}>
+                    <span className={`lq-chip ${p.status === "posted" ? "lq-chip--green" : p.status === "scheduled" ? "lq-chip--blue" : ""}`}>
                       {p.status === "posted" ? ui("Posted", "نُشر") : p.status === "scheduled" ? ui("Scheduled", "مجدول") : ui("Planned", "مخطّط")}
                     </span>
                     {expandable && <span className="ms-cal-entry__chev" aria-hidden>{isOpen ? "−" : "+"}</span>}
@@ -311,10 +311,10 @@ export default function SocialCalendar({
                         <div className="ms-cal-approve">
                           <span className="ms-cal-brief__label">{ui("Your sign-off", "موافقتك")}</span>
                           <div className="ms-cal-approve__row">
-                            <span className={`ms-portal-pill ${APPROVAL_PILL[p.approval || "pending"] || ""}`}>{approvalLabel(p.approval)}</span>
+                            <span className={`lq-chip ${APPROVAL_PILL[p.approval || "pending"] || ""}`}>{approvalLabel(p.approval)}</span>
                             <button
                               type="button"
-                              className="ms-btn ms-btn-primary ms-btn-sm"
+                              className="lq-btn lq-btn--primary lq-btn--sm"
                               disabled={feedback.busy === idx || p.approval === "approved"}
                               onClick={() => feedback.onApprove(idx, "approved")}
                             >
@@ -322,7 +322,7 @@ export default function SocialCalendar({
                             </button>
                             <button
                               type="button"
-                              className="ms-btn ms-btn-outline ms-btn-sm"
+                              className="lq-btn lq-btn--glass lq-btn--sm"
                               disabled={feedback.busy === idx || p.approval === "changes"}
                               onClick={() => feedback.onApprove(idx, "changes")}
                             >
@@ -341,11 +341,11 @@ export default function SocialCalendar({
                               <p dir="auto">{c.text}</p>
                             </div>
                           ))}
-                          {comments.length === 0 && <p className="ms-pmuted" style={{ fontSize: 13 }}>{ui("No comments yet.", "لا تعليقات بعد.")}</p>}
+                          {comments.length === 0 && <p className="text-charcoal-60" style={{ fontSize: 13 }}>{ui("No comments yet.", "لا تعليقات بعد.")}</p>}
                           {feedback && (
                             <div className="ms-cal-comment-form">
                               <textarea
-                                className="ms-edit"
+                                className="lq-input"
                                 rows={2}
                                 value={draft}
                                 placeholder={ui("Add a comment…", "أضف تعليقاً…")}
@@ -354,7 +354,7 @@ export default function SocialCalendar({
                               />
                               <button
                                 type="button"
-                                className="ms-btn ms-btn-primary ms-btn-sm"
+                                className="lq-btn lq-btn--primary lq-btn--sm"
                                 disabled={feedback.busy === idx || !draft.trim()}
                                 onClick={() => { feedback.onComment(idx, draft.trim()); setDraft(""); }}
                               >

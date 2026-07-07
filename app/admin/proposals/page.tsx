@@ -3,6 +3,7 @@ import { isDbEnabled } from "@/lib/db";
 import { getClients } from "@/lib/clients";
 import ClientSelectOrType from "@/components/admin/ClientSelectOrType";
 import ConfirmButton from "@/components/admin/ConfirmButton";
+import { StatTile, EmptyState } from "@/components/ui/glass";
 import { createProposalFromTab, setProposalArchived, deleteProposal } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -12,13 +13,8 @@ const ERR: Record<string, string> = {
 };
 
 function badge(label: string, tone: "green" | "orange" | "neutral") {
-  const cls =
-    tone === "green"
-      ? "text-green-700 bg-green-50 border border-green-200"
-      : tone === "orange"
-      ? "text-orange-deep bg-orange-50"
-      : "text-neutral-500 bg-neutral-100";
-  return <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${cls}`}>{label}</span>;
+  const cls = tone === "green" ? "lq-chip--green" : tone === "orange" ? "lq-chip--orange" : "";
+  return <span className={`lq-chip ${cls} !text-[11px]`}>{label}</span>;
 }
 
 export default async function ProposalsAdmin({ searchParams }: { searchParams: { ok?: string; error?: string; archived?: string } }) {
@@ -45,78 +41,68 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
     }
   }
 
-  const stats = [
-    { label: "Drafts", value: String(drafts), note: "being prepared" },
-    { label: "Awaiting acceptance", value: String(awaiting), note: "sent to clients", accent: awaiting > 0 },
-    { label: "Accepted", value: String(acceptedList.length), note: "proposals won", green: acceptedList.length > 0 },
-    {
-      label: "Won value",
-      value: wonMonthly || wonOnce ? `${(wonMonthly + wonOnce).toLocaleString("en-US")} ₪` : "—",
-      note: wonMonthly ? `${wonMonthly.toLocaleString("en-US")} ₪/mo recurring` : "from accepted selections",
-    },
-  ];
-
   return (
-    <div>
-      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+    <div className="space-y-5">
+      <header className="lq-rise flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Proposals</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Paged, bilingual documents — built in the studio, accepted in the portal.</p>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Sales pipeline</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Proposals</h1>
+          <p className="text-sm text-charcoal-60 mt-1">Paged, bilingual documents — built in the studio, accepted in the portal.</p>
         </div>
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 flex-wrap">
           <Link
             href="/admin/proposals"
-            className={`rounded-full px-3 py-1.5 font-semibold ${!showArchived ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
+            className={`lq-btn lq-btn--sm no-underline ${!showArchived ? "lq-btn--dark" : "lq-btn--glass"}`}
           >
             Active
           </Link>
           <Link
             href="/admin/proposals?archived=1"
-            className={`rounded-full px-3 py-1.5 font-semibold ${showArchived ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"}`}
+            className={`lq-btn lq-btn--sm no-underline ${showArchived ? "lq-btn--dark" : "lq-btn--glass"}`}
           >
             Archived <span className="tabular-nums opacity-60">{archivedCount}</span>
           </Link>
         </div>
-      </div>
+      </header>
 
       {searchParams.ok === "deleted" && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">Proposal deleted.</p>
+        <p className="lq-card text-sm text-emerald-800 px-4 py-2.5 !border-emerald-300/40">Proposal deleted.</p>
       )}
       {searchParams.error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">{ERR[searchParams.error] || "Something went wrong."}</p>
+        <p className="lq-card text-sm text-rose-700 px-4 py-2.5 !border-rose-300/40">{ERR[searchParams.error] || "Something went wrong."}</p>
       )}
-      {dbOff && <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">No database configured.</p>}
+      {dbOff && <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">No database configured.</p>}
 
       {!dbOff && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-          {stats.map((s) => (
-            <div key={s.label} className="adm-rise bg-white border border-neutral-200 rounded-xl px-4 py-3.5">
-              <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">{s.label}</div>
-              <div className={`mt-1 text-2xl font-extrabold tabular-nums ${s.green ? "text-green-700" : s.accent ? "text-orange-deep" : "text-neutral-900"}`}>
-                {s.value}
-              </div>
-              <div className="text-xs text-neutral-400">{s.note}</div>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          <StatTile label="Drafts" value={String(drafts)} sub="being prepared" delay={40} />
+          <StatTile label="Awaiting acceptance" value={String(awaiting)} sub="sent to clients" tone={awaiting > 0 ? "accent" : "neutral"} delay={90} />
+          <StatTile label="Accepted" value={String(acceptedList.length)} sub="proposals won" tone={acceptedList.length > 0 ? "good" : "neutral"} delay={140} />
+          <StatTile
+            label="Won value"
+            value={wonMonthly || wonOnce ? `${(wonMonthly + wonOnce).toLocaleString("en-US")} ₪` : "—"}
+            sub={wonMonthly ? `${wonMonthly.toLocaleString("en-US")} ₪/mo recurring` : "from accepted selections"}
+            delay={190}
+          />
         </div>
       )}
 
       {!dbOff && (
-        <form action={createProposalFromTab} className="bg-white border border-neutral-200 rounded-xl p-4 mb-6 flex items-end gap-3 flex-wrap">
+        <form action={createProposalFromTab} className="lq-card lq-rise p-5 flex items-end gap-3 flex-wrap">
           <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">Start a proposal</label>
+            <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">Start a proposal</label>
             <ClientSelectOrType clients={all.map((c) => ({ slug: c.slug, name: c.name || c.slug }))} />
           </div>
-          <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">
+          <button className="lq-btn lq-btn--primary">
             Open builder →
           </button>
-          <p className="text-xs text-neutral-400 basis-full sm:basis-auto sm:ml-auto">
+          <p className="text-xs text-charcoal-40 basis-full sm:basis-auto sm:ms-auto">
             Starts from the studio template — cover, scope, work plan, selectable pricing &amp; acceptance.
           </p>
         </form>
       )}
 
-      <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100">
+      <div className="lq-card lq-rise divide-y divide-charcoal/5 overflow-hidden">
         {clients.map((c) => {
           const p = c.data.proposal;
           const tone = p?.acceptedAt ? "green" : p?.published ? "orange" : "neutral";
@@ -124,10 +110,10 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
           const when = p?.acceptedAt || p?.sentAt;
           const sel = p?.selection;
           return (
-            <div key={c.slug} className="flex items-center gap-4 px-4 py-3 flex-wrap">
+            <div key={c.slug} className="flex items-center gap-4 px-5 py-3 flex-wrap transition-colors hover:bg-white/60">
               <div className="flex-1 min-w-[160px]">
-                <div className="font-semibold truncate">{c.name}</div>
-                <div className="text-xs text-neutral-500 truncate">
+                <div className="font-semibold text-ink truncate">{c.name}</div>
+                <div className="text-xs text-charcoal-60 truncate">
                   /{c.slug}
                   {when && ` · ${new Date(when).toLocaleDateString("en-GB")}`}
                   {p?.acceptedAt && sel && (sel.monthly || sel.once)
@@ -137,23 +123,23 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
                 </div>
               </div>
               {badge(label, tone)}
-              <Link href={`/admin/proposals/${c.slug}`} className="text-sm font-semibold text-charcoal hover:text-orange">
+              <Link href={`/admin/proposals/${c.slug}`} className="text-sm font-semibold text-ink hover:text-orange-deep no-underline">
                 Builder →
               </Link>
-              <Link href={`/portal/${c.slug}/proposal`} target="_blank" className="text-sm font-medium text-neutral-600 hover:text-orange">
+              <Link href={`/portal/${c.slug}/proposal`} target="_blank" className="text-sm font-medium text-charcoal-60 hover:text-orange-deep no-underline">
                 Client view ↗
               </Link>
               <form action={setProposalArchived}>
                 <input type="hidden" name="slug" value={c.slug} />
                 <input type="hidden" name="archived" value={p?.archived ? "" : "1"} />
-                <button className="text-sm font-medium text-neutral-500 hover:text-charcoal">{p?.archived ? "Restore" : "Archive"}</button>
+                <button className="text-sm font-medium text-charcoal-40 hover:text-ink">{p?.archived ? "Restore" : "Archive"}</button>
               </form>
               {p && (
                 <form action={deleteProposal}>
                   <input type="hidden" name="slug" value={c.slug} />
                   <ConfirmButton
                     message={`Delete ${c.name}'s proposal? The client and their pricing stay; only the proposal goes.`}
-                    className="text-sm font-medium text-neutral-400 hover:text-red-600"
+                    className="text-sm font-medium text-charcoal-40 hover:text-rose-600"
                   >
                     Delete
                   </ConfirmButton>
@@ -163,9 +149,11 @@ export default async function ProposalsAdmin({ searchParams }: { searchParams: {
           );
         })}
         {!dbOff && clients.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-neutral-500">
-            {showArchived ? "No archived proposals." : "No proposals yet — start one above, or they appear when a client onboards."}
-          </div>
+          <EmptyState
+            icon="📄"
+            title={showArchived ? "No archived proposals" : "No proposals yet"}
+            sub={showArchived ? "Archived proposals will land here." : "Start one above, or they appear when a client onboards."}
+          />
         )}
       </div>
     </div>

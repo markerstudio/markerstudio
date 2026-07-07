@@ -27,7 +27,7 @@ export default function EnablePushButton({ lang = "en" }: { lang?: "en" | "ar" }
   if (state === "hidden") return null;
   if (state === "on") {
     return (
-      <span className="ms-push-chip on" title={t("Notifications are on for this device", "الإشعارات مفعّلة على هذا الجهاز")}>
+      <span className="lq-chip lq-chip--orange whitespace-nowrap" title={t("Notifications are on for this device", "الإشعارات مفعّلة على هذا الجهاز")}>
         🔔 {t("On", "مفعّل")}
       </span>
     );
@@ -35,7 +35,7 @@ export default function EnablePushButton({ lang = "en" }: { lang?: "en" | "ar" }
   return (
     <button
       type="button"
-      className="ms-push-chip"
+      className="lq-chip lq-press cursor-pointer whitespace-nowrap hover:bg-white disabled:opacity-60"
       disabled={state === "busy"}
       onClick={async () => {
         setState("busy");
