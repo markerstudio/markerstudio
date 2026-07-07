@@ -103,6 +103,10 @@ export default function PortalView({
   const sessions = shootsShared ? [...(photo?.sessions ?? [])].sort((a, b) => (a.date < b.date ? -1 : 1)) : [];
   const shots = shootsShared ? photo?.shots ?? [] : [];
   const hasShoots = sessions.length > 0 || shots.length > 0;
+  // Shots group under their shoot via sessionId; legacy/loose shots (no sessionId,
+  // or their shoot is gone) show in a trailing "General shot list".
+  const shootIds = new Set(sessions.map((s) => s.id).filter(Boolean));
+  const generalShots = shots.filter((t) => !t.sessionId || !shootIds.has(t.sessionId));
   const sessionStatusLabel: Record<string, { en: string; ar: string; cls: string }> = {
     planned: { en: "Planned", ar: "مُخطّط", cls: "" },
     confirmed: { en: "Confirmed", ar: "مؤكّد", cls: "lq-chip--blue" },
@@ -579,8 +583,9 @@ export default function PortalView({
                       <div className="divide-y divide-charcoal/5 lq-stagger">
                         {sessions.map((s, i) => {
                           const st = sessionStatusLabel[s.status] ?? sessionStatusLabel.planned;
+                          const own = s.id ? shots.filter((t) => t.sessionId === s.id) : [];
                           return (
-                            <div key={i} className="py-3.5 first:pt-0 last:pb-0" style={{ "--i": i } as React.CSSProperties}>
+                            <div key={s.id ?? i} className="py-3.5 first:pt-0 last:pb-0" style={{ "--i": i } as React.CSSProperties}>
                               <div className="flex items-start justify-between gap-3 flex-wrap">
                                 <div className="min-w-0">
                                   <div className={MICRO_TILE}>{fmtShootDate(s.date)}{s.time ? ` · ${s.time}` : ""}</div>
@@ -590,18 +595,29 @@ export default function PortalView({
                                 <span className={`lq-chip ${st.cls}`}>{ui(st.en, st.ar)}</span>
                               </div>
                               {tr(s.brief) && <p className="text-sm text-charcoal-60 leading-relaxed mt-2">{tr(s.brief)}</p>}
+                              {own.length > 0 && (
+                                <ul className="mt-3 pt-3 border-t border-charcoal/5 space-y-1.5">
+                                  {own.map((t, j) => (
+                                    <li key={t.id ?? j} className="flex items-center gap-3">
+                                      <span aria-hidden className={t.status === "done" ? "text-orange" : "text-charcoal-20"}>{t.status === "done" ? "✓" : "○"}</span>
+                                      <span className={`flex-1 text-sm ${t.status === "done" ? "line-through text-charcoal-40" : "text-charcoal-80"}`}>{t.title}</span>
+                                      {t.status === "doing" && <span className="lq-chip lq-chip--blue">{ui("In progress", "قيد التنفيذ")}</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
                             </div>
                           );
                         })}
                       </div>
                     )}
 
-                    {shots.length > 0 && (
+                    {generalShots.length > 0 && (
                       <div className={sessions.length > 0 ? "mt-4 pt-4 border-t border-charcoal/5" : ""}>
-                        <p className={MICRO}>{ui("Shot list", "قائمة اللقطات")}</p>
+                        <p className={MICRO}>{ui("General shot list", "قائمة اللقطات العامة")}</p>
                         <ul className="mt-2 divide-y divide-charcoal/5">
-                          {shots.map((t, i) => (
-                            <li key={i} className="flex items-center gap-3 py-2.5">
+                          {generalShots.map((t, i) => (
+                            <li key={t.id ?? i} className="flex items-center gap-3 py-2.5">
                               <span aria-hidden className={t.status === "done" ? "text-orange" : "text-charcoal-20"}>{t.status === "done" ? "✓" : "○"}</span>
                               <span className={`flex-1 text-sm ${t.status === "done" ? "line-through text-charcoal-40" : "text-charcoal-80"}`}>{t.title}</span>
                               {t.status === "doing" && <span className="lq-chip lq-chip--blue">{ui("In progress", "قيد التنفيذ")}</span>}
