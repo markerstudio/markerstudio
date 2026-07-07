@@ -33,6 +33,7 @@ import {
   Fingerprint,
   Sparkles,
   CalendarDays,
+  NotebookPen,
 } from "lucide-react";
 import NotificationBell from "@/components/admin/NotificationBell";
 import CommandK, { type PaletteClient } from "@/components/admin/CommandK";
@@ -96,6 +97,7 @@ export default function AdminShell({
           ...(showDeliverables
             ? [{ href: "/admin/deliverables", label: "Tasks", icon: ListChecks } as NavItem]
             : []),
+          { href: "/admin/notes", label: "Notes", icon: NotebookPen },
           { href: "/admin/projects", label: "Projects", icon: Briefcase },
           ...(showPhotographer
             ? [{ href: "/admin/photographer", label: "Photography", icon: Camera } as NavItem]
@@ -247,8 +249,14 @@ export default function AdminShell({
       {/* ---------- ⌘K palette (full admins only) ---------- */}
       {!restricted && <CommandK clients={paletteClients} />}
 
-      {/* ---------- Mobile floating bell ---------- */}
-      <div className="fixed top-3 z-40 lq-chrome rounded-full p-1 min-[900px]:hidden" style={{ insetInlineEnd: 12 }}>
+      {/* ---------- Mobile floating bell ----------
+          NOT .lq-chrome: backdrop-filter turns this wrapper into the containing
+          block for the bell's fixed-position panel, trapping it inside the chip
+          (= "notifications don't show on mobile"). Solid glass look instead. */}
+      <div
+        className="fixed top-3 z-40 rounded-full p-1 min-[900px]:hidden bg-white/90 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_10px_28px_-10px_rgba(48,48,48,.28)]"
+        style={{ insetInlineEnd: 12 }}
+      >
         <NotificationBell userKey={email} placement="top" />
       </div>
 

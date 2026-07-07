@@ -19,6 +19,7 @@ import {
   UserPlus,
   MessageCircle,
   Flag,
+  NotebookPen,
 } from "lucide-react";
 import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
 
@@ -32,6 +33,7 @@ const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>>
   wrap: Flag,
   onboard: UserPlus,
   stories: Sparkles,
+  note: NotebookPen,
 };
 
 export default function TodayAgenda({ agenda }: { agenda: Agenda }) {

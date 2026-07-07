@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Flag,
   PartyPopper,
+  NotebookPen,
 } from "lucide-react";
 import { Seg, EmptyState, SectionHead } from "@/components/ui/glass";
 import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
@@ -34,6 +35,7 @@ const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>>
   wrap: Flag,
   onboard: UserPlus,
   stories: Sparkles,
+  note: NotebookPen,
 };
 
 const KIND_TONE: Record<AgendaKind, string> = {
@@ -46,6 +48,7 @@ const KIND_TONE: Record<AgendaKind, string> = {
   wrap: "lq-chip--green",
   onboard: "lq-chip--green",
   stories: "lq-chip--orange",
+  note: "lq-chip--blue",
 };
 
 function dayLabel(dateIso: string, todayIso: string): { top: string; big: string } {
