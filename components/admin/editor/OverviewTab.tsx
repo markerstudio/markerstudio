@@ -190,6 +190,9 @@ export default function OverviewTab({
             <a href={`/admin/agreements/${slug}`} className="lq-btn lq-btn--glass no-underline">
               Agreement
             </a>
+            <a href={`/admin/notes?client=${slug}`} className="lq-btn lq-btn--glass no-underline">
+              Notes
+            </a>
           </div>
         </div>
 

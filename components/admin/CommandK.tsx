@@ -27,6 +27,7 @@ import {
   Plus,
   ExternalLink,
   ArrowRight,
+  NotebookPen,
 } from "lucide-react";
 
 export type PaletteClient = { slug: string; name: string; color: string };
@@ -48,6 +49,7 @@ const NAV: Omit<Cmd, "group">[] = [
   { id: "agenda", label: "Agenda", icon: CalendarDays, href: "/admin/agenda", keywords: "calendar today reminders rituals" },
   { id: "clients", label: "Clients", icon: Users, href: "/admin/clients" },
   { id: "tasks", label: "Tasks", icon: ListChecks, href: "/admin/deliverables", keywords: "todo deliverables board" },
+  { id: "notes", label: "Notes", icon: NotebookPen, href: "/admin/notes", keywords: "note jot memo write remember" },
   { id: "projects", label: "Projects", icon: Briefcase, href: "/admin/projects", keywords: "case studies work" },
   { id: "photo", label: "Photography", icon: Camera, href: "/admin/photographer", keywords: "shoots ameer" },
   { id: "accounts", label: "Accounts", icon: KeyRound, href: "/admin/accounts", keywords: "logins invites" },
@@ -67,6 +69,7 @@ const ACTIONS: Omit<Cmd, "group">[] = [
   { id: "new-client", label: "New client", hint: "C", icon: Plus, href: "/admin/clients/new", keywords: "portal add" },
   { id: "new-proposal", label: "New proposal", icon: Plus, href: "/admin/proposals" },
   { id: "new-task", label: "Add a task", hint: "T", icon: Plus, href: "/admin/deliverables", keywords: "todo quick add" },
+  { id: "new-note", label: "New note", hint: "N", icon: NotebookPen, href: "/admin/notes", keywords: "jot write remember memo" },
   { id: "view-site", label: "View site", icon: ExternalLink, href: "/", newTab: true, keywords: "marketing website public" },
 ];
 

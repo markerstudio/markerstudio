@@ -33,6 +33,7 @@ import {
   Fingerprint,
   Sparkles,
   CalendarDays,
+  NotebookPen,
 } from "lucide-react";
 import NotificationBell from "@/components/admin/NotificationBell";
 import CommandK, { type PaletteClient } from "@/components/admin/CommandK";
@@ -96,6 +97,7 @@ export default function AdminShell({
           ...(showDeliverables
             ? [{ href: "/admin/deliverables", label: "Tasks", icon: ListChecks } as NavItem]
             : []),
+          { href: "/admin/notes", label: "Notes", icon: NotebookPen },
           { href: "/admin/projects", label: "Projects", icon: Briefcase },
           ...(showPhotographer
             ? [{ href: "/admin/photographer", label: "Photography", icon: Camera } as NavItem]
