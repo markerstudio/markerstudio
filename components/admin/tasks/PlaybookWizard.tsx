@@ -112,7 +112,7 @@ export default function PlaybookWizard({
   return (
     <>
       <div className="lq-scrim" onClick={onClose} aria-hidden />
-      <div role="dialog" aria-modal="true" className="lq-modal lq-chrome !w-[min(94vw,672px)] !max-h-[88dvh] !p-0 flex flex-col !overflow-hidden">
+      <div role="dialog" aria-modal="true" className="lq-modal lq-chrome !w-[min(94vw,672px)] !h-[min(88dvh,760px)] !max-h-none !p-0 flex flex-col !overflow-hidden">
         {/* header */}
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-charcoal/10 shrink-0">
           <div className="flex items-center gap-1.5 text-[11px] font-bold">
