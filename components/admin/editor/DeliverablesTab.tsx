@@ -3,7 +3,7 @@
 import { memo, useCallback, useState, useTransition } from "react";
 import { saveDeliverablesSection } from "@/app/admin/deliverables/actions";
 import { ensureDeliverableIds, genId, suggestDeliverables, mergeSuggestions, ORDER, LABELS, progress } from "@/lib/deliverables";
-import { EmptyState } from "@/components/ui/glass";
+import { EmptyState, Toggle } from "@/components/ui/glass";
 import type { ClientData, ClientDeliverables, Deliverable } from "@/lib/clients";
 
 const input = "lq-input";
@@ -98,24 +98,42 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
 
   return (
     <div className="space-y-6">
-      <fieldset className="lq-card p-5">
-        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Deliverables</legend>
-        <p className="text-xs text-charcoal-40 mb-4">What you owe this client and by when. Generate dated to-dos from the plan cycle + proposal timeline, then track them here and on the cross-client board.</p>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.active} onChange={(e) => setToggle({ active: e.target.checked })} />
-            <span className="leading-relaxed"><b>Track deliverables</b> for this client. Shows them on the studio&apos;s <b>What&apos;s due</b> board.</span>
-          </label>
-          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
-            <span className="leading-relaxed"><b>Show progress to the client.</b> Reveals a progress bar + list in the client&apos;s portal. Off = internal only.</span>
-          </label>
-          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
-            <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.allowClientRequests} onChange={(e) => setToggle({ allowClientRequests: e.target.checked })} />
-            <span className="leading-relaxed"><b>Let the client request tasks.</b> They can submit a task with a date; it stays pending until you approve it here.</span>
-          </label>
+      {/* 1 — Who sees the task list. */}
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Tracking &amp; visibility</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-3">These switches save together with the task list below.</p>
+        <div className="divide-y divide-charcoal/5">
+          <div className="py-1.5">
+            <Toggle
+              label="Track deliverables for this client"
+              sub="Shows them on the studio's What's due board."
+              checked={!!block.active}
+              onChange={(e) => setToggle({ active: e.target.checked })}
+            />
+          </div>
+          <div className="py-1.5">
+            <Toggle
+              label="Show progress to the client"
+              sub="Reveals a progress bar + list in the client's portal. Off = internal only."
+              checked={!!block.showToClient}
+              onChange={(e) => setToggle({ showToClient: e.target.checked })}
+            />
+          </div>
+          <div className="py-1.5">
+            <Toggle
+              label="Let the client request tasks"
+              sub="They can submit a task with a date; it stays pending until you approve it here."
+              checked={!!block.allowClientRequests}
+              onChange={(e) => setToggle({ allowClientRequests: e.target.checked })}
+            />
+          </div>
         </div>
+      </section>
+
+      {/* 2 — The task list itself. */}
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Task list</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-4">What you owe this client and by when. Generate dated to-dos from the plan cycle + proposal timeline, then track them here and on the cross-client board.</p>
 
         {items.length > 0 && (
           <div className="mb-4 flex items-center gap-3">
@@ -147,7 +165,7 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
           {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
           {dirty && !pending && <span className="text-xs text-amber-700">Unsaved changes</span>}
         </div>
-      </fieldset>
+      </section>
     </div>
   );
 }

@@ -88,15 +88,20 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
           )} />
       </fieldset>
 
-      <div className="lq-card p-5 !border-orange/25">
-        <h3 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">✨ Fill the portal from the onboarding AI</h3>
-        <p className="text-sm text-charcoal-60 mb-3">Paste the AI&apos;s JSON reply — it fills the Hero and Dashboard fields above. Then Save.</p>
-        <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={applyPortalJson} className="lq-btn lq-btn--primary lq-btn--sm">Apply portal content</button>
-          {portalMsg && <span className="text-sm text-charcoal-80">{portalMsg}</span>}
+      {/* AI is the shortcut, not the front door — collapsed until wanted. */}
+      <details className="lq-card">
+        <summary className="cursor-pointer select-none px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+          <span className="font-display font-bold text-[14px] tracking-tight text-charcoal-80">✨ Fill with AI (optional)</span>
+          <span className="text-xs text-charcoal-40">Paste the onboarding AI&apos;s JSON reply to fill the fields above.</span>
+        </summary>
+        <div className="px-5 pb-5 border-t border-charcoal/5 pt-4">
+          <textarea value={portalJson} onChange={(e) => setPortalJson(e.target.value)} rows={5} className={input} placeholder={'Paste the AI\'s JSON reply here… (starts with "{")'} dir="ltr" />
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={applyPortalJson} className="lq-btn lq-btn--glass lq-btn--sm">Apply portal content</button>
+            {portalMsg && <span className="text-sm text-charcoal-80">{portalMsg}</span>}
+          </div>
         </div>
-      </div>
+      </details>
 
       <SaveButton onSave={() => saveSection(slug, { hero: data.hero, accent: data.accent, dashboard: data.dashboard })} />
     </div>

@@ -886,7 +886,7 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
   --lq-chrome-edge: rgba(255, 255, 255, 0.85);
   --lq-card-bg: linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.80));
   --lq-card-edge: rgba(255, 255, 255, 0.95);
-  --lq-hairline: rgba(48, 48, 48, 0.08);
+  --lq-hairline: rgba(48, 48, 48, 0.12);
   --lq-shadow-float: 0 24px 60px -18px rgba(48,48,48,0.22), 0 4px 14px rgba(48,48,48,0.06);
   --lq-shadow-card: 0 10px 34px -14px rgba(48,48,48,0.14), 0 1px 3px rgba(48,48,48,0.05);
   --lq-shadow-orange: 0 10px 26px -8px rgba(255,145,0,0.55);
@@ -971,8 +971,8 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 }
 /* Sunken glass well — inputs, list insets */
 .lq-well {
-  background: rgba(48,48,48,0.045);
-  border: 1px solid rgba(48,48,48,0.06);
+  background: rgba(48,48,48,0.055);
+  border: 1px solid rgba(48,48,48,0.10);
   border-radius: var(--lq-r-md);
   box-shadow: inset 0 1px 3px rgba(48,48,48,0.06);
 }
@@ -992,7 +992,7 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 .lq-btn--primary { color: #fff; background: linear-gradient(160deg, #FFA226, #F57F00); box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), var(--lq-shadow-orange); }
 .lq-btn--primary:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.5), 0 14px 32px -8px rgba(255,145,0,0.65); }
 .lq-btn--dark { color: #fff; background: linear-gradient(180deg, #3a3a3a, #262626); box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 8px 22px -8px rgba(26,26,26,0.5); }
-.lq-btn--glass { color: var(--marker-charcoal); background: rgba(255,255,255,0.65); border-color: var(--lq-hairline); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(48,48,48,0.06); }
+.lq-btn--glass { color: var(--marker-charcoal); background: rgba(255,255,255,0.78); border-color: rgba(48,48,48,0.14); box-shadow: inset 0 1px 0 rgba(255,255,255,0.9), 0 2px 8px rgba(48,48,48,0.07); }
 .lq-btn--glass:hover { background: rgba(255,255,255,0.92); }
 .lq-btn--ghost { color: var(--marker-charcoal-80); background: transparent; }
 .lq-btn--ghost:hover { background: rgba(48,48,48,0.06); }
@@ -1018,21 +1018,48 @@ body.ar .ms-pj-next__name { font-family: var(--font-arabic-display); }
 .lq-seg { display: inline-flex; gap: 3px; padding: 4px; border-radius: 999px; background: rgba(48,48,48,0.06); border: 1px solid rgba(48,48,48,0.05); }
 .lq-seg__opt {
   border: 0; cursor: pointer; border-radius: 999px; padding: 8px 15px;
-  font: 600 12.5px/1 var(--font-display); color: var(--marker-charcoal-60); background: transparent;
+  font: 600 12.5px/1 var(--font-display); color: var(--marker-charcoal-80); background: transparent;
   transition: color 160ms, background 200ms var(--lq-out), box-shadow 200ms var(--lq-out), transform 180ms var(--lq-spring);
 }
 .lq-seg__opt:active { transform: scale(0.95); }
 .lq-seg__opt.is-on { color: var(--marker-ink); background: #fff; box-shadow: inset 0 1px 0 rgba(255,255,255,1), 0 2px 8px rgba(48,48,48,0.12); }
 
-/* Inputs */
+/* Inputs — 16px ALWAYS (below 16px iOS Safari force-zooms on focus, which is
+   what makes small inputs feel broken on the phone). High-contrast surface. */
 .lq-input {
-  width: 100%; font: 500 14px/1.4 var(--font-body); color: var(--marker-ink);
-  background: rgba(255,255,255,0.75); border: 1px solid var(--lq-hairline); border-radius: var(--lq-r-md);
-  padding: 11px 14px; box-shadow: inset 0 1px 2px rgba(48,48,48,0.05);
+  width: 100%; font: 500 16px/1.4 var(--font-body); color: var(--marker-ink);
+  background: rgba(255,255,255,0.88); border: 1px solid rgba(48,48,48,0.16); border-radius: var(--lq-r-md);
+  padding: 12px 15px; box-shadow: inset 0 1px 2px rgba(48,48,48,0.05);
   transition: border-color 140ms, box-shadow 200ms var(--lq-out), background 140ms;
+  -webkit-appearance: none; appearance: none;
 }
 .lq-input::placeholder { color: var(--marker-charcoal-40); }
-.lq-input:focus { outline: none; background: #fff; border-color: rgba(255,145,0,0.55); box-shadow: 0 0 0 4px rgba(255,145,0,0.14), inset 0 1px 2px rgba(48,48,48,0.04); }
+.lq-input:focus { outline: none; background: #fff; border-color: rgba(255,145,0,0.65); box-shadow: 0 0 0 4px rgba(255,145,0,0.16), inset 0 1px 2px rgba(48,48,48,0.04); }
+select.lq-input { padding-inline-end: 34px; background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23757575' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 14px center; }
+[dir="rtl"] select.lq-input { background-position: left 14px center; }
+
+/* Field scaffolding — one blessed label/hint style */
+.lq-label { display: block; font: 700 11px/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.1em; color: var(--marker-charcoal-60); margin-bottom: 6px; }
+.lq-hint { font: 500 12px/1.45 var(--font-body); color: var(--marker-charcoal-60); margin-top: 6px; }
+
+/* iOS-style switch — a styled checkbox, form-post friendly */
+.lq-switch { position: relative; display: inline-flex; width: 46px; height: 28px; flex: none; cursor: pointer; }
+.lq-switch input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.lq-switch i {
+  position: absolute; inset: 0; border-radius: 999px;
+  background: rgba(48,48,48,0.16); border: 1px solid rgba(48,48,48,0.08);
+  transition: background 220ms var(--lq-out);
+}
+.lq-switch i::after {
+  content: ""; position: absolute; top: 2px; inset-inline-start: 2px;
+  width: 22px; height: 22px; border-radius: 999px; background: #fff;
+  box-shadow: 0 2px 6px rgba(48,48,48,0.28), inset 0 1px 0 rgba(255,255,255,0.9);
+  transition: transform 260ms var(--lq-spring);
+}
+.lq-switch input:checked + i { background: linear-gradient(160deg, #FFA226, #F57F00); border-color: transparent; }
+.lq-switch input:checked + i::after { transform: translateX(18px); }
+[dir="rtl"] .lq-switch input:checked + i::after { transform: translateX(-18px); }
+.lq-switch input:focus-visible + i { outline: 2px solid var(--marker-orange); outline-offset: 2px; }
 
 /* ---- Navigation chrome ---- */
 /* Desktop floating rail (inline-start side) */

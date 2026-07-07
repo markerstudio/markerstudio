@@ -188,6 +188,51 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`lq-skeleton ${className}`} aria-hidden />;
 }
 
+/** One blessed field wrapper: label + control + optional hint. */
+export function Field({
+  label,
+  hint,
+  children,
+  className = "",
+}: {
+  label: React.ReactNode;
+  hint?: React.ReactNode;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="lq-label">{label}</span>
+      {children}
+      {hint && <span className="lq-hint block">{hint}</span>}
+    </label>
+  );
+}
+
+/** iOS-style switch. A real checkbox underneath — works in plain form posts. */
+export function Toggle({
+  label,
+  sub,
+  ...input
+}: { label?: React.ReactNode; sub?: React.ReactNode } & React.InputHTMLAttributes<HTMLInputElement>) {
+  const control = (
+    <span className="lq-switch">
+      <input type="checkbox" {...input} />
+      <i aria-hidden />
+    </span>
+  );
+  if (!label) return control;
+  return (
+    <label className="flex items-center justify-between gap-4 py-1 cursor-pointer select-none">
+      <span className="min-w-0">
+        <span className="block text-[14px] font-semibold text-ink leading-snug">{label}</span>
+        {sub && <span className="block text-[12px] text-charcoal-60 mt-0.5">{sub}</span>}
+      </span>
+      {control}
+    </label>
+  );
+}
+
 /* ------------------------------------------------------------- overlays */
 
 function useLockScroll(active: boolean) {

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { amountLabelToIls } from "@/lib/money";
 import { saveSection } from "@/app/admin/clients/section-actions";
+import { Toggle } from "@/components/ui/glass";
 import { input, lbl, fmtIls, splitAmount, joinAmount, Text, Rows, SaveButton } from "./fields";
 import type { ClientData, Invoice } from "@/lib/clients";
 
@@ -50,42 +51,61 @@ export default function FinanceTab({
 
   return (
     <div className="space-y-6">
-      <fieldset className="lq-card p-5">
-        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Finance</legend>
-        <p className="text-xs text-charcoal-40 mb-3">Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Stories fee is collected for Ramzi: it stays on the client&apos;s invoice but never counts as Marker income or syncs to Notion.</p>
-        {linkedToNotion && (
-          <div className="mb-4 lq-well px-4 py-3 text-sm text-charcoal-60 leading-relaxed">
-            Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b> come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
-          </div>
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-x-6 gap-y-4 mb-5">
+      {linkedToNotion && (
+        <div className="lq-well px-4 py-3 text-sm text-charcoal-60 leading-relaxed">
+          Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b> come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
+        </div>
+      )}
+
+      {/* 1 — What was agreed: the fees. */}
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Fees &amp; agreement</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-4">What you agreed with the client. Leave Total agreed blank to derive it from the payment rows below.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
           <Text label="Monthly fee (marketing)" value={data.finance?.monthlyFee ?? ""} onChange={(monthlyFee) => patchFinance({ monthlyFee })} placeholder="e.g. 1,800 ILS" />
           <Text label="Branding fee (fixed)" value={data.finance?.brandingFee ?? ""} onChange={(brandingFee) => patchFinance({ brandingFee })} placeholder="e.g. 2,500 ILS" />
           <Text label="Total agreed" value={data.finance?.totalAgreed ?? ""} onChange={(totalAgreed) => patchFinance({ totalAgreed })} placeholder="e.g. 2,425 ILS" />
           <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patchFinance({ storiesFee })} placeholder="e.g. 30 ILS / day" />
+        </div>
+        <div className="mt-4 lq-well px-4 py-3">
+          <Toggle
+            label="This client has stories (Ramzi)"
+            sub="Connects them to Ramzi's portal, where he tracks the stories work and what's been collected. Stories money stays on the client's invoice and combined total, but is never Marker income or synced to Notion."
+            checked={!!data.finance?.storiesActive}
+            onChange={(e) => patchFinance({ storiesActive: e.target.checked })}
+          />
+        </div>
+      </section>
+
+      {/* 2 — Where they stand: derived, never hand-typed. */}
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Where they stand</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-4">Money left and Paid % calculate themselves from the payment history below (USD converted to ILS).</p>
+        <div className="grid grid-cols-1 sm:grid-cols-[200px_minmax(0,1fr)] gap-x-6 gap-y-4 items-end">
           <div>
-            <label className={lbl}>Money left · auto</label>
-            <div className="w-full lq-well px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
+            <span className={lbl}>Money left · auto</span>
+            <div className="w-full lq-well px-4 py-3 font-display font-bold text-[18px] tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
+          </div>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <span className={lbl + " mb-0"}>Paid · auto</span>
+              <span className="text-sm font-bold tabular-nums text-ink">{fin.paidPct}%</span>
+            </div>
+            <div className="h-2 w-full rounded-full bg-charcoal/5 overflow-hidden">
+              <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
+            </div>
+            <p className="text-[11px] text-charcoal-40 mt-1 tabular-nums">
+              {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
+              {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
+            </p>
           </div>
         </div>
-        <label className="flex items-start gap-3 text-sm mb-5 lq-well px-4 py-3">
-          <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!data.finance?.storiesActive} onChange={(e) => patchFinance({ storiesActive: e.target.checked })} />
-          <span className="leading-relaxed"><b>This client has stories</b> (Ramzi). Turning this on connects them to <b>Ramzi&apos;s portal</b>, where he tracks the stories work and what&apos;s been collected. Stories money stays on the client&apos;s invoice and in the client&apos;s combined total, but is never Marker income or synced to Notion.</span>
-        </label>
-        <div className="mb-5">
-          <div className="flex items-center justify-between mb-1">
-            <span className={lbl + " mb-0"}>Paid · auto</span>
-            <span className="text-sm font-bold tabular-nums text-ink">{fin.paidPct}%</span>
-          </div>
-          <div className="h-2 w-full rounded-full bg-charcoal/5 overflow-hidden">
-            <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
-          </div>
-          <p className="text-[11px] text-charcoal-40 mt-1 tabular-nums">
-            {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
-            {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
-          </p>
-        </div>
-        <label className={lbl}>Payment history</label>
+      </section>
+
+      {/* 3 — What actually came in: the payment rows. */}
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Payment history</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-4">Mark each payment Paid as it comes in — the figures above follow.</p>
         <Rows<Invoice> items={data.invoices} onChange={(invoices) => patch({ invoices })} blank={{ cycle: "", desc: "", amount: "", status: "paid" }} addLabel="Add payment"
           render={(inv, set) => {
             const { num, cur } = splitAmount(inv.amount);
@@ -114,7 +134,7 @@ export default function FinanceTab({
             );
           }} />
         <SaveButton onSave={save} label="Save finance" />
-      </fieldset>
+      </section>
 
       {invoicesSlot}
     </div>

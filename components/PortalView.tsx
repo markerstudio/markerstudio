@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useLang } from "@/lib/useLang";
 import { useRouter } from "next/navigation";
 import { logout } from "@/app/admin/actions";
@@ -297,8 +298,13 @@ export default function PortalView({
                   </span>
                 )}
                 <div className="relative">
-                  <p className="text-[11px] font-display font-bold uppercase tracking-[0.16em] text-white/55">
-                    {ui("Marker Studio · Client report", "ماركر استديو · تقرير العميل")}
+                  <p className="text-[12px] font-display font-bold tracking-[0.04em] text-orange-soft">
+                    {(() => {
+                      const h = new Date().getHours();
+                      return h < 12 ? ui("Good morning", "صباح الخير") : h < 18 ? ui("Good afternoon", "نهارك سعيد") : ui("Good evening", "مساء الخير");
+                    })()}
+                    {" · "}
+                    <span className="text-white/55 uppercase tracking-[0.14em] text-[10.5px]">{ui("Marker Studio", "ماركر استديو")}</span>
                   </p>
                   <h1 className="font-display font-extrabold text-[30px] sm:text-[38px] tracking-tight leading-tight mt-1.5">{client.name}</h1>
                   <p className="text-white/70 text-[15px] leading-relaxed mt-2 max-w-[560px]">
@@ -316,6 +322,51 @@ export default function PortalView({
                   )}
                 </div>
               </section>
+
+              {/* Your next step — one thing, computed from the data. */}
+              {(() => {
+                const inv = (d.invoices ?? []).find((x) => x.status === "due" || x.status === "overdue");
+                const pendingPost = (d.social?.posts ?? []).find((p) => p.approval === "pending");
+                const nextShoot = d.photo?.showToClient
+                  ? (d.photo.sessions ?? []).find((s) => s.date >= today && s.status !== "delivered")
+                  : undefined;
+                const step = d.proposal?.published && !d.proposal.acceptedAt
+                  ? { text: ui("Your proposal is ready — review and accept it.", "عرضنا جاهز — راجعه واعتمده."), cta: ui("Review proposal", "مراجعة العرض"), href: `/portal/${client.slug}/proposal` }
+                  : d.agreement?.published && !d.agreement.acceptedAt
+                  ? { text: ui("Your agreement is ready for your signature.", "الاتفاقية جاهزة لتوقيعك."), cta: ui("Sign agreement", "توقيع الاتفاقية"), href: `/portal/${client.slug}/agreement` }
+                  : inv
+                  ? { text: ui(`An invoice is ${inv.status === "overdue" ? "overdue" : "due"} — ${inv.amount}.`, `لديك فاتورة ${inv.status === "overdue" ? "متأخرة" : "مستحقة"} — ${inv.amount}.`), cta: ui("View & settle", "عرض وتسوية"), tab: "invoices" }
+                  : pendingPost
+                  ? { text: ui(`"${pendingPost.title}" is waiting for your approval.`, `"${pendingPost.title}" بانتظار موافقتك.`), cta: ui("Review post", "مراجعة المنشور"), tab: "social" }
+                  : nextShoot
+                  ? { text: ui(`Your shoot "${nextShoot.title}" is coming up — ${nextShoot.date}.`, `جلسة التصوير "${nextShoot.title}" قادمة — ${nextShoot.date}.`), cta: ui("See the plan", "عرض الخطة"), tab: "plan" }
+                  : null;
+                return (
+                  <section className="lq-card lq-rise flex flex-wrap items-center gap-3.5 p-4 sm:px-5" style={{ animationDelay: "60ms" }}>
+                    <span className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-white shadow-[inset_0_1px_0_rgba(255,255,255,.45),0_6px_14px_-4px_rgba(255,145,0,.55)] ${step ? "bg-gradient-to-br from-[#FFA226] to-[#F57F00]" : "bg-gradient-to-br from-emerald-400 to-emerald-600"}`}>
+                      {step ? (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+                      )}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[10px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">{ui("Your next step", "خطوتك التالية")}</p>
+                      <p className="text-[14px] font-semibold text-ink leading-snug mt-0.5">
+                        {step ? step.text : ui("You're all caught up — we're on it. Anything new lands here first.", "كل شيء تمام — نحن نعمل. أي جديد يظهر هنا أولاً.")}
+                      </p>
+                    </div>
+                    {step &&
+                      ("href" in step && step.href ? (
+                        <Link href={step.href} className="lq-btn lq-btn--primary lq-btn--sm no-underline shrink-0">{step.cta}</Link>
+                      ) : (
+                        <button type="button" className="lq-btn lq-btn--primary lq-btn--sm shrink-0" onClick={() => setTab((step as { tab: string }).tab)}>
+                          {step.cta}
+                        </button>
+                      ))}
+                  </section>
+                );
+              })()}
 
               {/* Auto overview — always populated from the client's data. */}
               <section className="lq-rise" style={{ animationDelay: "80ms" }}>

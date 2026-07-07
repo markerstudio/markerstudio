@@ -33,19 +33,6 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
 
   return (
     <div className="space-y-6">
-      <div className="lq-card p-5 !border-orange/25">
-        <h3 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">✨ Fill analytics with AI</h3>
-        <p className="text-sm text-charcoal-60 mb-3">Copy the prompt, run it with your Meta / Instagram export, then paste the reply to fill the Analysis fields below. Then Save.</p>
-        <button type="button" onClick={copy} className="lq-btn lq-btn--primary lq-btn--sm mb-3">
-          {copied ? "Copied ✓" : "Copy analytics prompt"}
-        </button>
-        <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
-        <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={apply} className="lq-btn lq-btn--glass lq-btn--sm">Apply analytics</button>
-          {msg && <span className="text-sm text-charcoal-80">{msg}</span>}
-        </div>
-      </div>
-
       <fieldset className="lq-card p-5">
         <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Analysis — Organic</legend>
         <Bi label="Headline" value={data.analysis.organic.headline} onChange={(headline) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, headline } } })} />
@@ -85,12 +72,30 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
           )} />
       </fieldset>
 
-      <SaveButton onSave={() => saveSection(slug, { analysis: data.analysis })} />
-
       <div className="lq-card p-5">
         <h3 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">AI reading</h3>
         <AiAnalysisPanel client={client} apiEnabled={apiEnabled} />
       </div>
+
+      {/* AI is the shortcut, not the front door — collapsed until wanted. */}
+      <details className="lq-card">
+        <summary className="cursor-pointer select-none px-5 py-4 flex items-center justify-between gap-3 flex-wrap">
+          <span className="font-display font-bold text-[14px] tracking-tight text-charcoal-80">✨ Fill with AI (optional)</span>
+          <span className="text-xs text-charcoal-40">Copy a prompt, run it with your Meta / Instagram export, paste the reply to fill the fields above.</span>
+        </summary>
+        <div className="px-5 pb-5 border-t border-charcoal/5 pt-4">
+          <button type="button" onClick={copy} className="lq-btn lq-btn--glass lq-btn--sm mb-3">
+            {copied ? "Copied ✓" : "Copy analytics prompt"}
+          </button>
+          <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
+          <div className="mt-2 flex items-center gap-3">
+            <button type="button" onClick={apply} className="lq-btn lq-btn--glass lq-btn--sm">Apply analytics</button>
+            {msg && <span className="text-sm text-charcoal-80">{msg}</span>}
+          </div>
+        </div>
+      </details>
+
+      <SaveButton onSave={() => saveSection(slug, { analysis: data.analysis })} />
     </div>
   );
 }

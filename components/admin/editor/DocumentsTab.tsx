@@ -13,9 +13,9 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
     <div className="space-y-6">
       {docsSlot}
 
-      <fieldset className="lq-card p-5">
-        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Documents</legend>
-        <p className="text-xs text-charcoal-40 mb-3">Upload a PDF (or image) or paste a link — clients can open / download these.</p>
+      <section className="lq-card p-5">
+        <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Client files</h2>
+        <p className="text-[12.5px] text-charcoal-60 mb-4">Upload a PDF (or image) or paste a link — clients can open / download these from their portal.</p>
         <Rows<DocItem> items={data.documents} onChange={(documents) => patch({ documents })} blank={{ title: "", type: "PDF", url: "" }} addLabel="Add document"
           render={(doc, set) => (
             <div className="pr-16">
