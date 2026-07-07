@@ -88,10 +88,29 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
         <div>
           <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Studio money</p>
           <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Finance</h1>
-          <p className="text-sm text-charcoal-60 mt-0.5">
-            Money through time — live from the Notion Budget Tracker
-            {f.syncedAt ? <span className="text-charcoal-40"> · synced {timeAgo(f.syncedAt)}</span> : null}
-          </p>
+          {f.available ? (
+            <>
+              {/* The answer up top — one sentence, each segment jumps to its zone. */}
+              <p className="text-[15px] leading-relaxed text-charcoal-80 mt-1.5">
+                <a href="#position" className="font-semibold text-ink hover:text-orange-deep no-underline">{fmtILS(f.bankTotal)} in the bank</a>
+                <span className="text-charcoal-40"> · </span>
+                <a href="#position" className="font-semibold text-ink hover:text-orange-deep no-underline">{fmtILS(f.totalDebt)} owed by clients</a>
+                <span className="text-charcoal-40"> · </span>
+                {f.overdue.length > 0 ? (
+                  <a href="#position" className="font-semibold text-rose-600 hover:text-rose-700 no-underline">
+                    {f.overdue.length} overdue · {fmtILS(f.overdueTotal)}
+                  </a>
+                ) : (
+                  <span className="font-semibold text-emerald-700">nothing past due</span>
+                )}
+              </p>
+              <p className="text-xs text-charcoal-40 mt-1">
+                Live from the Notion Budget Tracker{f.syncedAt ? ` · synced ${timeAgo(f.syncedAt)}` : ""}
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-charcoal-60 mt-0.5">Money through time — live from the Notion Budget Tracker</p>
+          )}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <a href={NOTION_TRACKER_URL} target="_blank" rel="noreferrer" className="lq-btn lq-btn--ghost no-underline">
@@ -173,66 +192,55 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
         </div>
       ) : (
         <>
-          {/* ---- Year selector ---- */}
-          <div className="lq-seg flex-wrap">
-            {years.map((y) => (
-              <Link
-                key={y}
-                href={`/admin/finance?year=${y}`}
-                className={`lq-seg__opt no-underline tabular-nums ${y === year ? "is-on" : ""}`}
-              >
-                {y}
-              </Link>
-            ))}
-          </div>
+          {/* ---- Zone 1 — Position: where the money sits today ---- */}
+          <section id="position" className="lq-card lq-rise p-5 sm:p-6">
+            <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Position — today</h2>
 
-          {/* ---- KPI row for the selected year ---- */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-            <div className="lq-dark lq-rise px-5 py-4">
-              <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/60">In the bank · today</div>
-              <div className="mt-2 font-display font-extrabold text-3xl tracking-tight tabular-nums text-orange">{fmtILS(f.bankTotal)}</div>
-              <div className="mt-1 text-xs text-white/60">
-                {f.banks.length} account{f.banks.length === 1 ? "" : "s"} · {fmtILS(f.totalDebt)} still owed by clients
+            {/* Lead figures — the bank balance dominates; owed and overdue read beside it. */}
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-4 mt-3">
+              <div className="min-w-0">
+                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">In the bank</div>
+                <div className="mt-1.5 font-display font-extrabold text-[38px] sm:text-[44px] leading-none tracking-tight tabular-nums text-ink">{fmtILS(f.bankTotal)}</div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Clients owe us</div>
+                <div className="mt-1.5 font-display font-extrabold text-[24px] leading-none tracking-tight tabular-nums text-orange-deep">{fmtILS(f.totalDebt)}</div>
+              </div>
+              <div className="min-w-0">
+                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Overdue</div>
+                <div className={`mt-1.5 font-display font-extrabold text-[24px] leading-none tracking-tight tabular-nums ${f.overdue.length ? "text-rose-600" : "text-ink"}`}>
+                  {f.overdue.length ? `${f.overdue.length} · ${fmtILS(f.overdueTotal)}` : "None"}
+                </div>
               </div>
             </div>
-            <div className="lq-card lq-rise px-5 py-4" style={{ animationDelay: "60ms" }}>
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Collected in {year}</div>
-                <GrowthBadge now={income} prev={prevIncome} />
-              </div>
-              <div className="mt-2 font-display font-extrabold text-3xl tracking-tight tabular-nums text-ink">{fmtILS(income)}</div>
-              <div className="mt-1 text-xs text-charcoal-60">{prevIncome > 0 ? `${fmtILS(prevIncome)} in ${Number(year) - 1}` : "no prior-year data"}</div>
-            </div>
-            <div className="lq-card lq-rise px-5 py-4" style={{ animationDelay: "120ms" }}>
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Spent in {year}</div>
-                <GrowthBadge now={expenses} prev={prevExpenses} />
-              </div>
-              <div className="mt-2 font-display font-extrabold text-3xl tracking-tight tabular-nums text-ink">{fmtILS(expenses)}</div>
-              <div className="mt-1 text-xs text-charcoal-60">{prevExpenses > 0 ? `${fmtILS(prevExpenses)} in ${Number(year) - 1}` : "expenses, all categories"}</div>
-            </div>
-            <div className="lq-card lq-rise px-5 py-4" style={{ animationDelay: "180ms" }}>
-              <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Net {year}</div>
-              <div className={`mt-2 font-display font-extrabold text-3xl tracking-tight tabular-nums ${net >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                {fmtILS(net)}
-              </div>
-              <div className="mt-1 text-xs text-charcoal-60">{open > 0 ? `+ ${fmtILS(open)} still open (unpaid dues)` : "everything due is collected"}</div>
-            </div>
-          </div>
 
-          {/* ---- What clients still owe — the "money left" picture ---- */}
-          <div className="lq-card lq-rise p-5" style={{ animationDelay: "210ms" }}>
-            <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
-              <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">What clients still owe</h2>
-              {owing.length > 0 && (
-                <span className="text-xs text-charcoal-40 tabular-nums">
-                  {owing.length} client{owing.length === 1 ? "" : "s"} · {fmtILS(f.totalDebt)} left
-                </span>
+            {/* Accounts — quiet inline facts, not tiles. */}
+            <div className="mt-4 pt-4 border-t border-charcoal/5 flex flex-wrap gap-x-6 gap-y-1.5 text-xs text-charcoal-60">
+              {f.banks.length === 0 ? (
+                <span>No accounts in the tracker.</span>
+              ) : (
+                f.banks.map((b) => (
+                  <span key={b.name}>
+                    {b.name}{" "}
+                    <b className={`tabular-nums ${b.balance < 0 ? "text-rose-600" : "text-charcoal-80"}`}>{fmtILS(b.balance)}</b>
+                  </span>
+                ))
               )}
             </div>
-            <p className="text-xs text-charcoal-60 mb-3">
-              Outstanding balance per client, largest first — what&apos;s paid and what&apos;s left, so you can see it here instead of in Notion.
-            </p>
+
+            {/* What clients still owe — debtor bars inline, same surface. */}
+            <div className="mt-5 pt-5 border-t border-charcoal/5">
+              <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
+                <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">What clients still owe</h3>
+                {owing.length > 0 && (
+                  <span className="text-xs text-charcoal-40 tabular-nums">
+                    {owing.length} client{owing.length === 1 ? "" : "s"} · {fmtILS(f.totalDebt)} left
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-charcoal-60 mb-3">
+                Outstanding balance per client, largest first — what&apos;s paid and what&apos;s left, so you can see it here instead of in Notion.
+              </p>
             {owing.length === 0 ? (
               <div className="flex flex-col items-center gap-2 py-6 text-center">
                 <span className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center">✓</span>
@@ -283,13 +291,78 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
                 })}
               </ul>
             )}
-          </div>
+            </div>
 
-          {/* ---- Monthly cashflow chart + overdue/banks ---- */}
-          <div className="grid lg:grid-cols-5 gap-4">
-            <div className="lq-card lq-rise lg:col-span-3 p-5" style={{ animationDelay: "240ms" }}>
+            {/* Overdue detail — only rendered when something is actually past due;
+                the lead figure above already answers the quiet case. */}
+            {f.overdue.length > 0 && (
+              <div className="mt-5 pt-5 border-t border-charcoal/5">
+                <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-1">Overdue right now</h3>
+                <ul className="divide-y divide-charcoal/5">
+                  {f.overdue.slice(0, 7).map((o, i) => (
+                    <li key={i} className="py-2.5 flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-ink truncate">{o.sourceName || o.name}</div>
+                        <div className="text-[11px] text-charcoal-60 truncate">due {o.dueDate}</div>
+                      </div>
+                      <span className="tabular-nums text-sm font-bold text-ink">{o.amountLabel}</span>
+                      <span className="lq-chip lq-chip--red !px-2 !py-0.5 !text-[10px] whitespace-nowrap">{o.daysOverdue}d</span>
+                      {o.clientSlug && (
+                        <Link href={`/admin/clients/${o.clientSlug}/edit`} className="text-xs font-semibold text-charcoal-40 hover:text-orange-deep no-underline">→</Link>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </section>
+
+          {/* ---- Zone 2 — Flow: money through the months ---- */}
+          <section id="flow" className="lq-card lq-rise p-5 sm:p-6" style={{ animationDelay: "90ms" }}>
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Flow — {year}</h2>
+              <div className="lq-seg flex-wrap">
+                {years.map((y) => (
+                  <Link
+                    key={y}
+                    href={`/admin/finance?year=${y}`}
+                    className={`lq-seg__opt no-underline tabular-nums ${y === year ? "is-on" : ""}`}
+                  >
+                    {y}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            {/* Collected · spent · net — one divided strip, growth beside each figure. */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-0 mt-4">
+              <div className="min-w-0 sm:pe-5">
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Collected in {year}</div>
+                  <GrowthBadge now={income} prev={prevIncome} />
+                </div>
+                <div className="mt-1 font-display font-extrabold text-[26px] tracking-tight tabular-nums text-ink">{fmtILS(income)}</div>
+                <div className="mt-0.5 text-xs text-charcoal-60">{prevIncome > 0 ? `${fmtILS(prevIncome)} in ${Number(year) - 1}` : "no prior-year data"}</div>
+              </div>
+              <div className="min-w-0 sm:border-s sm:border-charcoal/5 sm:ps-5 sm:pe-5">
+                <div className="flex items-center gap-2">
+                  <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Spent in {year}</div>
+                  <GrowthBadge now={expenses} prev={prevExpenses} />
+                </div>
+                <div className="mt-1 font-display font-extrabold text-[26px] tracking-tight tabular-nums text-ink">{fmtILS(expenses)}</div>
+                <div className="mt-0.5 text-xs text-charcoal-60">{prevExpenses > 0 ? `${fmtILS(prevExpenses)} in ${Number(year) - 1}` : "expenses, all categories"}</div>
+              </div>
+              <div className="min-w-0 sm:border-s sm:border-charcoal/5 sm:ps-5">
+                <div className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Net {year}</div>
+                <div className={`mt-1 font-display font-extrabold text-[26px] tracking-tight tabular-nums ${net >= 0 ? "text-emerald-700" : "text-rose-600"}`}>{fmtILS(net)}</div>
+                <div className="mt-0.5 text-xs text-charcoal-60">{open > 0 ? `+ ${fmtILS(open)} still open (unpaid dues)` : "everything due is collected"}</div>
+              </div>
+            </div>
+
+            {/* Month-by-month bars, under a hairline on the same surface. */}
+            <div className="mt-5 pt-5 border-t border-charcoal/5">
               <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-                <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Cashflow — {year}, month by month</h2>
+                <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Cashflow, month by month</h3>
                 <div className="flex items-center gap-3 text-[11px] text-charcoal-60">
                   <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-orange inline-block" /> in</span>
                   <span className="inline-flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm bg-charcoal-20 inline-block" /> out</span>
@@ -322,55 +395,46 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
               )}
             </div>
 
-            <div className="lq-rise lg:col-span-2 space-y-4" style={{ animationDelay: "300ms" }}>
-              <div className="lq-card p-5">
-                <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">Overdue right now</h2>
-                {f.overdue.length === 0 ? (
-                  <div className="flex flex-col items-center gap-2 py-5 text-center">
-                    <span className="w-9 h-9 rounded-full bg-emerald-500/15 text-emerald-700 flex items-center justify-center">✓</span>
-                    <p className="text-sm text-charcoal-60">Nothing past due.</p>
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-charcoal/5">
-                    {f.overdue.slice(0, 7).map((o, i) => (
-                      <li key={i} className="py-2.5 flex items-center gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-semibold text-ink truncate">{o.sourceName || o.name}</div>
-                          <div className="text-[11px] text-charcoal-60 truncate">due {o.dueDate}</div>
+            {/* Year over year — the longer arc, same surface. */}
+            {yearRows.filter((r) => r.income || r.expenses).length > 1 && (
+              <div className="mt-5 pt-5 border-t border-charcoal/5">
+                <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-3">Year over year</h3>
+                <ul className="space-y-3">
+                  {yearRows.map((r, i) => {
+                    const prevR = yearRows[i + 1];
+                    const rNet = r.income - r.expenses;
+                    return (
+                      <li key={r.y}>
+                        <div className="flex items-center gap-3 text-sm flex-wrap">
+                          <Link href={`/admin/finance?year=${r.y}`} className={`font-bold tabular-nums no-underline ${r.y === year ? "text-orange-deep" : "text-ink hover:text-orange-deep"}`}>
+                            {r.y}
+                          </Link>
+                          {prevR && <GrowthBadge now={r.income} prev={prevR.income} />}
+                          <span className="flex-1" />
+                          <span className="tabular-nums text-charcoal-60">in <b className="text-ink">{fmtILS(r.income)}</b></span>
+                          <span className="tabular-nums text-charcoal-60">out <b className="text-charcoal-80">{fmtILS(r.expenses)}</b></span>
+                          <span className={`tabular-nums font-bold ${rNet >= 0 ? "text-emerald-700" : "text-rose-600"}`}>net {fmtILS(rNet)}</span>
                         </div>
-                        <span className="tabular-nums text-sm font-bold text-ink">{o.amountLabel}</span>
-                        <span className="lq-chip lq-chip--red !px-2 !py-0.5 !text-[10px] whitespace-nowrap">{o.daysOverdue}d</span>
-                        {o.clientSlug && (
-                          <Link href={`/admin/clients/${o.clientSlug}/edit`} className="text-xs font-semibold text-charcoal-40 hover:text-orange-deep no-underline">→</Link>
-                        )}
+                        <div className="mt-1.5 h-2 rounded-full bg-charcoal/5 overflow-hidden">
+                          <div
+                            className="adm-bar h-full rounded-full bg-orange"
+                            style={{ width: `${Math.max(2, Math.round((r.income / maxYearIncome) * 100))}%`, animationDelay: `${460 + i * 60}ms` }}
+                          />
+                        </div>
                       </li>
-                    ))}
-                  </ul>
-                )}
+                    );
+                  })}
+                </ul>
               </div>
+            )}
+          </section>
 
-              <div className="lq-card p-5">
-                <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">Bank accounts</h2>
-                {f.banks.length === 0 ? (
-                  <p className="text-sm text-charcoal-40 py-4 text-center">No accounts in the tracker.</p>
-                ) : (
-                  <ul className="divide-y divide-charcoal/5">
-                    {f.banks.map((b) => (
-                      <li key={b.name} className="py-2.5 flex items-center justify-between gap-3">
-                        <div className="text-sm font-semibold text-ink">{b.name}</div>
-                        <span className={`tabular-nums font-bold ${b.balance < 0 ? "text-rose-600" : "text-ink"}`}>{fmtILS(b.balance)}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          </div>
+          {/* ---- Zone 3 — Detail: every payment and the monthly ledger, one surface ---- */}
+          <section className="lq-card lq-rise p-5 sm:p-6" style={{ animationDelay: "180ms" }}>
+            <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">The detail — {year}</h2>
 
-          {/* ---- Payments received, month by month ---- */}
-          <div className="lq-card lq-rise p-5" style={{ animationDelay: "330ms" }}>
-            <div className="flex items-center justify-between gap-4 flex-wrap mb-1">
-              <h2 className="font-display font-bold text-[16px] tracking-tight text-ink">Payments — {year}</h2>
+            <div className="flex items-center justify-between gap-4 flex-wrap mt-4 mb-1">
+              <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">Payments received</h3>
               {paymentMonths.length > 0 && (
                 <span className="text-xs text-charcoal-40 tabular-nums">
                   {paymentMonths.reduce((n, g) => n + g.rows.length, 0)} payments · {fmtILS(paymentMonths.reduce((s, g) => s + g.total, 0))}
@@ -427,13 +491,12 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
                 ))}
               </div>
             )}
-          </div>
 
-          {/* ---- Month-by-month ledger ---- */}
-          <div className="lq-card lq-rise p-5" style={{ animationDelay: "360ms" }}>
-            <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">{year} — the ledger</h2>
-            <p className="text-xs text-charcoal-60 mb-4">Collected, spent and net per month, with the running total for the year. Open = invoiced/due that month, not paid yet.</p>
-            <div className="overflow-x-auto">
+            {/* The ledger — under a hairline, same surface. */}
+            <div className="mt-5 pt-5 border-t border-charcoal/5">
+              <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 mb-1">The ledger</h3>
+              <p className="text-xs text-charcoal-60 mb-4">Collected, spent and net per month, with the running total for the year. Open = invoiced/due that month, not paid yet.</p>
+              <div className="overflow-x-auto">
               <table className="w-full text-sm min-w-[640px]">
                 <thead>
                   <tr className="text-left text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60 border-b border-charcoal/5">
@@ -487,41 +550,9 @@ export default async function FinanceAdmin({ searchParams }: { searchParams: { o
                   </tr>
                 </tfoot>
               </table>
+              </div>
             </div>
-          </div>
-
-          {/* ---- Year over year ---- */}
-          {yearRows.filter((r) => r.income || r.expenses).length > 1 && (
-            <div className="lq-card lq-rise p-5" style={{ animationDelay: "420ms" }}>
-              <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-4">Year over year</h2>
-              <ul className="space-y-3">
-                {yearRows.map((r, i) => {
-                  const prevR = yearRows[i + 1];
-                  const rNet = r.income - r.expenses;
-                  return (
-                    <li key={r.y}>
-                      <div className="flex items-center gap-3 text-sm flex-wrap">
-                        <Link href={`/admin/finance?year=${r.y}`} className={`font-bold tabular-nums no-underline ${r.y === year ? "text-orange-deep" : "text-ink hover:text-orange-deep"}`}>
-                          {r.y}
-                        </Link>
-                        {prevR && <GrowthBadge now={r.income} prev={prevR.income} />}
-                        <span className="flex-1" />
-                        <span className="tabular-nums text-charcoal-60">in <b className="text-ink">{fmtILS(r.income)}</b></span>
-                        <span className="tabular-nums text-charcoal-60">out <b className="text-charcoal-80">{fmtILS(r.expenses)}</b></span>
-                        <span className={`tabular-nums font-bold ${rNet >= 0 ? "text-emerald-700" : "text-rose-600"}`}>net {fmtILS(rNet)}</span>
-                      </div>
-                      <div className="mt-1.5 h-2 rounded-full bg-charcoal/5 overflow-hidden">
-                        <div
-                          className="adm-bar h-full rounded-full bg-orange"
-                          style={{ width: `${Math.max(2, Math.round((r.income / maxYearIncome) * 100))}%`, animationDelay: `${460 + i * 60}ms` }}
-                        />
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
+          </section>
         </>
       )}
     </div>

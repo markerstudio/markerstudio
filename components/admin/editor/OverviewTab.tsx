@@ -192,6 +192,30 @@ export default function OverviewTab({
             </a>
           </div>
         </div>
+
+        {/* The plan-and-money facts as one sentence — each segment jumps to the
+            tab that owns it. */}
+        <p className="mt-4 pt-3.5 border-t border-charcoal/5 text-[13.5px] leading-relaxed text-charcoal-60">
+          <button
+            type="button"
+            onClick={() => onNavigate("content")}
+            className="lq-press font-semibold text-ink hover:text-orange-deep"
+            title="Open Plan & Content"
+          >
+            {data.plan.name || "No plan set"}
+            {cycle ? ` · ${cycle}` : ""}
+          </button>
+          <span className="text-charcoal-40"> · </span>
+          <button
+            type="button"
+            onClick={() => onNavigate("money")}
+            className="lq-press font-semibold text-ink hover:text-orange-deep tabular-nums"
+            title="Open Money"
+          >
+            {data.plan.balance ? `${data.plan.balance} left` : "No balance set"} · {data.finance?.progress ?? 0}% paid
+            {data.finance?.monthlyFee ? ` · ${data.finance.monthlyFee}/mo` : ""}
+          </button>
+        </p>
       </div>
 
       {/* ---- What the client sees -------------------------------------------- */}

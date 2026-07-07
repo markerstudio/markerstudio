@@ -93,28 +93,9 @@ export default function PortalView({
   const today = new Date().toISOString().slice(0, 10);
   const upcoming = (d.social?.posts ?? []).filter((p) => p.date && p.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
   const nextPost = upcoming[0];
-  const topMetric = (d.analysis?.organic?.metrics ?? []).find((m) => m.value || m.after);
-  // Auto stats — always populated from the client's (Notion-synced) data so the
-  // dashboard is informative even with zero hand-entered content.
-  const allPosts = d.social?.posts ?? [];
-  const monthPrefix = today.slice(0, 7);
-  const postsThisMonth = allPosts.filter((p) => p.date?.startsWith(monthPrefix)).length;
-  const invoiceList = d.invoices ?? [];
-  const paidInvoices = invoiceList.filter((i) => i.status === "paid").length;
-  const overdueInvoices = invoiceList.filter((i) => i.status === "overdue").length;
-  const autoStats: { label: string; value: string; sub?: string; tone?: "good" | "warn" }[] = [
-    { label: ui("Plan", "الخطة"), value: d.plan?.name || "—", sub: d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقّفة"), tone: d.plan?.active ? "good" : undefined },
-    { label: ui("Cycle", "الدورة"), value: d.plan?.end ? `${d.plan?.start || ""} → ${d.plan?.end}` : d.plan?.start || ui("Ongoing", "مستمرّة") },
-    { label: ui("Money left", "المبلغ المتبقّي"), value: d.plan?.balance || "—" },
-    { label: ui("Paid", "نسبة السداد"), value: `${d.finance?.progress ?? 0}%` },
-    { label: ui("Monthly fee", "الاشتراك الشهري"), value: d.finance?.monthlyFee || "—" },
-    { label: ui("Posts this month", "منشورات هذا الشهر"), value: String(postsThisMonth) },
-    { label: ui("Next post", "المنشور القادم"), value: nextPost ? nextPost.date : ui("None scheduled", "لا يوجد"), sub: nextPost?.platform || "" },
-    { label: ui("Invoices", "الفواتير"), value: String(invoiceList.length), sub: overdueInvoices ? `${overdueInvoices} ${ui("overdue", "متأخرة")}` : `${paidInvoices} ${ui("paid", "مدفوعة")}`, tone: overdueInvoices ? "warn" : undefined },
-  ];
-  if (topMetric) autoStats.push({ label: topMetric.label || ui("Top result", "أبرز نتيجة"), value: topMetric.value || topMetric.after || "—", sub: topMetric.delta || "" });
-  if (d.analysis?.paid?.spend) autoStats.push({ label: ui("Ad spend", "الإنفاق الإعلاني"), value: d.analysis.paid.spend });
-  if (d.finance?.brandingFee) autoStats.push({ label: ui("Branding fee", "رسوم الهوية"), value: d.finance.brandingFee });
+  // Time-ish facts feed the "Lately" zone; plan facts sit as a caption in the
+  // hero, and the money picture lives on the Finance tab only.
+  const postsThisMonth = (d.social?.posts ?? []).filter((p) => p.date?.startsWith(today.slice(0, 7))).length;
 
   // Photography — the client only sees shoots when the studio shared them.
   const photo = d.photo;
@@ -134,6 +115,9 @@ export default function PortalView({
     return Number.isNaN(dt.getTime()) ? iso : dt.toLocaleDateString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" });
   };
   const shotsDone = shots.filter((t) => t.status === "done").length;
+  // Next upcoming shoot — a "Lately" row on the dashboard (sessions are already
+  // gated on showToClient and sorted by date).
+  const nextShootSession = sessions.find((s) => s.date >= today && s.status !== "delivered");
 
   // Deliverables — the client sees progress when shared, and can request tasks
   // when requests are enabled. Pending requests are excluded from the progress list.
@@ -310,6 +294,21 @@ export default function PortalView({
                   <p className="text-white/70 text-[15px] leading-relaxed mt-2 max-w-[560px]">
                     {f(tr(d.hero), (v) => up((c) => (c.hero[lang] = v)), true, ui("Intro line…", "سطر تعريفي…"))}
                   </p>
+                  {/* Plan facts — a quiet caption, not a stat tile. */}
+                  {(d.plan?.name || d.plan?.start || d.plan?.end) && (
+                    <p className="text-white/45 text-[12.5px] font-medium tracking-wide mt-3">
+                      {[
+                        d.plan?.name,
+                        d.plan?.end
+                          ? `${d.plan?.start ? `${d.plan.start} → ` : ""}${d.plan.end}`
+                          : d.plan?.start
+                          ? `${d.plan.start} · ${ui("Ongoing", "مستمرّة")}`
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  )}
                   {edit && (
                     <div style={{ marginTop: 10, maxWidth: 320 }}>
                       <input
@@ -368,98 +367,123 @@ export default function PortalView({
                 );
               })()}
 
-              {/* Auto overview — one glass panel, stats separated by hairlines. */}
-              <section className="lq-rise" style={{ animationDelay: "80ms" }}>
-                <p className={MICRO}>{ui("At a glance", "نظرة سريعة")}</p>
-                <div className="lq-card overflow-hidden mt-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 -ms-px -mt-px lq-stagger">
-                    {autoStats.map((s, i) => (
-                      <div key={i} className="border-s border-t border-charcoal/5 px-4 py-3.5 min-w-0" style={{ "--i": i } as React.CSSProperties}>
-                        <span className={`block ${MICRO_TILE}`}>{s.label}</span>
-                        <span className="block mt-1 text-[18px] font-display font-extrabold tracking-tight tabular-nums text-ink truncate" title={s.value}>{s.value}</span>
-                        {s.sub && (
-                          <span className={`block mt-0.5 text-[11.5px] truncate ${s.tone === "good" ? "text-emerald-700 font-semibold" : s.tone === "warn" ? "text-orange-deep font-semibold" : "text-charcoal-60"}`}>
-                            {s.sub}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </section>
-
-              {(edit || tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0 || (d.dashboard?.cards ?? []).length > 0) && (
-                <section className="lq-rise" style={{ animationDelay: "140ms" }}>
-                  <p className={MICRO}>{ui("Overview", "نظرة عامة")}</p>
-                  <h2 className="font-display font-extrabold text-[22px] sm:text-[26px] tracking-tight text-ink leading-snug mt-2 max-w-[720px]">
-                    {f(tr(d.dashboard?.headline), (v) => up((c) => (c.dashboard.headline[lang] = v)), false, ui("One-line summary…", "ملخّص بسطر…"))}
-                  </h2>
-                  {(edit || (d.dashboard?.cards ?? []).length > 0) && (
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3.5 mt-4 lq-stagger">
-                      {(d.dashboard?.cards ?? []).map((sc, i) => (
-                        <div key={i} className="lq-card p-5 relative" style={{ "--i": i } as React.CSSProperties}>
-                          {del(() => up((c) => c.dashboard.cards.splice(i, 1)))}
-                          <span className="lq-chip lq-chip--orange !px-2.5 !py-1 uppercase !text-[9.5px]">{f(sc.tag, (v) => up((c) => (c.dashboard.cards[i].tag = v)), false, ui("Tag", "وسم"))}</span>
-                          <div className="font-display font-extrabold text-[26px] tracking-tight tabular-nums text-ink mt-2.5">{f(sc.value, (v) => up((c) => (c.dashboard.cards[i].value = v)), false, "—")}</div>
-                          <p className="text-sm text-charcoal-60 leading-relaxed mt-1">{f(sc.desc, (v) => up((c) => (c.dashboard.cards[i].desc = v)), true, ui("Story…", "وصف…"))}</p>
-                        </div>
-                      ))}
-                      {edit && (
-                        <div style={{ display: "flex", alignItems: "center" }}>
-                          {add(() => up((c) => c.dashboard.cards.push({ tag: "", value: "", desc: "" })), ui("Add card", "بطاقة"))}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {(edit || tr(d.dashboard?.diagnosis)) && (
-                    <div className="lq-card p-5 mt-4 max-w-[760px]">
-                      <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-orange-deep">{ui("Our reading", "قراءتنا")}</p>
-                      <p className="text-[15.5px] text-charcoal-80 leading-relaxed mt-2">
-                        {f(tr(d.dashboard?.diagnosis), (v) => up((c) => { if (!c.dashboard.diagnosis) c.dashboard.diagnosis = { en: "", ar: "" }; c.dashboard.diagnosis[lang] = v; }), true, ui("What the numbers mean…", "ماذا تعني الأرقام…"))}
-                      </p>
-                    </div>
-                  )}
-                  {(edit || (d.dashboard?.vitals ?? []).length > 0) && (
-                    <div className="lq-card p-5 mt-4 max-w-[680px]">
-                      <p className={MICRO}>{ui("Account health", "صحة الحساب")}</p>
-                      <div className="mt-3 space-y-3.5">
-                        {(d.dashboard?.vitals ?? []).map((v, i) => (
-                          <div key={i}>
-                            {edit ? (
-                              <>
-                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                                  <input className="ms-edit" style={{ flex: 1 }} value={v.label} placeholder="Label" onChange={(e) => up((c) => (c.dashboard.vitals[i].label = e.target.value))} />
-                                  <input className="ms-edit" style={{ width: 90 }} value={v.note} placeholder="Note" onChange={(e) => up((c) => (c.dashboard.vitals[i].note = e.target.value))} />
-                                  {del(() => up((c) => c.dashboard.vitals.splice(i, 1)))}
-                                </div>
-                                <input type="range" min={0} max={100} value={v.pct} className="w-full accent-orange" onChange={(e) => up((c) => (c.dashboard.vitals[i].pct = Number(e.target.value)))} />
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex items-center justify-between gap-3 text-sm">
-                                  <span className="font-medium text-charcoal-80">{v.label}</span>
-                                  <b className="text-ink font-semibold">{v.note}</b>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-charcoal/10 overflow-hidden mt-1.5">
-                                  <div className="h-full rounded-full bg-gradient-to-r from-[#FFA226] to-[#F57F00]" style={{ width: `${v.pct}%` }} />
-                                </div>
-                              </>
-                            )}
+              {(edit || tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0 || (d.dashboard?.cards ?? []).length > 0 || tr(d.dashboard?.diagnosis)) && (
+                <section className="lq-rise" style={{ animationDelay: "100ms" }}>
+                  <p className={MICRO}>{ui("Where things stand", "أين وصلنا")}</p>
+                  {/* One surface tells the whole story: the studio's headline
+                      leads, the story figures follow as divided rows, vitals
+                      and the reading sit under hairlines — never sub-cards. */}
+                  <div className="lq-card p-5 sm:p-6 mt-3">
+                    <h2 className="font-display font-extrabold text-[22px] sm:text-[26px] tracking-tight text-ink leading-snug max-w-[720px]">
+                      {f(tr(d.dashboard?.headline), (v) => up((c) => (c.dashboard.headline[lang] = v)), false, ui("One-line summary…", "ملخّص بسطر…"))}
+                    </h2>
+                    {(edit || (d.dashboard?.cards ?? []).length > 0) && (
+                      <div className="mt-5 border-t border-charcoal/5 divide-y divide-charcoal/5 lq-stagger">
+                        {(d.dashboard?.cards ?? []).map((sc, i) => (
+                          <div key={i} className="relative flex flex-wrap items-center gap-x-4 gap-y-1 py-3.5" style={{ "--i": i } as React.CSSProperties}>
+                            {del(() => up((c) => c.dashboard.cards.splice(i, 1)))}
+                            <span className="lq-chip lq-chip--orange !px-2.5 !py-1 uppercase !text-[9.5px] shrink-0">{f(sc.tag, (v) => up((c) => (c.dashboard.cards[i].tag = v)), false, ui("Tag", "وسم"))}</span>
+                            <span className="font-display font-extrabold text-[24px] tracking-tight tabular-nums text-ink">{f(sc.value, (v) => up((c) => (c.dashboard.cards[i].value = v)), false, "—")}</span>
+                            <span className="flex-1 min-w-[180px] text-sm text-charcoal-60 leading-relaxed">{f(sc.desc, (v) => up((c) => (c.dashboard.cards[i].desc = v)), true, ui("Story…", "وصف…"))}</span>
                           </div>
                         ))}
+                        {edit && (
+                          <div style={{ display: "flex", alignItems: "center", paddingTop: 10, paddingBottom: 10 }}>
+                            {add(() => up((c) => c.dashboard.cards.push({ tag: "", value: "", desc: "" })), ui("Add card", "بطاقة"))}
+                          </div>
+                        )}
                       </div>
-                      {add(() => up((c) => c.dashboard.vitals.push({ label: "", pct: 50, note: "" })), ui("Add vital", "مؤشر"))}
-                    </div>
-                  )}
+                    )}
+                    {(edit || (d.dashboard?.vitals ?? []).length > 0) && (
+                      <div className="mt-5 pt-5 border-t border-charcoal/5 max-w-[680px]">
+                        <p className={MICRO_TILE}>{ui("Account health", "صحة الحساب")}</p>
+                        <div className="mt-3 space-y-3.5">
+                          {(d.dashboard?.vitals ?? []).map((v, i) => (
+                            <div key={i}>
+                              {edit ? (
+                                <>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                    <input className="ms-edit" style={{ flex: 1 }} value={v.label} placeholder="Label" onChange={(e) => up((c) => (c.dashboard.vitals[i].label = e.target.value))} />
+                                    <input className="ms-edit" style={{ width: 90 }} value={v.note} placeholder="Note" onChange={(e) => up((c) => (c.dashboard.vitals[i].note = e.target.value))} />
+                                    {del(() => up((c) => c.dashboard.vitals.splice(i, 1)))}
+                                  </div>
+                                  <input type="range" min={0} max={100} value={v.pct} className="w-full accent-orange" onChange={(e) => up((c) => (c.dashboard.vitals[i].pct = Number(e.target.value)))} />
+                                </>
+                              ) : (
+                                <>
+                                  <div className="flex items-center justify-between gap-3 text-sm">
+                                    <span className="font-medium text-charcoal-80">{v.label}</span>
+                                    <b className="text-ink font-semibold">{v.note}</b>
+                                  </div>
+                                  <div className="h-1.5 rounded-full bg-charcoal/10 overflow-hidden mt-1.5">
+                                    <div className="h-full rounded-full bg-gradient-to-r from-[#FFA226] to-[#F57F00]" style={{ width: `${v.pct}%` }} />
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                        {add(() => up((c) => c.dashboard.vitals.push({ label: "", pct: 50, note: "" })), ui("Add vital", "مؤشر"))}
+                      </div>
+                    )}
+                    {(edit || tr(d.dashboard?.diagnosis)) && (
+                      <div className="mt-5 pt-5 border-t border-charcoal/5 max-w-[760px]">
+                        <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-orange-deep">{ui("Our reading", "قراءتنا")}</p>
+                        <p className="text-[15.5px] text-charcoal-80 leading-relaxed mt-2">
+                          {f(tr(d.dashboard?.diagnosis), (v) => up((c) => { if (!c.dashboard.diagnosis) c.dashboard.diagnosis = { en: "", ar: "" }; c.dashboard.diagnosis[lang] = v; }), true, ui("What the numbers mean…", "ماذا تعني الأرقام…"))}
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </section>
               )}
 
-              {(edit || (d.updates ?? []).length > 0) && (
-                <section className="lq-rise" style={{ animationDelay: "200ms" }}>
-                  <p className={MICRO}>{ui("Latest activity", "آخر التحديثات")}</p>
-                  <h2 className="font-display font-bold text-[18px] tracking-tight text-ink mt-1.5">{ui("What's moved recently.", "ما الذي تحرّك مؤخّراً.")}</h2>
+              {(edit || (d.updates ?? []).length > 0 || nextPost || nextShootSession) && (
+                <section className="lq-rise" style={{ animationDelay: "180ms" }}>
+                  <p className={MICRO}>{ui("Lately", "آخر المستجدات")}</p>
+                  <h2 className="font-display font-bold text-[18px] tracking-tight text-ink mt-1.5">{ui("What's moved — and what's next.", "ما الذي تحرّك — وما القادم.")}</h2>
+                  {/* One surface: what's coming up first, then what's moved. */}
                   <div className="lq-card p-5 mt-3">
                     <ul className="divide-y divide-charcoal/5">
+                      {!edit && nextPost && (
+                        <li className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                          <span className="mt-1.5 w-2 h-2 rounded-full bg-charcoal-20 shrink-0" aria-hidden />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                              <b className="text-sm font-semibold text-ink">
+                                {ui("Next post", "المنشور القادم")}
+                                {nextPost.platform ? ` · ${nextPost.platform}` : ""}
+                              </b>
+                              <span className="text-[11px] text-charcoal-40 tabular-nums">{nextPost.date}</span>
+                            </div>
+                            {postsThisMonth > 0 && (
+                              <p className="text-sm text-charcoal-60 leading-relaxed mt-0.5">
+                                {ui(`${postsThisMonth} post${postsThisMonth === 1 ? "" : "s"} planned this month.`, `${postsThisMonth} منشور مخطّط هذا الشهر.`)}
+                              </p>
+                            )}
+                          </div>
+                        </li>
+                      )}
+                      {!edit && nextShootSession && (
+                        <li className="flex items-start gap-3 py-3 first:pt-0 last:pb-0">
+                          <span className="mt-1.5 w-2 h-2 rounded-full bg-charcoal-20 shrink-0" aria-hidden />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-baseline gap-x-2">
+                              <b className="text-sm font-semibold text-ink">
+                                {ui("Next shoot", "جلسة التصوير القادمة")}
+                                {nextShootSession.title ? ` · ${nextShootSession.title}` : ""}
+                              </b>
+                              <span className="text-[11px] text-charcoal-40 tabular-nums">
+                                {fmtShootDate(nextShootSession.date)}
+                                {nextShootSession.time ? ` · ${nextShootSession.time}` : ""}
+                              </span>
+                            </div>
+                            {nextShootSession.location && (
+                              <p className="text-sm text-charcoal-60 leading-relaxed mt-0.5">{nextShootSession.location}</p>
+                            )}
+                          </div>
+                        </li>
+                      )}
                       {(d.updates ?? []).map((u, i) => (
                         <li key={i} className="relative flex items-start gap-3 py-3 first:pt-0 last:pb-0">
                           {del(() => up((c) => c.updates!.splice(i, 1)))}
@@ -476,7 +500,9 @@ export default function PortalView({
                         </li>
                       ))}
                     </ul>
-                    {!edit && (d.updates ?? []).length === 0 && <p className="text-sm text-charcoal-40 py-2 text-center">{ui("No activity yet.", "لا نشاط بعد.")}</p>}
+                    {!edit && (d.updates ?? []).length === 0 && !nextPost && !nextShootSession && (
+                      <p className="text-sm text-charcoal-40 py-2 text-center">{ui("No activity yet.", "لا نشاط بعد.")}</p>
+                    )}
                     {add(() => up((c) => { c.updates = [{ at: new Date().toISOString().slice(0, 10), kind: "note", title: { en: "", ar: "" }, body: { en: "", ar: "" } }, ...(c.updates ?? [])]; }), ui("Add update", "تحديث"))}
                   </div>
                 </section>
