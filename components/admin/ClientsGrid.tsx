@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/glass";
 
 export type SectionState = "done" | "sent" | "draft" | "empty";
 
@@ -22,26 +23,26 @@ export type ClientCardData = {
 type Filter = "all" | "active" | "pending" | "inactive" | "archived";
 
 const STATUS_META: Record<ClientCardData["status"], { label: string; cls: string; dot: string }> = {
-  active: { label: "Active", cls: "bg-green-100 text-green-800", dot: "bg-green-500" },
-  pending: { label: "Pending", cls: "bg-amber-100 text-amber-800", dot: "bg-amber-500" },
-  inactive: { label: "Inactive", cls: "bg-neutral-100 text-neutral-500", dot: "bg-neutral-300" },
+  active: { label: "Active", cls: "lq-chip--green", dot: "bg-emerald-500" },
+  pending: { label: "Pending", cls: "lq-chip--orange", dot: "bg-amber-500" },
+  inactive: { label: "Inactive", cls: "", dot: "bg-charcoal-20" },
 };
 
 const ORDER: Record<ClientCardData["status"], number> = { pending: 0, active: 1, inactive: 2 };
 
 // Dot colour for the filter chips (archived has no STATUS_META entry).
 const CHIP_DOT: Record<Exclude<Filter, "all">, string> = {
-  active: "bg-green-500",
+  active: "bg-emerald-500",
   pending: "bg-amber-500",
-  inactive: "bg-neutral-300",
-  archived: "bg-neutral-400",
+  inactive: "bg-charcoal-20",
+  archived: "bg-charcoal-40",
 };
 
 const DOT: Record<SectionState, string> = {
-  done: "bg-green-500",
+  done: "bg-emerald-500",
   sent: "bg-orange",
-  draft: "bg-neutral-300",
-  empty: "bg-neutral-200 border border-dashed border-neutral-300",
+  draft: "bg-charcoal-20",
+  empty: "bg-charcoal/5 border border-dashed border-charcoal/20",
 };
 
 /* Clients as a classified card grid: filter chips with live counts, name
@@ -92,13 +93,15 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
               <button
                 key={c.key}
                 onClick={() => setFilter(c.key)}
-                className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
-                  on ? "bg-charcoal text-white" : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+                className={`lq-press inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors ${
+                  on
+                    ? "bg-charcoal text-white shadow-[0_6px_14px_-8px_rgba(24,24,24,.6)]"
+                    : "bg-white/60 border border-charcoal/5 text-charcoal-60 hover:bg-white hover:text-charcoal-80 shadow-[inset_0_1px_0_rgba(255,255,255,.8)]"
                 }`}
               >
                 {c.key !== "all" && <span className={`w-2 h-2 rounded-full ${CHIP_DOT[c.key]}`} />}
                 {c.label}
-                <span className={`tabular-nums text-xs ${on ? "text-white/60" : "text-neutral-400"}`}>{counts[c.key]}</span>
+                <span className={`tabular-nums text-xs ${on ? "text-white/60" : "text-charcoal-40"}`}>{counts[c.key]}</span>
               </button>
             );
           })}
@@ -108,12 +111,12 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search clients…"
           autoComplete="off"
-          className="ml-auto w-full sm:w-56 border border-neutral-200 bg-white rounded-full px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange"
+          className="lq-input ms-auto w-full sm:w-56 !rounded-full"
         />
       </div>
 
       {/* Fill-matrix legend */}
-      <div className="flex items-center gap-3 text-[11px] text-neutral-500 mb-4 flex-wrap">
+      <div className="flex items-center gap-3 text-[11px] text-charcoal-60 mb-4 flex-wrap">
         <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.done}`} /> filled</span>
         <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.sent}`} /> sent</span>
         <span className="inline-flex items-center gap-1"><i className={`w-2.5 h-2.5 rounded-full inline-block ${DOT.draft}`} /> draft</span>
@@ -122,8 +125,12 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
 
       {/* Card grid */}
       {shown.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-xl px-4 py-12 text-center text-sm text-neutral-500">
-          {clients.length === 0 ? "No clients yet — create one or import from Notion above." : "No clients match."}
+        <div className="lq-card">
+          <EmptyState
+            icon={<span className="text-lg">👥</span>}
+            title={clients.length === 0 ? "No clients yet" : "No clients match"}
+            sub={clients.length === 0 ? "Create one or import from Notion above." : "Try a different search or filter."}
+          />
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -132,14 +139,17 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
             return (
               <div
                 key={c.slug}
-                className="adm-rise group relative bg-white border border-neutral-200 rounded-xl p-4 hover:border-orange hover:shadow-md hover:-translate-y-0.5 transition-all"
+                className="lq-card lq-card--hover lq-rise group relative p-4"
                 style={{ animationDelay: `${Math.min(i, 12) * 40}ms` }}
               >
                 {/* Whole-card link opens client Settings; explicit actions sit above it */}
-                <Link href={`/admin/clients/${c.slug}/edit`} className="absolute inset-0 z-0" aria-label={`Edit ${c.name}'s settings`} />
+                <Link href={`/admin/clients/${c.slug}/edit`} className="absolute inset-0 z-0 rounded-[inherit]" aria-label={`Edit ${c.name}'s settings`} />
 
                 <div className="flex items-start justify-between gap-3 pointer-events-none">
-                  <span className="w-12 h-12 rounded-lg flex items-center justify-center shrink-0 text-white font-bold text-lg" style={{ background: c.color }}>
+                  <span
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 text-white font-display font-bold text-lg shadow-[inset_0_1px_0_rgba(255,255,255,.35),0_8px_16px_-10px_rgba(24,24,24,.5)]"
+                    style={{ background: c.color }}
+                  >
                     {c.logo ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={c.logo} alt="" className="max-w-[70%] max-h-[60%] object-contain invert brightness-0 opacity-90" />
@@ -147,19 +157,21 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                       (c.name || c.slug).charAt(0).toUpperCase()
                     )}
                   </span>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${c.archived ? "bg-neutral-200 text-neutral-600" : meta.cls}`}>{c.archived ? "Archived" : meta.label}</span>
+                  <span className={`lq-chip uppercase !text-[10px] ${c.archived ? "" : meta.cls}`}>{c.archived ? "Archived" : meta.label}</span>
                 </div>
 
                 <div className="mt-3 pointer-events-none">
-                  <div className="font-bold text-neutral-900 truncate flex items-center gap-1.5">
+                  <div className="font-display font-bold tracking-tight text-ink truncate flex items-center gap-1.5">
                     {c.name}
                     {c.notion && (
-                      <span title="Linked to Notion" className="shrink-0 w-4 h-4 rounded-sm bg-neutral-900 text-white text-[9px] font-bold flex items-center justify-center">
+                      <span title="Linked to Notion" className="shrink-0 w-4 h-4 rounded-sm bg-ink text-white text-[9px] font-bold flex items-center justify-center">
                         N
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-neutral-500 truncate mt-0.5">{c.planName || `/portal/${c.slug}`}</div>
+                  <div className="text-xs text-charcoal-60 truncate mt-0.5">
+                    {c.planName ? <span className="lq-chip lq-chip--blue !px-2 !py-0.5 !text-[10px]">{c.planName}</span> : `/portal/${c.slug}`}
+                  </div>
                 </div>
 
                 {/* Fill matrix — each dot links to where that section is edited */}
@@ -169,20 +181,20 @@ export default function ClientsGrid({ clients }: { clients: ClientCardData[] }) 
                       <span className={`inline-block w-3.5 h-3.5 rounded-full transition-transform group-hover/dot:scale-125 ${DOT[s.state]}`} />
                     </Link>
                   ))}
-                  <span className={`ml-auto tabular-nums text-xs font-bold ${c.pct === 100 ? "text-green-700" : c.pct >= 50 ? "text-neutral-700" : "text-orange-deep"}`}>
+                  <span className={`ms-auto tabular-nums text-xs font-bold ${c.pct === 100 ? "text-emerald-700" : c.pct >= 50 ? "text-charcoal-80" : "text-orange-deep"}`}>
                     {c.pct}%
                   </span>
                 </div>
 
-                <div className="mt-3 pt-3 border-t border-neutral-100 flex items-center justify-between gap-2">
-                  <span className={`pointer-events-none text-xs font-semibold tabular-nums ${c.balance ? "text-orange-deep" : "text-neutral-300"}`}>
+                <div className="mt-3 pt-3 border-t border-charcoal/5 flex items-center justify-between gap-2">
+                  <span className={`pointer-events-none text-xs font-semibold tabular-nums ${c.balance ? "text-orange-deep" : "text-charcoal-20"}`}>
                     {c.balance ? `${c.balance} left` : "—"}
                   </span>
                   <span className="relative z-10 flex items-center gap-2.5">
-                    <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-neutral-500 hover:text-orange">
+                    <Link href={`/admin/clients/${c.slug}/edit`} className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">
                       Settings
                     </Link>
-                    <Link href={`/portal/${c.slug}`} target="_blank" className="text-xs font-semibold text-neutral-500 hover:text-orange">
+                    <Link href={`/portal/${c.slug}`} target="_blank" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">
                       Portal ↗
                     </Link>
                   </span>

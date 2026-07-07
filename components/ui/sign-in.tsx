@@ -49,10 +49,10 @@ interface SignInPageProps {
   action?: (formData: FormData) => void; // server action
 }
 
+// Inputs carry the glass styling themselves (.lq-input) — this wrapper just
+// keeps the label→field rhythm from the original component.
 const GlassInputWrapper = ({ children }: { children: React.ReactNode }) => (
-  <div className="rounded-xl border border-charcoal-20 bg-white transition-colors focus-within:border-orange focus-within:ring-2 focus-within:ring-orange/25">
-    {children}
-  </div>
+  <div className="mt-1.5">{children}</div>
 );
 
 const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; delay: string }) => (
@@ -68,7 +68,7 @@ const TestimonialCard = ({ testimonial, delay }: { testimonial: Testimonial; del
 );
 
 export const SignInPage: React.FC<SignInPageProps> = ({
-  title = <span className="font-semibold text-ink tracking-tight">Welcome back</span>,
+  title = <span className="text-ink tracking-tight">Welcome back</span>,
   description = "Sign in to your Marker Studio portal.",
   heroImageSrc,
   heroLogos = [],
@@ -168,21 +168,21 @@ export const SignInPage: React.FC<SignInPageProps> = ({
       : [];
 
   return (
-    <div className="min-h-[100dvh] flex flex-col md:flex-row font-display w-full bg-paper text-ink">
-      {/* Left: form */}
-      <section className="flex-1 flex items-center justify-center p-8">
+    <div className="min-h-[100dvh] flex flex-col md:flex-row font-display w-full lq-app text-ink">
+      {/* Left: form — one glass card on the ambient field */}
+      <section className="flex-1 flex items-center justify-center p-6 sm:p-8">
         <div className="w-full max-w-md">
-          <div className="flex flex-col gap-6">
+          <div className="lq-card lq-rise flex flex-col gap-6 p-7 sm:p-9">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={LOGO} alt="Marker Studio" className="animate-element animate-delay-100 h-9 w-auto self-start" />
-            <h1 className="animate-element animate-delay-200 text-4xl md:text-5xl font-semibold leading-tight">{title}</h1>
+            <h1 className="animate-element animate-delay-200 font-display text-4xl font-extrabold leading-tight tracking-tight text-ink">{title}</h1>
             <p className="animate-element animate-delay-300 text-charcoal-60">{description}</p>
 
             {error && (
-              <p className="animate-element text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+              <p className="animate-element text-sm text-rose-700 bg-rose-50/80 border border-rose-200 rounded-2xl px-3 py-2">{error}</p>
             )}
             {notice && (
-              <p className="animate-element text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">{notice}</p>
+              <p className="animate-element text-sm text-emerald-700 bg-emerald-50/80 border border-emerald-200 rounded-2xl px-3 py-2">{notice}</p>
             )}
 
             {/* Desktop app: one-tap sign-in with the Keychain-saved account. */}
@@ -191,11 +191,11 @@ export const SignInPage: React.FC<SignInPageProps> = ({
                 <button
                   type="button"
                   onClick={signInWithSaved}
-                  className="flex-1 rounded-xl border-2 border-orange/60 bg-orange/5 py-3.5 font-semibold text-orange-deep hover:bg-orange/10 transition-colors flex items-center justify-center gap-2"
+                  className="lq-btn lq-btn--glass flex-1 !py-3.5 !text-orange-deep !border-orange/40"
                 >
                   <span aria-hidden>👆</span> Sign in with Touch ID
                 </button>
-                <button type="button" onClick={forgetSaved} className="text-xs text-charcoal-60 hover:text-red-600 whitespace-nowrap" title="Remove the saved sign-in from this Mac's Keychain">
+                <button type="button" onClick={forgetSaved} className="text-xs text-charcoal-60 hover:text-rose-600 whitespace-nowrap" title="Remove the saved sign-in from this Mac's Keychain">
                   Forget
                 </button>
               </div>

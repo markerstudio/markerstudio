@@ -63,22 +63,24 @@ export default function ClientEditor({
 
   return (
     <div className="space-y-6">
-      <nav className="flex flex-wrap gap-1 border-b border-neutral-200 sticky top-16 bg-neutral-100/95 backdrop-blur z-10 -mx-1 px-1 pt-1">
-        {TABS.map(([id, label]) => {
-          const active = tab === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => go(id)}
-              className={`text-sm font-semibold rounded-t-lg px-3.5 py-2 border-b-2 transition-colors ${
-                active ? "border-orange text-orange-deep bg-white" : "border-transparent text-neutral-500 hover:text-neutral-900 hover:bg-neutral-200/60"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+      <nav className="sticky top-16 z-10 -mx-1 px-1 py-1 overflow-x-auto">
+        <div className="lq-seg" role="tablist">
+          {TABS.map(([id, label]) => {
+            const active = tab === id;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => go(id)}
+                className={`lq-seg__opt whitespace-nowrap ${active ? "is-on" : ""}`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
       </nav>
 
       <div className="min-w-0">

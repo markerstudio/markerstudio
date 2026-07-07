@@ -18,7 +18,7 @@ function numeric(amount: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const field = "lq-input !px-3 !py-2 text-sm";
 
 /* Edit an existing invoice — same line/VAT/due/note controls as the creator,
    prefilled, posting to updateInvoiceAction. The client is fixed, so there's no
@@ -53,14 +53,14 @@ export default function InvoiceEditForm({
   const cleaned = items.filter((i) => i.label.trim() || i.amount.trim());
 
   return (
-    <form action={updateInvoiceAction} className="border border-neutral-200 rounded-lg p-4 bg-white">
+    <form action={updateInvoiceAction} className="lq-card lq-rise p-5">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="back" value={back} />
       <input type="hidden" name="items" value={JSON.stringify(cleaned)} />
       <input type="hidden" name="addVat" value={addVat ? "on" : ""} />
       <input type="hidden" name="vatRate" value={vatRate} />
 
-      <div className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+      <div className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
         <span>Item</span>
         <span>Amount</span>
         <span>Type</span>
@@ -83,13 +83,13 @@ export default function InvoiceEditForm({
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-              <button type="button" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} className="text-neutral-300 hover:text-red-600 text-lg leading-none" aria-label="Remove line">×</button>
+              <button type="button" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} className="text-charcoal-20 hover:text-rose-600 text-lg leading-none" aria-label="Remove line">×</button>
             </div>
           );
         })}
       </div>
       <div className="mt-2 flex items-center gap-4 flex-wrap">
-        <button type="button" onClick={() => setItems((prev) => [...prev, { label: "", amount: "", kind: "plan" }])} className="text-sm font-medium text-neutral-600 hover:text-orange">+ Add line</button>
+        <button type="button" onClick={() => setItems((prev) => [...prev, { label: "", amount: "", kind: "plan" }])} className="text-sm font-medium text-charcoal-60 hover:text-orange-deep">+ Add line</button>
         <button
           type="button"
           onClick={() => setItems((prev) => [...prev, { label: "Stories", amount: storiesFee || "", kind: "stories" }])}
@@ -99,50 +99,50 @@ export default function InvoiceEditForm({
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 border-t border-neutral-100 pt-3 flex-wrap">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
-          <input type="checkbox" checked={addVat} onChange={(e) => setAddVat(e.target.checked)} className="h-4 w-4 rounded border-neutral-300 text-orange focus:ring-orange/30" />
+      <div className="mt-3 flex items-center gap-3 border-t border-charcoal/5 pt-3 flex-wrap">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-charcoal-80">
+          <input type="checkbox" checked={addVat} onChange={(e) => setAddVat(e.target.checked)} className="h-4 w-4 rounded border-charcoal/20 text-orange focus:ring-orange/30" />
           Add VAT
         </label>
         {addVat && (
-          <label className="flex items-center gap-1.5 text-sm text-neutral-600">
-            <input value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${field} w-16 text-right`} />
+          <label className="flex items-center gap-1.5 text-sm text-charcoal-60">
+            <input value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${field} !w-16 text-right`} />
             %
           </label>
         )}
       </div>
 
       {subtotal > 0 && (
-        <div className="mt-3 border-t border-neutral-100 pt-3 text-sm space-y-1">
+        <div className="mt-3 border-t border-charcoal/5 pt-3 text-sm space-y-1">
           <div className="flex justify-between gap-4">
-            <span className="text-neutral-500">Subtotal (excl. VAT)</span>
-            <span className="tabular-nums text-neutral-700">{subtotal.toLocaleString("en-US")}</span>
+            <span className="text-charcoal-60">Subtotal (excl. VAT)</span>
+            <span className="tabular-nums text-charcoal-80">{subtotal.toLocaleString("en-US")}</span>
           </div>
           {addVat && rate > 0 && (
             <div className="flex justify-between gap-4">
-              <span className="text-neutral-500">VAT ({rate}%)</span>
-              <span className="tabular-nums text-neutral-700">{vat.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              <span className="text-charcoal-60">VAT ({rate}%)</span>
+              <span className="tabular-nums text-charcoal-80">{vat.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
           )}
           <div className="flex justify-between gap-4">
-            <span className="font-semibold text-neutral-900">Total{addVat && rate > 0 ? " (incl. VAT)" : ""}</span>
-            <span className="font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+            <span className="font-semibold text-ink">Total{addVat && rate > 0 ? " (incl. VAT)" : ""}</span>
+            <span className="font-bold tabular-nums text-ink">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
           </div>
         </div>
       )}
 
       <div className="mt-3 flex items-end gap-3 flex-wrap">
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Due date (optional)</label>
+          <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Due date (optional)</label>
           <input type="date" name="dueDate" defaultValue={initialDueDate} className={field} />
         </div>
         <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Note (optional)</label>
+          <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Note (optional)</label>
           <input name="note" defaultValue={initialNote} placeholder="e.g. Cycle 03 · paid on receipt" className={`${field} w-full`} />
         </div>
       </div>
 
-      <button className="mt-4 bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Save changes</button>
+      <button className="mt-4 lq-btn lq-btn--primary">Save changes</button>
     </form>
   );
 }

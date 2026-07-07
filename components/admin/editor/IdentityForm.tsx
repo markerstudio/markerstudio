@@ -13,8 +13,8 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
   const [color, setColor] = useState(client.color ?? "#303030");
 
   return (
-    <form action={saveIdentity} className="bg-white border border-neutral-200 rounded-2xl p-6 shadow-sm">
-      <h2 className="font-bold mb-4">Identity</h2>
+    <form action={saveIdentity} className="lq-card p-5">
+      <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-4">Identity</h2>
       <input type="hidden" name="originalSlug" value={client.slug} />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
         <div><label className={lbl}>Slug</label><input name="slug" defaultValue={client.slug} required pattern="[a-z0-9-]+" className={input} placeholder="dr-jack-sabat" /></div>
@@ -25,12 +25,12 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
             <option value="marker">Marker</option>
             <option value="ramzi">Ramzi (partner)</option>
           </select>
-          <p className="text-[11px] text-neutral-400 mt-1">Ramzi&apos;s clients are visible only to Ramzi and the super admin.</p>
+          <p className="text-[11px] text-charcoal-40 mt-1">Ramzi&apos;s clients are visible only to Ramzi and the super admin.</p>
         </div>
         <div>
           <label className={lbl}>Brand colour</label>
           <div className="flex items-center gap-2">
-            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 rounded border border-neutral-300 bg-white p-1" aria-label="Brand colour" />
+            <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-9 w-12 rounded-lg border border-charcoal/10 bg-white/75 p-1" aria-label="Brand colour" />
             <input name="color" value={color} onChange={(e) => setColor(e.target.value)} className={input} />
           </div>
         </div>
@@ -38,11 +38,11 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
           <label className={lbl}>Logo</label>
           <input type="hidden" name="logo" value={logo} />
           <div className="flex items-start gap-3 flex-wrap">
-            <div className="h-14 w-14 shrink-0 rounded-lg border border-neutral-200 bg-neutral-900 flex items-center justify-center overflow-hidden">
+            <div className="h-14 w-14 shrink-0 rounded-xl border border-charcoal/10 bg-charcoal flex items-center justify-center overflow-hidden">
               {logo
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={logo} alt="" className="max-h-[80%] max-w-[80%] object-contain" />
-                : <span className="text-[10px] text-neutral-500">No logo</span>}
+                : <span className="text-[10px] text-white/60">No logo</span>}
             </div>
             <div className="flex-1 min-w-[220px] space-y-2">
               <div className="flex items-center gap-2 flex-wrap">
@@ -55,7 +55,7 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
                     ))}
                   </select>
                 )}
-                {logo && <button type="button" onClick={() => setLogo("")} className="text-xs font-medium text-neutral-400 hover:text-red-600">Clear</button>}
+                {logo && <button type="button" onClick={() => setLogo("")} className="text-xs font-semibold text-charcoal-40 hover:text-rose-700">Clear</button>}
               </div>
               <input value={logo} onChange={(e) => setLogo(e.target.value)} className={input} placeholder="…or paste a logo URL" />
             </div>
@@ -63,7 +63,7 @@ export default function IdentityForm({ client, projectLogos = [] }: { client: Cl
         </div>
       </div>
       <div className="mt-5">
-        <button className="bg-orange text-white font-semibold rounded-md px-6 py-2.5 text-sm hover:bg-orange-deep transition-colors">Save identity</button>
+        <button className="lq-btn lq-btn--primary">Save identity</button>
       </div>
     </form>
   );

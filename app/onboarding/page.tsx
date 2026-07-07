@@ -17,11 +17,11 @@ export default function OnboardingPage({
   const marketing = searchParams.marketing !== undefined ? Number(searchParams.marketing) : -1;
 
   return (
-    <main className="min-h-screen bg-[#F5F2EC] px-4 py-8">
-      <div className="mx-auto mb-6 flex max-w-3xl items-center">
-        <a href="/" aria-label="Marker Studio">
+    <main className="lq-app px-4 py-8 sm:py-10">
+      <div className="lq-rise mx-auto mb-6 flex max-w-3xl items-center">
+        <a href="/" aria-label="Marker Studio" className="lq-press inline-flex">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto" />
+          <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-9 w-auto drop-shadow-sm" />
         </a>
       </div>
       <OnboardingForm

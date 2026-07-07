@@ -4,8 +4,7 @@ import { acceptInvite } from "@/app/admin/actions";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Join your portal — Marker Studio®", robots: { index: false, follow: false } };
 
-const inputCls =
-  "w-full border border-neutral-300 rounded-md px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const labelCls = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5";
 
 const ERRORS: Record<string, string> = {
   input: "Enter your email and a password of at least 8 characters.",
@@ -37,45 +36,43 @@ export default async function InvitePage({
   }
 
   return (
-    <div className="min-h-[100dvh] flex items-center justify-center bg-paper text-ink font-display p-6">
-      <div className="w-full max-w-sm bg-white border border-neutral-200 rounded-2xl p-8">
+    <div className="lq-app flex min-h-[100dvh] items-center justify-center p-6 font-display text-ink">
+      <div className="lq-card lq-rise w-full max-w-sm p-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="h-8 w-auto mb-6" />
+        <img src="/assets/logo-primary-transparent.png" alt="Marker Studio" className="mb-6 h-8 w-auto" />
         {valid ? (
           <>
-            <h1 className="text-2xl font-bold mb-1">Join your portal</h1>
-            <p className="text-sm text-neutral-500 mb-6">
+            <h1 className="mb-1 font-display text-2xl font-extrabold tracking-tight text-ink">Join your portal</h1>
+            <p className="mb-6 text-sm text-charcoal-60">
               You&apos;ve been invited to {clientName ? <b>{clientName}</b> : "your"}&apos;s private portal. Create your login.
             </p>
             {searchParams.error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2 mb-4">
+              <p className="mb-4 rounded-2xl border border-rose-200 bg-rose-50/80 px-3 py-2 text-sm text-rose-700">
                 {ERRORS[searchParams.error] || "Something went wrong."}
               </p>
             )}
             <form action={acceptInvite} className="space-y-4">
               <input type="hidden" name="token" value={params.token} />
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Your name</label>
-                <input name="name" className={inputCls} placeholder="Your name" />
+                <label className={labelCls}>Your name</label>
+                <input name="name" className="lq-input" placeholder="Your name" />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Email</label>
-                <input name="email" type="email" required autoComplete="email" className={inputCls} />
+                <label className={labelCls}>Email</label>
+                <input name="email" type="email" required autoComplete="email" className="lq-input" />
               </div>
               <div>
-                <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Choose a password</label>
-                <input name="password" type="password" required minLength={8} autoComplete="new-password" className={inputCls} />
-                <p className="text-xs text-neutral-400 mt-1">At least 8 characters.</p>
+                <label className={labelCls}>Choose a password</label>
+                <input name="password" type="password" required minLength={8} autoComplete="new-password" className="lq-input" />
+                <p className="mt-1 text-xs text-charcoal-40">At least 8 characters.</p>
               </div>
-              <button className="w-full bg-orange text-white font-semibold rounded-md py-3 hover:bg-orange-deep transition-colors">
-                Create my login
-              </button>
+              <button className="lq-btn lq-btn--primary w-full !py-3.5">Create my login</button>
             </form>
           </>
         ) : (
           <>
-            <h1 className="text-xl font-bold mb-2">Invite unavailable</h1>
-            <p className="text-sm text-neutral-500">This invite link is invalid or has already been used. Ask Marker Studio for a new one.</p>
+            <h1 className="mb-2 font-display text-xl font-extrabold tracking-tight text-ink">Invite unavailable</h1>
+            <p className="text-sm text-charcoal-60">This invite link is invalid or has already been used. Ask Marker Studio for a new one.</p>
           </>
         )}
       </div>

@@ -33,21 +33,21 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
 
   return (
     <div className="space-y-6">
-      <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
-        <h3 className="font-bold mb-1">✨ Fill analytics with AI</h3>
-        <p className="text-sm text-neutral-600 mb-3">Copy the prompt, run it with your Meta / Instagram export, then paste the reply to fill the Analysis fields below. Then Save.</p>
-        <button type="button" onClick={copy} className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors mb-3">
+      <div className="lq-card p-5 !border-orange/25">
+        <h3 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">✨ Fill analytics with AI</h3>
+        <p className="text-sm text-charcoal-60 mb-3">Copy the prompt, run it with your Meta / Instagram export, then paste the reply to fill the Analysis fields below. Then Save.</p>
+        <button type="button" onClick={copy} className="lq-btn lq-btn--primary lq-btn--sm mb-3">
           {copied ? "Copied ✓" : "Copy analytics prompt"}
         </button>
         <textarea value={paste} onChange={(e) => setPaste(e.target.value)} rows={5} className={input} placeholder="Paste the AI's CSV reply here…" dir="ltr" />
         <div className="mt-2 flex items-center gap-3">
-          <button type="button" onClick={apply} className="border border-neutral-300 rounded-md px-4 py-2 text-sm font-medium hover:bg-neutral-50">Apply analytics</button>
-          {msg && <span className="text-sm text-neutral-700">{msg}</span>}
+          <button type="button" onClick={apply} className="lq-btn lq-btn--glass lq-btn--sm">Apply analytics</button>
+          {msg && <span className="text-sm text-charcoal-80">{msg}</span>}
         </div>
       </div>
 
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Analysis — Organic</legend>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Analysis — Organic</legend>
         <Bi label="Headline" value={data.analysis.organic.headline} onChange={(headline) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, headline } } })} />
         <Bi label="Reading (optional)" value={data.analysis.organic.reading} onChange={(reading) => patch({ analysis: { ...data.analysis, organic: { ...data.analysis.organic, reading } } })} area />
         <label className={lbl}>Metrics — the number + what it means</label>
@@ -62,8 +62,8 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
           )} />
       </fieldset>
 
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Analysis — Paid</legend>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Analysis — Paid</legend>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
           <Text label="Total spend" value={data.analysis.paid.spend} onChange={(spend) => patch({ analysis: { ...data.analysis, paid: { ...data.analysis.paid, spend } } })} placeholder="$292.22" />
         </div>
@@ -87,8 +87,8 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
 
       <SaveButton onSave={() => saveSection(slug, { analysis: data.analysis })} />
 
-      <div className="bg-white border border-neutral-200 rounded-xl p-6">
-        <h3 className="font-bold mb-3">AI reading</h3>
+      <div className="lq-card p-5">
+        <h3 className="font-display font-bold text-[16px] tracking-tight text-ink mb-3">AI reading</h3>
         <AiAnalysisPanel client={client} apiEnabled={apiEnabled} />
       </div>
     </div>

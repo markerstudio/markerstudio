@@ -19,7 +19,7 @@ function numeric(amount: string): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const field = "lq-input !px-3 !py-2 text-sm";
 
 /* "New invoice" form for the Invoices tab — pick or type the client, then the
    same line-items / VAT / deposit flow as the client-page editor. */
@@ -53,11 +53,11 @@ export default function InvoiceCreateFromTab({
       <input type="hidden" name="paidAmount" value={paidNum} />
 
       <div className="mb-4">
-        <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">Client</label>
+        <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">Client</label>
         <ClientSelectOrType clients={clients} balances={balances} />
       </div>
 
-      <div className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+      <div className="grid grid-cols-[1fr_120px_130px_24px] items-center gap-2 mb-1.5 px-0.5 text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
         <span>Item</span>
         <span>Amount</span>
         <span>Type</span>
@@ -80,7 +80,7 @@ export default function InvoiceCreateFromTab({
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>
-              <button type="button" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} className="text-neutral-300 hover:text-red-600 text-lg leading-none" aria-label="Remove line">
+              <button type="button" onClick={() => setItems((prev) => prev.filter((_, idx) => idx !== i))} className="text-charcoal-20 hover:text-rose-600 text-lg leading-none" aria-label="Remove line">
                 ×
               </button>
             </div>
@@ -88,7 +88,7 @@ export default function InvoiceCreateFromTab({
         })}
       </div>
       <div className="mt-2 flex items-center gap-4 flex-wrap">
-        <button type="button" onClick={() => setItems((prev) => [...prev, { label: "", amount: "", kind: "plan" }])} className="text-sm font-medium text-neutral-600 hover:text-orange">
+        <button type="button" onClick={() => setItems((prev) => [...prev, { label: "", amount: "", kind: "plan" }])} className="text-sm font-medium text-charcoal-60 hover:text-orange-deep">
           + Add line
         </button>
         <button type="button" onClick={() => setItems((prev) => [...prev, { label: "Stories", amount: "", kind: "stories" }])} className="text-sm font-medium text-orange-deep hover:text-orange">
@@ -96,38 +96,38 @@ export default function InvoiceCreateFromTab({
         </button>
       </div>
 
-      <div className="mt-3 flex items-center gap-3 border-t border-neutral-100 pt-3 flex-wrap">
-        <label className="flex cursor-pointer items-center gap-2 text-sm text-neutral-700">
-          <input type="checkbox" checked={addVat} onChange={(e) => setAddVat(e.target.checked)} className="h-4 w-4 rounded border-neutral-300 text-orange focus:ring-orange/30" />
+      <div className="mt-3 flex items-center gap-3 border-t border-charcoal/5 pt-3 flex-wrap">
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-charcoal-80">
+          <input type="checkbox" checked={addVat} onChange={(e) => setAddVat(e.target.checked)} className="h-4 w-4 rounded border-charcoal/20 text-orange focus:ring-orange/30" />
           Add VAT
         </label>
         {addVat && (
-          <label className="flex items-center gap-1.5 text-sm text-neutral-600">
-            <input value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${field} w-16 text-right`} />
+          <label className="flex items-center gap-1.5 text-sm text-charcoal-60">
+            <input value={vatRate} onChange={(e) => setVatRate(e.target.value)} className={`${field} !w-16 text-right`} />
             %
           </label>
         )}
-        <label className="flex items-center gap-1.5 text-sm text-neutral-600 ml-auto">
+        <label className="flex items-center gap-1.5 text-sm text-charcoal-60 ml-auto">
           <span className="whitespace-nowrap">Paid / deposit</span>
-          <input value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="0" className={`${field} w-28 text-right tabular-nums`} />
+          <input value={paid} onChange={(e) => setPaid(e.target.value)} placeholder="0" className={`${field} !w-28 text-right tabular-nums`} />
         </label>
       </div>
 
       {subtotal > 0 && (
-        <div className="mt-3 border-t border-neutral-100 pt-3 text-sm space-y-1">
+        <div className="mt-3 border-t border-charcoal/5 pt-3 text-sm space-y-1">
           <div className="flex justify-between gap-4">
-            <span className="text-neutral-500">Subtotal (excl. VAT)</span>
-            <span className="tabular-nums text-neutral-700">{subtotal.toLocaleString("en-US")}</span>
+            <span className="text-charcoal-60">Subtotal (excl. VAT)</span>
+            <span className="tabular-nums text-charcoal-80">{subtotal.toLocaleString("en-US")}</span>
           </div>
           {addVat && rate > 0 && (
             <div className="flex justify-between gap-4">
-              <span className="text-neutral-500">VAT ({rate}%)</span>
-              <span className="tabular-nums text-neutral-700">{vat.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+              <span className="text-charcoal-60">VAT ({rate}%)</span>
+              <span className="tabular-nums text-charcoal-80">{vat.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
             </div>
           )}
           <div className="flex justify-between gap-4">
-            <span className="font-semibold text-neutral-900">Total{addVat && rate > 0 ? " (incl. VAT)" : ""}</span>
-            <span className="font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
+            <span className="font-semibold text-ink">Total{addVat && rate > 0 ? " (incl. VAT)" : ""}</span>
+            <span className="font-bold tabular-nums text-ink">{total.toLocaleString("en-US", { maximumFractionDigits: 2 })}</span>
           </div>
           {paidNum > 0 && (
             <div className="flex justify-between gap-4">
@@ -140,14 +140,14 @@ export default function InvoiceCreateFromTab({
 
       <div className="mt-3 flex items-end gap-3 flex-wrap">
         <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Due date (optional)</label>
+          <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Due date (optional)</label>
           <input type="date" name="dueDate" className={field} />
         </div>
         <div className="flex-1 min-w-[180px]">
-          <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Note (optional)</label>
+          <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Note (optional)</label>
           <input name="note" placeholder="e.g. Cycle 03 · paid on receipt" className={`${field} w-full`} />
         </div>
-        <button className="bg-orange text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-orange-deep transition-colors">Create invoice</button>
+        <button className="lq-btn lq-btn--primary">Create invoice</button>
       </div>
     </form>
   );

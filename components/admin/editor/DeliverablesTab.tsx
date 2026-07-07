@@ -3,10 +3,11 @@
 import { memo, useCallback, useState, useTransition } from "react";
 import { saveDeliverablesSection } from "@/app/admin/deliverables/actions";
 import { ensureDeliverableIds, genId, suggestDeliverables, mergeSuggestions, ORDER, LABELS, progress } from "@/lib/deliverables";
+import { EmptyState } from "@/components/ui/glass";
 import type { ClientData, ClientDeliverables, Deliverable } from "@/lib/clients";
 
-const input = "w-full border border-neutral-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
-const lbl = "block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1";
+const input = "lq-input";
+const lbl = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1";
 
 // One deliverable row — memoised + keyed by id so a keystroke re-renders only this
 // row and editing/removing never scrambles focus (same strategy as PlanShootsEditor).
@@ -14,13 +15,13 @@ const Row = memo(function Row({ item, onChange, onRemove }: { item: Deliverable;
   const id = item.id!;
   const isPending = !!(item.requestedByClient && item.pending);
   return (
-    <div className={`border rounded-lg p-3 relative pr-16 ${isPending ? "border-amber-300 bg-amber-50/50" : "border-neutral-200"}`}>
-      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-medium text-neutral-400 hover:text-red-600">Remove</button>
+    <div className={`border rounded-2xl p-3 relative pr-16 ${isPending ? "border-amber-300/60 bg-amber-50/60" : "border-charcoal/5 bg-white/60"}`}>
+      <button type="button" onClick={() => onRemove(id)} className="absolute top-2 right-2 text-xs font-semibold text-charcoal-40 hover:text-rose-700">Remove</button>
       {isPending && (
         <div className="mb-3 flex items-center gap-2 flex-wrap">
-          <span className="text-[11px] font-semibold rounded-full px-2 py-0.5 bg-amber-100 text-amber-800">Client request · pending</span>
-          <button type="button" onClick={() => onChange(id, { pending: false })} className="text-[11px] font-semibold rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 px-2.5 py-0.5 hover:bg-emerald-100">Approve</button>
-          <button type="button" onClick={() => onRemove(id)} className="text-[11px] font-semibold rounded-full border border-neutral-300 text-neutral-500 px-2.5 py-0.5 hover:border-red-300 hover:text-red-600">Reject</button>
+          <span className="lq-chip lq-chip--orange !text-[11px]">Client request · pending</span>
+          <button type="button" onClick={() => onChange(id, { pending: false })} className="lq-chip lq-chip--green lq-press !text-[11px] cursor-pointer">Approve</button>
+          <button type="button" onClick={() => onRemove(id)} className="lq-chip lq-press !text-[11px] cursor-pointer hover:text-rose-700">Reject</button>
         </div>
       )}
       <div className="grid grid-cols-2 md:grid-cols-[1fr_150px_130px_130px] gap-3 items-end">
@@ -97,20 +98,20 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
 
   return (
     <div className="space-y-6">
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Deliverables</legend>
-        <p className="text-xs text-neutral-400 mb-4">What you owe this client and by when. Generate dated to-dos from the plan cycle + proposal timeline, then track them here and on the cross-client board.</p>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Deliverables</legend>
+        <p className="text-xs text-charcoal-40 mb-4">What you owe this client and by when. Generate dated to-dos from the plan cycle + proposal timeline, then track them here and on the cross-client board.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
             <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.active} onChange={(e) => setToggle({ active: e.target.checked })} />
             <span className="leading-relaxed"><b>Track deliverables</b> for this client. Shows them on the studio&apos;s <b>What&apos;s due</b> board.</span>
           </label>
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
             <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.showToClient} onChange={(e) => setToggle({ showToClient: e.target.checked })} />
             <span className="leading-relaxed"><b>Show progress to the client.</b> Reveals a progress bar + list in the client&apos;s portal. Off = internal only.</span>
           </label>
-          <label className="flex items-start gap-3 text-sm rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+          <label className="flex items-start gap-3 text-sm lq-well px-4 py-3">
             <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!block.allowClientRequests} onChange={(e) => setToggle({ allowClientRequests: e.target.checked })} />
             <span className="leading-relaxed"><b>Let the client request tasks.</b> They can submit a task with a date; it stays pending until you approve it here.</span>
           </label>
@@ -118,32 +119,32 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
 
         {items.length > 0 && (
           <div className="mb-4 flex items-center gap-3">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-neutral-500 w-20">Progress</div>
-            <div className="flex-1 h-2 rounded-full bg-neutral-100 overflow-hidden">
+            <div className="text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 w-20">Progress</div>
+            <div className="flex-1 h-2 rounded-full bg-charcoal/5 overflow-hidden">
               <div className="h-full rounded-full bg-orange" style={{ width: `${prog.pct}%` }} />
             </div>
-            <div className="text-sm font-bold tabular-nums text-neutral-900 w-24 text-right">{prog.done}/{prog.total} done</div>
+            <div className="text-sm font-bold tabular-nums text-ink w-24 text-right">{prog.done}/{prog.total} done</div>
           </div>
         )}
 
         <div className="flex items-center gap-3 flex-wrap mb-4">
-          <button type="button" onClick={generate} className="bg-charcoal text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-ink transition-colors">✨ Generate from plan &amp; timeline</button>
+          <button type="button" onClick={generate} className="lq-btn lq-btn--dark lq-btn--sm">✨ Generate from plan &amp; timeline</button>
           <button type="button" onClick={add} className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add deliverable</button>
         </div>
 
         <div className="space-y-3">
           {items.length === 0 ? (
-            <p className="text-sm text-neutral-400">No deliverables yet. Generate them from the plan &amp; timeline, or add one.</p>
+            <EmptyState icon="📦" title="No deliverables yet" sub="Generate them from the plan & timeline, or add one." />
           ) : (
             items.map((d) => <Row key={d.id} item={d} onChange={change} onRemove={remove} />)
           )}
         </div>
 
         <div className="mt-5 flex items-center gap-3">
-          <button type="button" onClick={save} disabled={pending || !dirty} className="bg-orange text-white font-semibold rounded-md px-5 py-2 text-sm hover:bg-orange-deep transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+          <button type="button" onClick={save} disabled={pending || !dirty} className="lq-btn lq-btn--primary">
             {pending ? "Saving…" : "Save deliverables"}
           </button>
-          {msg && <span className="text-sm text-neutral-600">{msg}</span>}
+          {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
           {dirty && !pending && <span className="text-xs text-amber-700">Unsaved changes</span>}
         </div>
       </fieldset>

@@ -13,9 +13,9 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
     <div className="space-y-6">
       {docsSlot}
 
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Documents</legend>
-        <p className="text-xs text-neutral-400 mb-3">Upload a PDF (or image) or paste a link — clients can open / download these.</p>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Documents</legend>
+        <p className="text-xs text-charcoal-40 mb-3">Upload a PDF (or image) or paste a link — clients can open / download these.</p>
         <Rows<DocItem> items={data.documents} onChange={(documents) => patch({ documents })} blank={{ title: "", type: "PDF", url: "" }} addLabel="Add document"
           render={(doc, set) => (
             <div className="pr-16">
@@ -27,7 +27,7 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
               <div className="mt-2 flex items-center gap-3 flex-wrap">
                 <FileUpload accept="application/pdf,image/*" label="Upload PDF" compact
                   onUploaded={({ url, name, contentType }) => set({ url, title: doc.title || name.replace(/\.[^.]+$/, ""), type: contentType.includes("pdf") ? "PDF" : doc.type || "File" })} />
-                {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-medium text-neutral-600 hover:text-orange">Open ↗</a>}
+                {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">Open ↗</a>}
               </div>
             </div>
           )} />

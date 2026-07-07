@@ -35,6 +35,7 @@ import {
   CalendarDays,
 } from "lucide-react";
 import NotificationBell from "@/components/admin/NotificationBell";
+import CommandK, { type PaletteClient } from "@/components/admin/CommandK";
 import { Sheet } from "@/components/ui/glass";
 
 type NavItem = {
@@ -54,6 +55,7 @@ export default function AdminShell({
   showPhotographer = false,
   photographerOnly = false,
   showDeliverables = false,
+  paletteClients = [],
   logout,
   children,
 }: {
@@ -65,6 +67,7 @@ export default function AdminShell({
   showPhotographer?: boolean;
   photographerOnly?: boolean;
   showDeliverables?: boolean;
+  paletteClients?: PaletteClient[];
   logout: () => Promise<void>;
   children: React.ReactNode;
 }) {
@@ -240,6 +243,9 @@ export default function AdminShell({
           </p>
         </div>
       </aside>
+
+      {/* ---------- ⌘K palette (full admins only) ---------- */}
+      {!restricted && <CommandK clients={paletteClients} />}
 
       {/* ---------- Mobile floating bell ---------- */}
       <div className="fixed top-3 z-40 lq-chrome rounded-full p-1 min-[900px]:hidden" style={{ insetInlineEnd: 12 }}>

@@ -4,6 +4,7 @@ import { isDbEnabled, getSql } from "@/lib/db";
 import { deleteProject, importSeedProjects } from "../actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import UndoBanner from "@/components/admin/UndoBanner";
+import { EmptyState } from "@/components/ui/glass";
 
 export const dynamic = "force-dynamic";
 
@@ -28,60 +29,63 @@ export default async function ProjectsAdmin({
   const missingSeed = SEED_PROJECTS.filter((p) => !dbSlugs.has(p.slug));
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-        <Link href="/admin/projects/new" className="bg-orange text-white font-semibold rounded-md px-4 py-2 text-sm hover:bg-orange-deep transition-colors">
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-3 lq-rise">
+        <div>
+          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">Studio work</p>
+          <h1 className="font-display font-extrabold text-[28px] tracking-tight text-ink leading-tight mt-1">Projects</h1>
+        </div>
+        <Link href="/admin/projects/new" className="lq-btn lq-btn--primary no-underline">
           + New project
         </Link>
-      </div>
+      </header>
 
       {searchParams.imported !== undefined && (
-        <p className="text-sm text-green-800 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">
+        <p className="lq-card text-sm text-emerald-800 px-4 py-3 !border-emerald-400/40">
           Imported {searchParams.imported} project{searchParams.imported === "1" ? "" : "s"} from seed. The public site is updated.
         </p>
       )}
       <UndoBanner undo={searchParams.undo} restored={searchParams.restored} undoError={searchParams.undoError} back="/admin/projects" />
 
       {!dbOff && !needsSetup && missingSeed.length > 0 && (
-        <div className="flex items-center justify-between gap-4 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
+        <div className="lq-card flex items-center justify-between gap-4 text-sm text-amber-900 px-4 py-3 !border-amber-300/40">
           <span>
             {missingSeed.length} built-in case stud{missingSeed.length === 1 ? "y" : "ies"} ({missingSeed.map((p) => p.name.en).join(", ")}) {missingSeed.length === 1 ? "isn't" : "aren't"} in your database yet.
           </span>
           <form action={importSeedProjects}>
-            <button className="shrink-0 bg-amber-600 text-white font-semibold rounded-md px-4 py-2 hover:bg-amber-700 transition-colors">Import now →</button>
+            <button className="lq-btn lq-btn--dark lq-btn--sm shrink-0">Import now →</button>
           </form>
         </div>
       )}
 
       {dbOff && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
+        <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">
           No database configured. The public site is showing seed data. Connect a database to manage projects here.
         </p>
       )}
 
       {needsSetup && (
-        <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-4 py-3 mb-6">
+        <p className="lq-card text-sm text-amber-800 px-4 py-3 !border-amber-300/40">
           Database connected, but it hasn&apos;t been initialised yet.{" "}
           <Link href="/admin/setup" className="font-semibold underline">Run setup →</Link>
         </p>
       )}
 
-      <div className="bg-white border border-neutral-200 rounded-xl divide-y divide-neutral-100">
-        {projects.map((p) => (
-          <div key={p.slug} className="flex items-center gap-4 px-4 py-3">
-            <span className="w-10 h-10 rounded-md flex items-center justify-center shrink-0" style={{ background: p.color }}>
+      <div className="lq-card lq-rise overflow-hidden divide-y divide-charcoal/5" style={{ animationDelay: "80ms" }}>
+        {projects.map((p, i) => (
+          <div key={p.slug} className="flex items-center gap-4 px-5 py-3 hover:bg-white/60 lq-rise" style={{ animationDelay: `${120 + i * 40}ms` }}>
+            <span className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: p.color }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={p.logo} alt="" className="max-w-[70%] max-h-[60%] object-contain invert brightness-0 opacity-90" />
             </span>
             <div className="flex-1 min-w-0">
-              <div className="font-semibold truncate">{p.name.en}</div>
-              <div className="text-xs text-neutral-500 truncate">{p.tag.en} · {p.year} · /{p.slug}</div>
+              <div className="font-display font-semibold text-ink truncate">{p.name.en}</div>
+              <div className="text-xs text-charcoal-60 truncate">{p.tag.en} · {p.year} · /{p.slug}</div>
             </div>
-            <Link href={`/work/${p.slug}`} target="_blank" className="text-sm font-medium text-neutral-500 hover:text-orange">
+            <Link href={`/work/${p.slug}`} target="_blank" className="text-sm font-medium text-charcoal-60 hover:text-orange-deep no-underline">
               View ↗
             </Link>
-            <Link href={`/admin/projects/${p.slug}/edit`} className="text-sm font-medium text-neutral-700 hover:text-orange">
+            <Link href={`/admin/projects/${p.slug}/edit`} className="text-sm font-medium text-charcoal-80 hover:text-orange-deep no-underline">
               Edit
             </Link>
             <form action={deleteProject}>
@@ -96,7 +100,12 @@ export default async function ProjectsAdmin({
           </div>
         ))}
         {!dbOff && projects.length === 0 && (
-          <div className="px-4 py-10 text-center text-sm text-neutral-500">No projects yet — create your first one.</div>
+          <EmptyState
+            icon={<span className="text-lg">🗂️</span>}
+            title="No projects yet"
+            sub="Create your first case study — it publishes straight to the public site."
+            action={<Link href="/admin/projects/new" className="lq-btn lq-btn--primary lq-btn--sm no-underline">+ New project</Link>}
+          />
         )}
       </div>
     </div>

@@ -14,7 +14,7 @@ export type OpenInvoice = {
   lines: Line[];
 };
 
-const field = "rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange/40 focus:border-orange";
+const field = "lq-input !px-3 !py-2 text-sm";
 
 function num(s: string): number {
   const n = parseFloat((s || "").replace(/[^0-9.]/g, ""));
@@ -59,7 +59,7 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
     : [];
 
   return (
-    <form action={recordPaymentAction} className="bg-white border border-neutral-200 rounded-xl p-5 space-y-4">
+    <form action={recordPaymentAction} className="lq-card lq-rise p-5 space-y-4">
       <input type="hidden" name="id" value={id} />
       <input type="hidden" name="slug" value={inv?.clientSlug || ""} />
       <input type="hidden" name="back" value="/admin/invoices" />
@@ -68,8 +68,8 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
       <input type="hidden" name="allocation" value={JSON.stringify(allocationPayload)} />
 
       <div>
-        <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1.5">Invoice</label>
-        <select required value={id} onChange={(e) => selectInvoice(e.target.value)} className={`${field} min-w-[280px]`}>
+        <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1.5">Invoice</label>
+        <select required value={id} onChange={(e) => selectInvoice(e.target.value)} className={`${field} !w-auto min-w-[280px] max-w-full`}>
           <option value="" disabled>Choose an open invoice…</option>
           {groups.map((g) => (
             <optgroup key={g} label={g}>
@@ -83,12 +83,12 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
         </select>
       </div>
 
-      {invoices.length === 0 && <p className="text-sm text-neutral-500">No open invoices to pay.</p>}
+      {invoices.length === 0 && <p className="text-sm text-charcoal-60">No open invoices to pay.</p>}
 
       {inv && (
         <>
           <div>
-            <div className="grid grid-cols-[1fr_120px_120px] items-center gap-2 mb-1.5 px-0.5 text-[11px] font-semibold uppercase tracking-wider text-neutral-400">
+            <div className="grid grid-cols-[1fr_120px_120px] items-center gap-2 mb-1.5 px-0.5 text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
               <span>Line</span>
               <span>Type</span>
               <span className="text-right">Apply</span>
@@ -96,8 +96,8 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
             <div className="space-y-2">
               {inv.lines.map((l, i) => (
                 <div key={i} className="grid grid-cols-[1fr_120px_120px] items-center gap-2">
-                  <span className="text-sm text-neutral-800 truncate">{l.label || "—"}</span>
-                  <span className={`text-xs ${isRamzi(l) ? "text-orange-deep font-semibold" : "text-neutral-500"}`}>
+                  <span className="text-sm text-charcoal-80 truncate">{l.label || "—"}</span>
+                  <span className={`text-xs ${isRamzi(l) ? "text-orange-deep font-semibold" : "text-charcoal-60"}`}>
                     {KIND_LABEL[l.kind || "plan"] || "Marketing"}
                   </span>
                   <input
@@ -111,9 +111,9 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
             </div>
           </div>
 
-          <div className="flex items-center justify-between border-t border-neutral-100 pt-3 text-sm">
-            <span className="font-semibold text-neutral-900">Total payment</span>
-            <span className="font-bold tabular-nums text-neutral-900">{total.toLocaleString("en-US")} {currency}</span>
+          <div className="flex items-center justify-between border-t border-charcoal/5 pt-3 text-sm">
+            <span className="font-semibold text-ink">Total payment</span>
+            <span className="font-bold tabular-nums text-ink">{total.toLocaleString("en-US")} {currency}</span>
           </div>
           {ramziTotal > 0 && (
             <p className="text-xs text-orange-deep -mt-2">
@@ -123,18 +123,18 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
 
           <div className="flex items-end gap-3 flex-wrap">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Date</label>
+              <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Date</label>
               <input type="date" name="paidOn" className={field} />
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Currency</label>
+              <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Currency</label>
               <select value={currency} onChange={(e) => setCurrency(e.target.value as "ILS" | "USD")} className={field}>
                 <option value="ILS">ILS ₪</option>
                 <option value="USD">USD $</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Method</label>
+              <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Method</label>
               <select name="method" defaultValue="" className={field}>
                 <option value="">—</option>
                 <option value="cash">Cash</option>
@@ -144,12 +144,12 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
               </select>
             </div>
             <div className="flex-1 min-w-[180px]">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-neutral-500 mb-1">Note (optional)</label>
+              <label className="block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1">Note (optional)</label>
               <input name="note" className={`${field} w-full`} placeholder="e.g. June stories + plan" />
             </div>
           </div>
 
-          <label className="flex items-start gap-2.5 text-sm text-neutral-700 bg-neutral-50 border border-neutral-200 rounded-md px-3 py-2.5">
+          <label className="lq-well flex items-start gap-2.5 text-sm text-charcoal-80 px-3.5 py-3">
             <input type="checkbox" name="toNotion" defaultChecked value="on" className="custom-checkbox mt-0.5" />
             <span>
               <b>Also add to Notion records.</b> Writes the Marker (marketing/branding) part of this payment to the Notion
@@ -158,7 +158,7 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
             </span>
           </label>
 
-          <button disabled={total <= 0} className="bg-green-600 text-white font-semibold rounded-md px-5 py-2.5 text-sm hover:bg-green-700 transition-colors disabled:opacity-50">
+          <button disabled={total <= 0} className="lq-btn lq-btn--primary">
             Record payment &amp; create receipt
           </button>
         </>

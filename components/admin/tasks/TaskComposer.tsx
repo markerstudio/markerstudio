@@ -2,9 +2,9 @@
 
 // The smart quick-add. One input that understands plain language: as you type,
 // dates, times, priorities and @projects light up in place (a highlight layer
-// under the text) and pop out as live chips underneath — Apple Reminders
-// energy, Marker branding. Chips are dismissible; the destination list can be
-// picked by hand or by typing "@…".
+// under the text) and pop out as live glass chips underneath. Chips are
+// dismissible; the destination list can be picked by hand or by typing "@…";
+// a Things-style "When" popover offers quick days + a mini month grid.
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { parseTask, type ParsedTask, type ParsedTokenKind, type ProjectOption } from "@/lib/taskParse";
 import type { TaskPriority } from "@/lib/clients";
@@ -19,13 +19,15 @@ export type ComposerSubmit = {
 };
 
 const TOKEN_TINT: Record<ParsedTokenKind, string> = {
-  due: "rgba(255,145,0,0.18)",
-  time: "rgba(255,145,0,0.18)",
-  priority: "rgba(239,68,68,0.14)",
+  due: "rgba(255,145,0,0.20)",
+  time: "rgba(255,145,0,0.20)",
+  priority: "rgba(239,68,68,0.16)",
   project: "rgba(48,48,48,0.10)",
 };
 
 const KIND_ICON: Record<ParsedTokenKind, string> = { due: "📅", time: "⏰", priority: "⚑", project: "＠" };
+
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
 
 export default function TaskComposer({
   projects,
@@ -44,10 +46,16 @@ export default function TaskComposer({
   const [ignored, setIgnored] = useState<Set<ParsedTokenKind>>(new Set());
   const [pickedProject, setPickedProject] = useState<ProjectOption | null>(null);
   const [listOpen, setListOpen] = useState(false);
+  const [whenOpen, setWhenOpen] = useState(false);
+  const [whenMonth, setWhenMonth] = useState(() => {
+    const d = new Date();
+    return { y: d.getFullYear(), m: d.getMonth() };
+  });
   const [busy, setBusy] = useState(false);
   const [justAdded, setJustAdded] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
+  const whenRef = useRef<HTMLDivElement>(null);
 
   const parsed: ParsedTask = useMemo(() => parseTask(text, projects), [text, projects]);
   const activeTokens = parsed.tokens.filter((t) => !ignored.has(t.kind));
@@ -72,15 +80,16 @@ export default function TaskComposer({
     return () => window.removeEventListener("keydown", onKey);
   }, [autoFocusKey]);
 
-  // Close the list picker on outside click.
+  // Close popovers on outside click.
   useEffect(() => {
-    if (!listOpen) return;
+    if (!listOpen && !whenOpen) return;
     const close = (e: MouseEvent) => {
-      if (!listRef.current?.contains(e.target as Node)) setListOpen(false);
+      if (listOpen && !listRef.current?.contains(e.target as Node)) setListOpen(false);
+      if (whenOpen && !whenRef.current?.contains(e.target as Node)) setWhenOpen(false);
     };
     window.addEventListener("mousedown", close);
     return () => window.removeEventListener("mousedown", close);
-  }, [listOpen]);
+  }, [listOpen, whenOpen]);
 
   // Title = the raw text minus only the ACTIVE tokens — a dismissed chip's
   // words stay in the title ("prepare tomorrow's agenda" keeps its "tomorrow"
@@ -130,44 +139,62 @@ export default function TaskComposer({
     return parts;
   }, [text, activeTokens]);
 
+  // Append a phrase the parser understands, waking the "due" token back up.
+  const appendPhrase = useCallback((phrase: string) => {
+    setIgnored((s) => {
+      const n = new Set(s);
+      n.delete("due");
+      return n;
+    });
+    setText((t) => `${t.trimEnd()} ${phrase}`.trimStart());
+    inputRef.current?.focus();
+  }, []);
+
   const chip = (kind: ParsedTokenKind, label: string) => (
     <button
       key={kind + label}
       type="button"
       onClick={() => setIgnored((s) => new Set(s).add(kind))}
       title="Click to remove"
-      className="ms-chip group inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-white pl-2 pr-1.5 py-1 text-[12px] font-semibold text-neutral-700 shadow-sm hover:border-neutral-300"
+      className="ms-chip lq-press group inline-flex items-center gap-1.5 rounded-full border border-charcoal/10 bg-white/80 ps-2 pe-1.5 py-1 text-[12px] font-display font-semibold text-charcoal-80 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_2px_6px_rgba(48,48,48,.06)]"
     >
       <span aria-hidden className="text-[11px] leading-none">{KIND_ICON[kind]}</span>
       {label}
-      <span className="w-3.5 h-3.5 rounded-full bg-neutral-100 text-neutral-400 group-hover:bg-neutral-200 group-hover:text-neutral-600 text-[9px] leading-[14px] text-center">✕</span>
+      <span className="w-3.5 h-3.5 rounded-full bg-charcoal/8 text-charcoal-40 group-hover:bg-charcoal/15 group-hover:text-charcoal-80 text-[9px] leading-[14px] text-center">✕</span>
     </button>
   );
 
-  const quickDate = (label: string) => (
+  const quickDate = (label: string, phrase?: string) => (
     <button
       key={label}
       type="button"
-      onClick={() => {
-        setIgnored((s) => {
-          const n = new Set(s);
-          n.delete("due");
-          return n;
-        });
-        setText((t) => `${t.trimEnd()} ${label.toLowerCase()}`);
-        inputRef.current?.focus();
-      }}
-      className="rounded-full px-2.5 py-1 text-[12px] font-medium text-neutral-400 hover:text-neutral-700 hover:bg-neutral-100 transition-colors"
+      onClick={() => appendPhrase((phrase || label).toLowerCase())}
+      className="lq-press rounded-full px-2.5 py-1 text-[12px] font-medium text-charcoal-40 hover:text-charcoal-80 hover:bg-charcoal/5 transition-colors"
     >
       {label}
     </button>
   );
 
+  // ---- the Things-style "When" mini calendar ----
+  const todayIso = new Date();
+  const monthDays = useMemo(() => {
+    const first = new Date(whenMonth.y, whenMonth.m, 1);
+    const startPad = (first.getDay() + 6) % 7; // Monday-first
+    const count = new Date(whenMonth.y, whenMonth.m + 1, 0).getDate();
+    return { startPad, count };
+  }, [whenMonth]);
+
+  const pickDay = (day: number) => {
+    setWhenOpen(false);
+    appendPhrase(`${MONTHS[whenMonth.m]} ${day}`);
+  };
+
   return (
     <div
-      className={`ms-composer relative rounded-2xl border bg-white transition-all duration-200 ${
-        justAdded ? "ms-composer-flash" : ""
-      } border-neutral-200 focus-within:border-orange focus-within:shadow-[0_8px_30px_-8px_rgba(255,145,0,0.35)] focus-within:ring-4 focus-within:ring-orange/10`}
+      className={`relative rounded-[26px] transition-all duration-200 ${justAdded ? "ms-composer-flash" : ""}
+        bg-gradient-to-b from-white/95 to-white/80 border border-charcoal/10
+        shadow-[inset_0_1px_0_rgba(255,255,255,.95),0_10px_34px_-14px_rgba(48,48,48,.16)]
+        focus-within:border-orange/50 focus-within:shadow-[inset_0_1px_0_rgba(255,255,255,.95),0_14px_40px_-12px_rgba(255,145,0,0.35)] focus-within:ring-4 focus-within:ring-orange/10`}
     >
       <div className={`flex items-center gap-3 ${compact ? "px-3.5 py-2" : "px-4 py-3"}`}>
         <button
@@ -175,8 +202,10 @@ export default function TaskComposer({
           onClick={submit}
           disabled={busy || !(finalTitle || text.trim())}
           aria-label="Add task"
-          className={`shrink-0 rounded-full flex items-center justify-center transition-all duration-200 ${compact ? "w-6 h-6 text-sm" : "w-7 h-7 text-base"} ${
-            finalTitle || text.trim() ? "bg-orange text-white hover:bg-orange-deep scale-100" : "bg-neutral-100 text-neutral-400 scale-90"
+          className={`lq-press shrink-0 rounded-full flex items-center justify-center transition-all duration-200 ${compact ? "w-6 h-6 text-sm" : "w-7 h-7 text-base"} ${
+            finalTitle || text.trim()
+              ? "bg-gradient-to-br from-[#FFA226] to-[#F57F00] text-white shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_6px_14px_-4px_rgba(255,145,0,.6)] scale-100"
+              : "bg-charcoal/5 text-charcoal-40 scale-90"
           }`}
         >
           +
@@ -208,9 +237,103 @@ export default function TaskComposer({
               if (e.key === "Escape") (e.target as HTMLInputElement).blur();
             }}
             placeholder={compact ? "Add a task — try “call Rami tomorrow 5pm”" : "Add a task — try “Send moodboard @vivid tomorrow at 5pm !high”"}
-            className={`relative w-full bg-transparent focus:outline-none placeholder:text-neutral-300 text-neutral-900 ${compact ? "text-sm" : "text-[15px]"}`}
+            className={`relative w-full bg-transparent focus:outline-none placeholder:text-charcoal-40/70 text-ink ${compact ? "text-sm" : "text-[15px]"}`}
             enterKeyHint="done"
           />
+        </div>
+
+        {/* When — Things-style date popover */}
+        <div className="relative shrink-0" ref={whenRef}>
+          <button
+            type="button"
+            onClick={() => setWhenOpen((o) => !o)}
+            title="When is this due?"
+            aria-label="Pick a date"
+            className={`lq-press inline-flex items-center justify-center rounded-full transition-colors ${compact ? "w-6 h-6" : "w-7 h-7"} ${
+              due ? "bg-orange/15 text-orange-deep" : "bg-charcoal/5 text-charcoal-40 hover:text-charcoal-80"
+            }`}
+          >
+            <svg viewBox="0 0 24 24" className="w-[15px] h-[15px]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="4" width="18" height="18" rx="4" /><path d="M16 2v4M8 2v4M3 10h18" />
+            </svg>
+          </button>
+          {whenOpen && (
+            <div className="lq-pop lq-chrome absolute end-0 top-full mt-2 z-30 w-[248px] p-3">
+              <div className="grid grid-cols-2 gap-1.5 mb-2.5">
+                {[
+                  { label: "Today", phrase: "today" },
+                  { label: "Tomorrow", phrase: "tomorrow" },
+                  { label: "This weekend", phrase: "sat" },
+                  { label: "Next week", phrase: "next week" },
+                ].map((q) => (
+                  <button
+                    key={q.label}
+                    type="button"
+                    onClick={() => {
+                      setWhenOpen(false);
+                      appendPhrase(q.phrase);
+                    }}
+                    className="lq-press rounded-xl bg-white/70 border border-charcoal/5 px-2.5 py-2 text-[12px] font-display font-semibold text-charcoal-80 hover:bg-white text-start"
+                  >
+                    {q.label}
+                  </button>
+                ))}
+              </div>
+              <div className="flex items-center justify-between px-1 pb-1.5">
+                <button
+                  type="button"
+                  className="lq-press w-6 h-6 rounded-full hover:bg-charcoal/5 text-charcoal-60"
+                  onClick={() => setWhenMonth((s) => (s.m === 0 ? { y: s.y - 1, m: 11 } : { y: s.y, m: s.m - 1 }))}
+                  aria-label="Previous month"
+                >
+                  ‹
+                </button>
+                <span className="text-[11.5px] font-display font-bold text-ink capitalize">
+                  {MONTHS[whenMonth.m]} {whenMonth.y}
+                </span>
+                <button
+                  type="button"
+                  className="lq-press w-6 h-6 rounded-full hover:bg-charcoal/5 text-charcoal-60"
+                  onClick={() => setWhenMonth((s) => (s.m === 11 ? { y: s.y + 1, m: 0 } : { y: s.y, m: s.m + 1 }))}
+                  aria-label="Next month"
+                >
+                  ›
+                </button>
+              </div>
+              <div className="grid grid-cols-7 gap-0.5 text-center">
+                {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                  <span key={i} className="text-[9px] font-display font-bold text-charcoal-40 py-0.5">{d}</span>
+                ))}
+                {Array.from({ length: monthDays.startPad }).map((_, i) => (
+                  <span key={`pad${i}`} />
+                ))}
+                {Array.from({ length: monthDays.count }).map((_, i) => {
+                  const day = i + 1;
+                  const isPast =
+                    new Date(whenMonth.y, whenMonth.m, day, 23, 59) < todayIso;
+                  const isToday =
+                    whenMonth.y === todayIso.getFullYear() && whenMonth.m === todayIso.getMonth() && day === todayIso.getDate();
+                  return (
+                    <button
+                      key={day}
+                      type="button"
+                      disabled={isPast && !isToday}
+                      onClick={() => pickDay(day)}
+                      className={`lq-press h-7 rounded-lg text-[11.5px] font-semibold tabular-nums ${
+                        isToday
+                          ? "bg-gradient-to-br from-[#FFA226] to-[#F57F00] text-white"
+                          : isPast
+                          ? "text-charcoal-20"
+                          : "text-charcoal-80 hover:bg-orange/15 hover:text-orange-deep"
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* destination list picker */}
@@ -218,19 +341,19 @@ export default function TaskComposer({
           <button
             type="button"
             onClick={() => setListOpen((o) => !o)}
-            className="inline-flex items-center gap-1.5 rounded-full border border-neutral-200 bg-neutral-50 pl-2 pr-2.5 py-1 text-[12px] font-semibold text-neutral-600 hover:border-neutral-300 transition-colors max-w-[104px] sm:max-w-[160px]"
+            className="lq-press inline-flex items-center gap-1.5 rounded-full border border-charcoal/10 bg-white/70 ps-2 pe-2.5 py-1 text-[12px] font-display font-semibold text-charcoal-80 shadow-[inset_0_1px_0_rgba(255,255,255,.9)] max-w-[104px] sm:max-w-[160px]"
             title="Where this task goes"
           >
             {project.kind === "notion" ? (
-              <span className="w-3.5 h-3.5 rounded-[4px] bg-neutral-900 text-white text-[9px] font-bold leading-[14px] text-center shrink-0">N</span>
+              <span className="w-3.5 h-3.5 rounded-[4px] bg-charcoal text-white text-[9px] font-bold leading-[14px] text-center shrink-0">N</span>
             ) : (
               <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: project.color || "#FF9100" }} />
             )}
             <span className="truncate">{project.name}</span>
-            <span className="text-neutral-400 text-[9px]">▾</span>
+            <span className="text-charcoal-40 text-[9px]">▾</span>
           </button>
           {listOpen && (
-            <div className="ms-pop absolute right-0 top-full mt-1.5 z-30 w-56 max-h-72 overflow-y-auto rounded-xl border border-neutral-200 bg-white shadow-xl p-1.5">
+            <div className="lq-pop lq-chrome absolute end-0 top-full mt-2 z-30 w-56 max-h-72 overflow-y-auto p-1.5">
               {projects.map((p) => (
                 <button
                   key={`${p.kind}-${p.key}`}
@@ -240,12 +363,12 @@ export default function TaskComposer({
                     setListOpen(false);
                     inputRef.current?.focus();
                   }}
-                  className={`w-full flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13px] text-left hover:bg-neutral-50 ${
-                    p.key === project.key && p.kind === project.kind ? "font-semibold text-neutral-900" : "text-neutral-600"
+                  className={`lq-press w-full flex items-center gap-2 rounded-xl px-2.5 py-1.5 text-[13px] text-start hover:bg-white/70 ${
+                    p.key === project.key && p.kind === project.kind ? "font-semibold text-ink" : "text-charcoal-60"
                   }`}
                 >
                   {p.kind === "notion" ? (
-                    <span className="w-3.5 h-3.5 rounded-[4px] bg-neutral-900 text-white text-[9px] font-bold leading-[14px] text-center shrink-0">N</span>
+                    <span className="w-3.5 h-3.5 rounded-[4px] bg-charcoal text-white text-[9px] font-bold leading-[14px] text-center shrink-0">N</span>
                   ) : (
                     <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color || "#FF9100" }} />
                   )}
@@ -266,7 +389,7 @@ export default function TaskComposer({
           {priority && priority !== "normal" && chip("priority", PRIORITY_META[priority].label)}
           {!pickedProject && !ignored.has("project") && parsed.project && chip("project", parsed.project.name)}
           {!due && (
-            <span className="inline-flex items-center gap-0.5 ml-0.5">
+            <span className="inline-flex items-center gap-0.5 ms-0.5">
               {quickDate("Today")}
               {quickDate("Tomorrow")}
               {quickDate("Next week")}

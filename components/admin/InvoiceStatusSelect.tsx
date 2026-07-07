@@ -27,7 +27,7 @@ export default function InvoiceStatusSelect({
         name="status"
         defaultValue={status}
         onChange={(e) => e.currentTarget.form?.requestSubmit()}
-        className="text-xs font-semibold uppercase text-neutral-600 border border-neutral-300 rounded-md px-2 py-1 hover:border-orange focus:outline-none focus:ring-2 focus:ring-orange/40 transition-colors"
+        className="lq-input !w-auto !rounded-full !px-2.5 !py-1.5 !text-xs !font-semibold uppercase text-charcoal-80 hover:border-orange/50 cursor-pointer"
       >
         {STATUSES.map((s) => (
           <option key={s} value={s}>

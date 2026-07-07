@@ -695,23 +695,20 @@ export default function TasksBoard({
     <div className="space-y-5" onClick={() => popover && setPopover(null)}>
       {/* header */}
       <div className="flex items-end justify-between gap-4 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">
-            Everything you owe — across clients, the studio{notionConnected ? " and Notion" : ""}. Type naturally: dates, times, <span className="font-mono text-[12px]">!priority</span> and <span className="font-mono text-[12px]">@client</span> are picked up as you write.
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+        <p className="text-sm text-charcoal-60 max-w-xl">
+          Everything you owe — across clients, the studio{notionConnected ? " and Notion" : ""}. Type naturally: dates, times, <span className="font-mono text-[12px]">!priority</span> and <span className="font-mono text-[12px]">@client</span> are picked up as you write.
+        </p>
+        <div className="flex items-center gap-3 flex-wrap">
           <button
             type="button"
             onClick={() => setWizardOpen(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-charcoal text-white text-sm font-semibold pl-3.5 pr-4 py-2 hover:bg-black transition-colors shadow-sm"
+            className="lq-btn lq-btn--dark lq-btn--sm"
             title="Add a whole playbook of tasks — onboarding, branding, monthly marketing…"
           >
             <span className="text-orange">✦</span> Playbook
           </button>
           {/* week progress ring */}
-          <div className="flex items-center gap-2.5 bg-white border border-neutral-200 rounded-full pl-1.5 pr-4 py-1.5">
+          <div className="flex items-center gap-2.5 bg-white/70 border border-charcoal/10 rounded-full ps-1.5 pe-4 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_2px_8px_rgba(48,48,48,.06)]">
             <svg viewBox="0 0 36 36" className="w-8 h-8 -rotate-90">
               <circle cx="18" cy="18" r="15" fill="none" stroke="#EEE9E2" strokeWidth="4" />
               <circle
@@ -721,17 +718,17 @@ export default function TasksBoard({
               />
             </svg>
             <div className="leading-tight">
-              <div className="text-sm font-extrabold tabular-nums">{weekPct}%</div>
-              <div className="text-[10px] text-neutral-400 -mt-0.5">this week</div>
+              <div className="text-sm font-display font-extrabold tabular-nums text-ink">{weekPct}%</div>
+              <div className="text-[10px] text-charcoal-40 -mt-0.5">this week</div>
             </div>
           </div>
           {notionConnected ? (
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-neutral-500 bg-white border border-neutral-200 rounded-full px-3 py-1.5" title="Two-way sync with the Notion Tasks database">
-              <span className="w-3.5 h-3.5 rounded-[4px] bg-neutral-900 text-white text-[9px] font-bold leading-[14px] text-center">N</span>
+            <span className="lq-chip" title="Two-way sync with the Notion Tasks database">
+              <span className="w-3.5 h-3.5 rounded-[4px] bg-charcoal text-white text-[9px] font-bold leading-[14px] text-center">N</span>
               Synced with Notion
             </span>
           ) : notionHint ? (
-            <span className="text-[11px] text-neutral-400 max-w-[220px]" title={notionHint}>⚠ {notionHint}</span>
+            <span className="text-[11px] text-charcoal-40 max-w-[220px]" title={notionHint}>⚠ {notionHint}</span>
           ) : null}
         </div>
       </div>
@@ -747,17 +744,17 @@ export default function TasksBoard({
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setQuery("")}
             placeholder="Search tasks…"
-            className="w-52 border border-neutral-200 bg-white rounded-full pl-8 pr-3 py-1.5 text-sm focus:outline-none focus:border-orange focus:ring-2 focus:ring-orange/20"
+            className="lq-input w-52 !rounded-full !ps-8 !pe-3 !py-1.5 !text-sm"
           />
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-300 text-xs">⌕</span>
+          <span className="absolute start-3 top-1/2 -translate-y-1/2 text-charcoal-40 text-xs pointer-events-none">⌕</span>
         </div>
-        <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className="border border-neutral-200 bg-white rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-orange">
+        <select value={listFilter} onChange={(e) => setListFilter(e.target.value)} className="lq-input !w-auto !rounded-full !px-3 !py-1.5 !text-sm">
           <option value="all">All lists</option>
           {listOptions.map(([k, v]) => (
             <option key={k} value={k}>{v.label}</option>
           ))}
         </select>
-        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as TaskPriority | "all")} className="border border-neutral-200 bg-white rounded-full px-3 py-1.5 text-sm focus:outline-none focus:border-orange">
+        <select value={prioFilter} onChange={(e) => setPrioFilter(e.target.value as TaskPriority | "all")} className="lq-input !w-auto !rounded-full !px-3 !py-1.5 !text-sm">
           <option value="all">Any priority</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
@@ -770,21 +767,19 @@ export default function TasksBoard({
             setSelectMode((m) => !m);
             setSelectedKeys(new Set());
           }}
-          className={`text-xs font-semibold rounded-full px-3 py-1.5 border transition-colors ${
-            selectMode ? "bg-charcoal text-white border-charcoal" : "border-neutral-200 text-neutral-500 hover:border-neutral-300 bg-white"
-          }`}
+          className={`lq-btn lq-btn--sm ${selectMode ? "lq-btn--dark" : "lq-btn--glass"}`}
           title="Select several tasks to delete or complete together"
         >
           {selectMode ? "Done selecting" : "Select"}
         </button>
         <div className="flex-1" />
-        <span className="text-xs text-neutral-400">
-          {overdueCount > 0 && <b className="text-red-600">{overdueCount} overdue · </b>}
+        <span className="text-xs text-charcoal-40">
+          {overdueCount > 0 && <b className="text-rose-600">{overdueCount} overdue · </b>}
           {todayCount > 0 && <b className="text-orange-deep">{todayCount} today · </b>}
           {open.length} open
         </span>
         {tasks.some((t) => t.status === "done" && t.sourceKind !== "notion") && (
-          <button type="button" onClick={sweepDone} className="text-xs font-semibold text-neutral-400 hover:text-red-600">
+          <button type="button" onClick={sweepDone} className="text-xs font-semibold text-charcoal-40 hover:text-rose-600 transition-colors">
             Clear done
           </button>
         )}
@@ -792,20 +787,20 @@ export default function TasksBoard({
 
       {/* client requests */}
       {pendingRequests.length > 0 && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <h2 className="font-bold tracking-tight text-amber-800 text-sm mb-2">
+        <div className="lq-card lq-rise p-4 !border-amber-300/40">
+          <h2 className="font-display font-bold tracking-tight text-amber-800 text-sm mb-2">
             Client requests <span className="font-medium text-amber-600">· {pendingRequests.length} waiting</span>
           </h2>
-          <ul className="divide-y divide-amber-200/60">
+          <ul className="divide-y divide-amber-200/40">
             {pendingRequests.map((t) => (
               <li key={t.key} className="py-2 flex items-center gap-3 flex-wrap">
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-semibold text-neutral-900 truncate">{t.title}</div>
-                  <div className="text-[11px] text-neutral-500">{t.listName}{t.due ? ` · wants it by ${friendlyDue(t.due)}` : ""}{t.detail ? ` · ${t.detail}` : ""}</div>
+                  <div className="text-sm font-semibold text-ink truncate">{t.title}</div>
+                  <div className="text-[11px] text-charcoal-60">{t.listName}{t.due ? ` · wants it by ${friendlyDue(t.due)}` : ""}{t.detail ? ` · ${t.detail}` : ""}</div>
                 </div>
-                <button type="button" onClick={() => decideRequest(t.key, true)} className="text-xs font-semibold rounded-full border border-emerald-300 text-emerald-700 bg-emerald-50 px-3 py-1 hover:bg-emerald-100">Approve</button>
-                <button type="button" onClick={() => decideRequest(t.key, false)} className="text-xs font-semibold rounded-full border border-neutral-300 text-neutral-500 px-3 py-1 hover:border-red-300 hover:text-red-600">Reject</button>
+                <button type="button" onClick={() => decideRequest(t.key, true)} className="lq-press text-xs font-display font-semibold rounded-full border border-emerald-300/60 text-emerald-700 bg-emerald-500/10 px-3 py-1 hover:bg-emerald-500/20">Approve</button>
+                <button type="button" onClick={() => decideRequest(t.key, false)} className="lq-press text-xs font-display font-semibold rounded-full border border-charcoal/10 text-charcoal-60 bg-white/60 px-3 py-1 hover:border-rose-300 hover:text-rose-600">Reject</button>
               </li>
             ))}
           </ul>
@@ -814,11 +809,11 @@ export default function TasksBoard({
 
       {/* groups */}
       {visible.length === 0 && pendingRequests.length === 0 ? (
-        <div className="bg-white border border-neutral-200 rounded-2xl px-6 py-14 text-center">
+        <div className="lq-card lq-rise px-6 py-14 text-center">
           <div className="text-3xl mb-2">☀️</div>
-          <p className="text-sm font-semibold text-neutral-700">All clear.</p>
-          <p className="text-xs text-neutral-400 mt-1">Add a task above — try “Post reel for @vivid tomorrow at 5pm !high”.</p>
-          <button type="button" onClick={() => setWizardOpen(true)} className="mt-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 px-4 py-2 text-sm font-semibold text-neutral-700 hover:border-orange hover:text-orange-deep transition-colors">
+          <p className="text-sm font-display font-semibold text-charcoal-80">All clear.</p>
+          <p className="text-xs text-charcoal-40 mt-1">Add a task above — try “Post reel for @vivid tomorrow at 5pm !high”.</p>
+          <button type="button" onClick={() => setWizardOpen(true)} className="lq-btn lq-btn--glass lq-btn--sm mt-4">
             <span className="text-orange">✦</span> Start from a playbook
           </button>
         </div>
@@ -839,13 +834,19 @@ export default function TasksBoard({
                 e.preventDefault();
                 onDrop(g, dropHint?.group === g ? dropHint.beforeKey : null);
               }}
-              className={`bg-white border rounded-2xl px-3 py-2.5 transition-colors ${dropHint?.group === g && dragKey ? "border-orange bg-orange/[0.03]" : "border-neutral-200"}`}
+              className={`lq-card lq-rise px-3 py-2.5 transition-shadow ${dropHint?.group === g && dragKey ? "ring-2 ring-orange/50 !border-orange/50" : ""}`}
             >
-              <div className="w-full flex items-center gap-2 px-1.5 py-1 select-none">
+              <div className={`w-full flex items-center gap-2 px-1.5 py-1 select-none rounded-2xl ${g === "today" ? "bg-orange/[0.06] -mx-0.5 px-2" : ""}`}>
                 <button type="button" onClick={() => toggleGroup(g)} className="flex items-center gap-2">
-                  <span className={`text-[13px] font-bold tracking-tight ${tone || "text-neutral-800"}`}>{label}</span>
-                  <span className="text-[11px] font-semibold text-neutral-300 tabular-nums">{items.length}</span>
-                  {g === "done" && items.length > 0 && <span className="text-[10px] text-neutral-300">· kept 2 weeks</span>}
+                  <span className={`text-[13px] font-display font-bold tracking-tight ${tone || "text-ink"}`}>{label}</span>
+                  <span
+                    className={`lq-chip !px-2 !py-0.5 !text-[10px] tabular-nums ${
+                      g === "overdue" ? "lq-chip--red" : g === "today" ? "lq-chip--orange" : g === "done" ? "lq-chip--green" : ""
+                    }`}
+                  >
+                    {items.length}
+                  </span>
+                  {g === "done" && items.length > 0 && <span className="text-[10px] text-charcoal-40">· kept 2 weeks</span>}
                 </button>
                 {selectMode && items.length > 0 && (
                   <button
@@ -858,17 +859,24 @@ export default function TasksBoard({
                         return n;
                       })
                     }
-                    className="text-[10px] font-semibold text-neutral-400 hover:text-orange border border-neutral-200 rounded-full px-2 py-0.5"
+                    className="lq-press text-[10px] font-display font-semibold text-charcoal-60 hover:text-orange-deep border border-charcoal/10 bg-white/60 rounded-full px-2 py-0.5"
                   >
                     {items.every((t) => selectedKeys.has(t.key)) ? "none" : "all"}
                   </button>
                 )}
-                <button type="button" onClick={() => toggleGroup(g)} aria-label="Collapse group" className={`ml-auto text-neutral-300 text-[10px] transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`}>▼</button>
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(g)}
+                  aria-label="Collapse group"
+                  className={`lq-press ms-auto w-6 h-6 rounded-full text-charcoal-40 hover:text-charcoal-80 hover:bg-charcoal/5 text-[10px] transition-transform duration-300 [transition-timing-function:var(--lq-spring)] ${isCollapsed ? "-rotate-90" : ""}`}
+                >
+                  ▼
+                </button>
               </div>
               {!isCollapsed && (
                 <ul className="mt-0.5">
                   {items.length === 0 ? (
-                    <li className="px-2 py-2.5 text-xs text-neutral-300">Nothing due today — drag something here or add one above.</li>
+                    <li className="px-2 py-2.5 text-xs text-charcoal-40">Nothing due today — drag something here or add one above.</li>
                   ) : (
                     items.map(row)
                   )}

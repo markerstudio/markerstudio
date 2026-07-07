@@ -1,10 +1,25 @@
+import type { ReactNode } from "react";
 import { getUndoSnapshot } from "@/lib/undo";
 import { undoDeleteAction } from "@/app/admin/undo-actions";
 
 /* Shown after a critical delete: names what was removed and offers a one-click
    Undo (restores the snapshotted rows — see lib/undo.ts). Also renders the
    green "restored" / red "couldn't undo" follow-ups. Server component — drop it
-   near the page's other alert messages and pass the relevant searchParams. */
+   near the page's other alert messages and pass the relevant searchParams.
+   Renders as a floating glass toast pinned above the mobile tab bar. */
+
+// Floating wrapper: fixed above the mobile tab bar (hidden ≥900px, where the
+// rail takes over and the toast can hug the bottom edge).
+function Toast({ children }: { children: ReactNode }) {
+  return (
+    <div className="pointer-events-none fixed inset-x-4 bottom-[calc(84px+env(safe-area-inset-bottom,0px))] z-40 flex justify-center min-[900px]:bottom-6">
+      <div className="lq-chrome lq-pop-in pointer-events-auto flex max-w-full items-center gap-3 rounded-full px-5 py-3 text-sm">
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default async function UndoBanner({
   undo,
   restored,
@@ -18,16 +33,20 @@ export default async function UndoBanner({
 }) {
   if (restored) {
     return (
-      <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-md px-4 py-2.5 mb-6">
-        Restored <b>{restored}</b> — everything is back.
-      </p>
+      <Toast>
+        <span className="lq-chip lq-chip--green shrink-0">✓</span>
+        <span className="text-charcoal-80">
+          Restored <b className="text-ink">{restored}</b> — everything is back.
+        </span>
+      </Toast>
     );
   }
   if (undoError) {
     return (
-      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-4 py-2.5 mb-6">
-        Couldn&apos;t undo — something with the same name or id was created in the meantime.
-      </p>
+      <Toast>
+        <span className="lq-chip lq-chip--red shrink-0">!</span>
+        <span className="text-charcoal-80">Couldn&apos;t undo — something with the same name or id was created in the meantime.</span>
+      </Toast>
     );
   }
 
@@ -35,15 +54,15 @@ export default async function UndoBanner({
   if (!snap) return null;
 
   return (
-    <div className="flex items-center justify-between gap-3 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-md px-4 py-2.5 mb-6">
-      <span>
-        Deleted <b>{snap.label}</b>.
+    <Toast>
+      <span className="min-w-0 truncate text-charcoal-80">
+        Deleted <b className="text-ink">{snap.label}</b>.
       </span>
       <form action={undoDeleteAction} className="shrink-0">
         <input type="hidden" name="id" value={snap.id} />
         <input type="hidden" name="back" value={back} />
-        <button className="font-bold underline underline-offset-2 hover:text-orange-deep transition-colors">↩ Undo</button>
+        <button className="lq-btn lq-btn--dark lq-btn--sm">↩ Undo</button>
       </form>
-    </div>
+    </Toast>
   );
 }

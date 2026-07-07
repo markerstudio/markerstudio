@@ -50,11 +50,11 @@ export default function FinanceTab({
 
   return (
     <div className="space-y-6">
-      <fieldset className="bg-white border border-neutral-200 rounded-xl p-6">
-        <legend className="px-2 -ml-2 font-bold">Finance</legend>
-        <p className="text-xs text-neutral-400 mb-3">Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Stories fee is collected for Ramzi: it stays on the client&apos;s invoice but never counts as Marker income or syncs to Notion.</p>
+      <fieldset className="lq-card p-5">
+        <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Finance</legend>
+        <p className="text-xs text-charcoal-40 mb-3">Money left and Paid % calculate themselves from the payments below (USD converted to ILS). Set Total agreed and mark each payment Paid as it comes in — leave Total blank to derive it from the rows. Stories fee is collected for Ramzi: it stays on the client&apos;s invoice but never counts as Marker income or syncs to Notion.</p>
         {linkedToNotion && (
-          <div className="mb-4 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3 text-sm text-neutral-600 leading-relaxed">
+          <div className="mb-4 lq-well px-4 py-3 text-sm text-charcoal-60 leading-relaxed">
             Linked to <b>Notion</b> — its Budget Tracker owns this client&apos;s money. <b>Money left</b> and <b>Paid&nbsp;%</b> come from <b>Refresh from Notion</b> (top of the page); the figures below are a local portal copy and saving here won&apos;t change them. The <b>Stories&nbsp;· Ramzi</b> fee is app-only and is managed here.
           </div>
         )}
@@ -65,22 +65,22 @@ export default function FinanceTab({
           <Text label="Stories fee · Ramzi" value={data.finance?.storiesFee ?? ""} onChange={(storiesFee) => patchFinance({ storiesFee })} placeholder="e.g. 30 ILS / day" />
           <div>
             <label className={lbl}>Money left · auto</label>
-            <div className="w-full rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
+            <div className="w-full lq-well px-3 py-2 text-sm font-bold tabular-nums text-orange-deep">{fmtIls(fin.moneyLeftIls)}</div>
           </div>
         </div>
-        <label className="flex items-start gap-3 text-sm mb-5 rounded-lg border border-neutral-200 bg-neutral-50 px-4 py-3">
+        <label className="flex items-start gap-3 text-sm mb-5 lq-well px-4 py-3">
           <input type="checkbox" className="custom-checkbox mt-0.5" checked={!!data.finance?.storiesActive} onChange={(e) => patchFinance({ storiesActive: e.target.checked })} />
           <span className="leading-relaxed"><b>This client has stories</b> (Ramzi). Turning this on connects them to <b>Ramzi&apos;s portal</b>, where he tracks the stories work and what&apos;s been collected. Stories money stays on the client&apos;s invoice and in the client&apos;s combined total, but is never Marker income or synced to Notion.</span>
         </label>
         <div className="mb-5">
           <div className="flex items-center justify-between mb-1">
             <span className={lbl + " mb-0"}>Paid · auto</span>
-            <span className="text-sm font-bold tabular-nums text-neutral-900">{fin.paidPct}%</span>
+            <span className="text-sm font-bold tabular-nums text-ink">{fin.paidPct}%</span>
           </div>
-          <div className="h-2 w-full rounded-full bg-neutral-100 overflow-hidden">
+          <div className="h-2 w-full rounded-full bg-charcoal/5 overflow-hidden">
             <div className="h-full rounded-full bg-orange" style={{ width: `${fin.paidPct}%` }} />
           </div>
-          <p className="text-[11px] text-neutral-400 mt-1 tabular-nums">
+          <p className="text-[11px] text-charcoal-40 mt-1 tabular-nums">
             {fmtIls(fin.paidIls)} paid of {fmtIls(fin.totalIls)} total
             {fin.openIls > 0 ? ` · ${fmtIls(fin.openIls)} still due in rows` : ""}
           </p>
