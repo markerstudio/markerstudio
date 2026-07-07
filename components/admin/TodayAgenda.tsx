@@ -1,13 +1,15 @@
 "use client";
 
-/* The dashboard's "Today by client" strip — a dark glass card listing every
-   ritual the agenda engine derived for today: invoices to chase, posts going
-   live, shoots, check-ins, wrap-ups, onboarding reviews. Links to /admin/agenda
-   for the full two-week picture. Presentation only. */
+/* The "Now" panel's agenda rows — every ritual the agenda engine derived for
+   today (overdue first, then today): invoices to chase, posts going live,
+   shoots, check-ins, wrap-ups, onboarding reviews. Renders as a fragment of
+   rows so it can live inside the dashboard's shared dark panel (the panel
+   itself — title, divider, tasks slice — is composed in app/admin/page.tsx).
+   Presentation only. */
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import {
-  CalendarDays,
   CheckCircle2,
   Clock,
   Camera,
@@ -17,7 +19,6 @@ import {
   UserPlus,
   MessageCircle,
   Flag,
-  ArrowRight,
 } from "lucide-react";
 import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
 
@@ -37,58 +38,34 @@ export default function TodayAgenda({ agenda }: { agenda: Agenda }) {
   const items = agenda.all.filter((i) => i.urgency !== "soon").slice(0, 8);
   const extra = agenda.counts.overdue + agenda.counts.today - items.length;
 
-  return (
-    <section className="lq-dark lq-rise p-5">
-      <div className="flex items-center justify-between gap-3 mb-1">
-        <h2 className="font-display font-bold text-[16px] tracking-tight flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-orange-soft" />
-          Today, per client
-        </h2>
-        <div className="flex items-center gap-2">
-          {agenda.counts.overdue > 0 && (
-            <span className="text-[10.5px] font-display font-bold uppercase tracking-wide bg-rose-500/25 text-rose-200 rounded-full px-2.5 py-1">
-              {agenda.counts.overdue} overdue
-            </span>
-          )}
-          <Link
-            href="/admin/agenda"
-            className="lq-press inline-flex items-center gap-1.5 text-[12px] font-display font-semibold text-white/80 hover:text-white no-underline bg-white/10 rounded-full px-3 py-1.5"
-          >
-            Full agenda <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
-        </div>
-      </div>
-      <p className="text-[12px] text-white/50 mb-3">
-        Invoices to chase, posts going live, shoots, check-ins — computed from everything you already track.
+  if (items.length === 0) {
+    return (
+      <p className="text-[13px] text-white/60 py-1">
+        Nothing owed to anyone today. Tomorrow&apos;s items are waiting on the{" "}
+        <Link href="/admin/agenda" className="text-orange-soft font-semibold no-underline">agenda</Link>.
       </p>
+    );
+  }
 
-      {items.length === 0 ? (
-        <div className="flex items-center gap-3 rounded-2xl bg-white/5 px-4 py-4">
-          <span className="w-8 h-8 rounded-full bg-emerald-400/20 text-emerald-300 flex items-center justify-center">✓</span>
-          <p className="text-[13px] text-white/70">
-            Nothing owed to anyone today. Tomorrow&apos;s items are waiting on the{" "}
-            <Link href="/admin/agenda" className="text-orange-soft font-semibold no-underline">agenda</Link>.
-          </p>
-        </div>
-      ) : (
-        <div className="grid sm:grid-cols-2 gap-1.5">
-          {items.map((it: AgendaItem, i) => {
-            const Icon = KIND_ICON[it.kind];
-            return (
+  return (
+    <>
+      <ul className="lq-stagger divide-y divide-white/10">
+        {items.map((it: AgendaItem, i) => {
+          const Icon = KIND_ICON[it.kind];
+          return (
+            <li key={i} style={{ "--i": i } as CSSProperties}>
               <Link
-                key={i}
                 href={it.href}
-                className="lq-press group flex items-center gap-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.12] px-3.5 py-2.5 no-underline"
-                style={{ animationDelay: `${i * 40}ms` }}
+                className="lq-press group flex items-center gap-3 py-2 -mx-1 px-1 rounded-lg hover:bg-white/[0.06] no-underline min-w-0"
               >
                 <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                  className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                     it.urgency === "overdue"
                       ? "bg-rose-500/25 text-rose-200"
                       : "bg-orange/25 text-orange-soft"
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon className="w-3.5 h-3.5" />
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block text-[13px] font-semibold text-white leading-snug truncate">
@@ -102,15 +79,18 @@ export default function TodayAgenda({ agenda }: { agenda: Agenda }) {
                   <span className="text-[11px] font-semibold text-white/60 tabular-nums shrink-0">{it.time}</span>
                 )}
               </Link>
-            );
-          })}
-        </div>
-      )}
+            </li>
+          );
+        })}
+      </ul>
       {extra > 0 && (
-        <Link href="/admin/agenda" className="block text-center text-[11.5px] font-semibold text-white/50 hover:text-white/80 no-underline mt-3">
+        <Link
+          href="/admin/agenda"
+          className="block text-center text-[11.5px] font-semibold text-white/50 hover:text-white/80 no-underline mt-2"
+        >
           + {extra} more today
         </Link>
       )}
-    </section>
+    </>
   );
 }
