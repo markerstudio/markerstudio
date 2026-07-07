@@ -67,6 +67,7 @@ export default function ClientEditor({
   apiEnabled,
   linkedToNotion,
   initialTab,
+  latestNote = null,
   docsSlot,
   invoicesSlot,
   settingsSlot,
@@ -76,6 +77,7 @@ export default function ClientEditor({
   apiEnabled: boolean;
   linkedToNotion: boolean;
   initialTab?: string;
+  latestNote?: import("@/lib/notes").Note | null;
   docsSlot?: ReactNode;
   invoicesSlot?: ReactNode;
   settingsSlot?: ReactNode;
@@ -119,7 +121,7 @@ export default function ClientEditor({
 
   const body = (
     <div className="min-w-0">
-      {tab === "overview" && <OverviewTab client={client} data={data} onNavigate={go} />}
+      {tab === "overview" && <OverviewTab client={client} data={data} onNavigate={go} latestNote={latestNote} />}
       {showContent && <PlanContentTab slug={slug} data={data} />}
       {tab === "tasks" && <DeliverablesTab slug={slug} data={data} />}
       {tab === "money" && (

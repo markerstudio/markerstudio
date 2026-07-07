@@ -29,10 +29,12 @@ export default function OverviewTab({
   client,
   data,
   onNavigate,
+  latestNote = null,
 }: {
   client: Client;
   data: ClientData;
   onNavigate: (tab: TabId) => void;
+  latestNote?: import("@/lib/notes").Note | null;
 }) {
   const slug = client.slug;
   const pending = data.status === "pending";
@@ -195,6 +197,23 @@ export default function OverviewTab({
             </a>
           </div>
         </div>
+
+        {/* Latest note — the freshest thought about this client, one tap away. */}
+        {latestNote && (
+          <a
+            href={`/admin/notes?client=${slug}`}
+            className="lq-press mt-3.5 flex items-start gap-3 rounded-2xl bg-orange/[0.06] border border-orange/15 px-3.5 py-3 no-underline hover:bg-orange/10"
+          >
+            <span className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-orange-deep shrink-0 mt-0.5">
+              {latestNote.pinned ? "Flagged note" : "Latest note"}
+            </span>
+            <span className="min-w-0 flex-1 text-[13px] text-charcoal-80 leading-snug line-clamp-2">
+              {latestNote.title ? <b className="text-ink">{latestNote.title} — </b> : null}
+              {latestNote.body.split("\n").find((l) => l.trim() && !l.startsWith("#")) || latestNote.body.slice(0, 140) || "…"}
+            </span>
+            <span className="text-charcoal-40 shrink-0 mt-0.5">→</span>
+          </a>
+        )}
 
         {/* The plan-and-money facts as one sentence — each segment jumps to the
             tab that owns it. */}

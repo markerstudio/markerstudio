@@ -16,6 +16,7 @@
 import { getClients, type Client, type Deliverable } from "@/lib/clients";
 import { getStudioDeliverables } from "@/lib/studio";
 import { listInvoices, invoiceRemaining, invoiceCurrency, type Invoice } from "@/lib/invoices";
+import { listNotes, type Note } from "@/lib/notes";
 import { isDbEnabled } from "@/lib/db";
 
 export type AgendaKind =
@@ -27,7 +28,8 @@ export type AgendaKind =
   | "checkin"
   | "wrap"
   | "onboard"
-  | "stories";
+  | "stories"
+  | "note";
 
 export type AgendaUrgency = "overdue" | "today" | "soon";
 
@@ -309,6 +311,27 @@ function storiesItems(c: Client, today: string, horizon: string): AgendaItem[] {
   return out;
 }
 
+/** Flagged (pinned) notes ride on today until unpinned — a standing reminder. */
+function noteItems(notes: Note[], bySlug: Map<string, Client>, today: string): AgendaItem[] {
+  const out: AgendaItem[] = [];
+  for (const n of notes) {
+    if (!n.pinned) continue;
+    const c = n.client_slug ? bySlug.get(n.client_slug) : undefined;
+    const snippet = (n.title || n.body.split("\n")[0] || "Untitled note").slice(0, 80);
+    out.push({
+      kind: "note",
+      title: `Flagged — ${snippet}`,
+      sub: n.context_label || "unpin it when it's handled",
+      href: c ? `/admin/notes?client=${c.slug}` : "/admin/notes",
+      date: today,
+      urgency: "today",
+      clientSlug: c?.slug,
+      clientName: c ? c.name || c.slug : undefined,
+    });
+  }
+  return out;
+}
+
 /* ---- the aggregate ------------------------------------------------------ */
 
 const URGENCY_ORDER: Record<AgendaUrgency, number> = { overdue: 0, today: 1, soon: 2 };
@@ -320,10 +343,11 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
   const today = iso(new Date());
   const horizon = addDays(today, daysAhead);
 
-  const [clients, invoices, studioTasks] = await Promise.all([
+  const [clients, invoices, studioTasks, notes] = await Promise.all([
     getClients().catch(() => [] as Client[]),
     listInvoices().catch(() => [] as Invoice[]),
     getStudioDeliverables().catch(() => [] as Deliverable[]),
+    listNotes().catch(() => [] as Note[]),
   ]);
   const live = clients.filter((c) => !c.data?.archived);
   const bySlug = new Map(live.map((c) => [c.slug, c]));
@@ -351,6 +375,7 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
   }
   push(invoiceItems(invoices, bySlug, today));
   push(taskItems(studioTasks, today, horizon));
+  push(noteItems(notes, bySlug, today));
 
   const sortItems = (xs: AgendaItem[]) =>
     xs.sort(
@@ -403,4 +428,5 @@ export const AGENDA_KIND_META: Record<AgendaKind, { icon: string; label: string 
   wrap: { icon: "★", label: "Wrap-up" },
   onboard: { icon: "＋", label: "Onboarding" },
   stories: { icon: "◐", label: "Stories" },
+  note: { icon: "✎", label: "Note" },
 };

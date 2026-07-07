@@ -9,6 +9,7 @@ import InvoiceStatusSelect from "@/components/admin/InvoiceStatusSelect";
 import { listClientInvoices, invoiceGrandTotal, type Invoice } from "@/lib/invoices";
 import { createInvoiceFromNotion, deleteInvoiceAction } from "../../../invoice-actions";
 import { getClient, getClients, type OnboardingBrief } from "@/lib/clients";
+import { listNotes, type Note } from "@/lib/notes";
 import { getMetaConnectionInfo, metaAppConfigured } from "@/lib/meta";
 import { isAiEnabled } from "@/lib/ai";
 import { getProjects } from "@/lib/projects";
@@ -635,6 +636,9 @@ export default async function EditClientPage({
         apiEnabled={isAiEnabled()}
         linkedToNotion={!!client.data.notionPageId}
         initialTab={searchParams.tab}
+        latestNote={await listNotes()
+          .then((ns: Note[]) => ns.find((n) => n.client_slug === client.slug) ?? null)
+          .catch(() => null)}
         docsSlot={docsSlot}
         invoicesSlot={invoicesSlot}
         settingsSlot={settingsSlot}
