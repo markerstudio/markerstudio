@@ -428,6 +428,12 @@ export default function TasksBoard({
     const editing = editingKey === t.key;
     const noteOpen = openNoteKey === t.key;
     const overdue = !done && t.due && t.due < today;
+    // The group header already names the day for Today/Tomorrow, so a "Today"
+    // chip on every row is pure repetition. In those groups collapse the date
+    // chip to just the reminder time — and hide it entirely when there's none.
+    const grp = groupOf(t, today, tomorrow, weekEnd);
+    const dateImplied = grp === "today" || grp === "tomorrow";
+    const dateFullyImplied = dateImplied && !t.time;
 
     // Selection mode: the whole row is one toggle — no editing, no dragging.
     if (selectMode) {
@@ -447,7 +453,11 @@ export default function TasksBoard({
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: t.color }} title={t.listName} />
             <span className={`flex-1 min-w-0 text-sm truncate ${done ? "text-neutral-400 line-through" : "text-neutral-800"}`}>{t.title}</span>
             {t.priority !== "normal" && <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dot}`} />}
-            {t.due && <span className={`text-[11px] font-semibold whitespace-nowrap ${overdue ? "text-red-600" : "text-neutral-400"}`}>{friendlyDue(t.due)}</span>}
+            {(dateImplied ? t.time : t.due && friendlyDue(t.due)) && (
+              <span className={`text-[11px] font-semibold whitespace-nowrap ${overdue ? "text-red-600" : "text-neutral-400"}`}>
+                {dateImplied ? t.time : friendlyDue(t.due)}
+              </span>
+            )}
           </button>
         </li>
       );
@@ -600,11 +610,29 @@ export default function TasksBoard({
                   e.stopPropagation();
                   setPopover(popover?.key === t.key && popover.kind === "due" ? null : { key: t.key, kind: "due" });
                 }}
-                className={`text-[11px] font-semibold rounded-full px-2 py-0.5 transition-colors ${
+                className={`inline-flex items-center gap-1 text-[11px] font-semibold rounded-full px-2 py-0.5 transition ${
                   overdue ? "text-rose-700 bg-rose-500/10" : t.due === today ? "text-orange-deep bg-orange/10" : t.due ? "text-charcoal-60 hover:bg-charcoal/5" : "text-charcoal-40 hover:text-charcoal-60 hover:bg-charcoal/5"
-                }`}
+                } ${dateFullyImplied ? "opacity-0 group-hover:opacity-100" : ""}`}
+                title={dateImplied ? "Reschedule or set a time" : undefined}
               >
-                {t.due ? `${friendlyDue(t.due)}${t.time ? ` · ${t.time}` : ""}` : "＋ date"}
+                {!t.due ? (
+                  "＋ date"
+                ) : dateImplied ? (
+                  t.time ? (
+                    <>
+                      <svg viewBox="0 0 24 24" className="w-3 h-3" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="9" /><path d="M12 7.5V12l3 2" />
+                      </svg>
+                      {t.time}
+                    </>
+                  ) : (
+                    <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="4" width="18" height="18" rx="4" /><path d="M16 2v4M8 2v4M3 10h18" />
+                    </svg>
+                  )
+                ) : (
+                  `${friendlyDue(t.due)}${t.time ? ` · ${t.time}` : ""}`
+                )}
               </button>
               {popover?.key === t.key && popover.kind === "due" && (
                 <div onClick={(e) => e.stopPropagation()} className="lq-pop lq-chrome absolute end-0 top-full mt-1 z-30 w-52 p-2 space-y-1.5">
