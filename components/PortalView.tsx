@@ -10,6 +10,7 @@ import SocialCalendar from "@/components/SocialCalendar";
 import FileUpload from "@/components/FileUpload";
 import EnablePushButton from "@/components/EnablePushButton";
 import type { Client, ClientData, LocalizedText } from "@/lib/clients";
+import { clientMonthlyFeeLabel } from "@/lib/money";
 
 const MARKER_LOGO = "/assets/logo-primary-transparent.png";
 
@@ -96,6 +97,10 @@ export default function PortalView({
   // Time-ish facts feed the "Lately" zone; plan facts sit as a caption in the
   // hero, and the money picture lives on the Finance tab only.
   const postsThisMonth = (d.social?.posts ?? []).filter((p) => p.date?.startsWith(today.slice(0, 7))).length;
+
+  // The client sees ONE monthly figure — marketing + stories combined; the
+  // split never reaches this side of the portal.
+  const monthlyFeeShown = clientMonthlyFeeLabel(d.finance);
 
   // Photography — the client only sees shoots when the studio shared them.
   const photo = d.photo;
@@ -909,10 +914,10 @@ export default function PortalView({
                       marketing + extras − paid). No separate branding balance. */}
                   {(edit || d.finance?.monthlyFee || d.finance?.brandingFee) && (
                     <div className="mt-5 pt-4 border-t border-white/10 flex flex-wrap gap-y-3 [&>*+*]:border-s [&>*+*]:border-white/10">
-                      {(edit || d.finance?.monthlyFee) && (
+                      {(edit || monthlyFeeShown) && (
                         <div className="min-w-0 ps-6 pe-6 first:ps-0">
-                          <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Monthly fee (marketing)", "الاشتراك الشهري (تسويق)")}</span>
-                          <div className="font-display font-extrabold text-[18px] tracking-tight tabular-nums mt-1">{f(d.finance?.monthlyFee ?? "", (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.monthlyFee = v; }), false, "—")}</div>
+                          <span className="block text-[10px] font-display font-bold uppercase tracking-[0.12em] text-white/55">{ui("Monthly fee", "الاشتراك الشهري")}</span>
+                          <div className="font-display font-extrabold text-[18px] tracking-tight tabular-nums mt-1">{f(edit ? (d.finance?.monthlyFee ?? "") : monthlyFeeShown, (v) => up((c) => { if (!c.finance) c.finance = { monthlyFee: "", progress: 0 }; c.finance.monthlyFee = v; }), false, "—")}</div>
                         </div>
                       )}
                       {(edit || d.finance?.brandingFee) && (

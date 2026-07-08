@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
 import { listClientInvoices, invoiceGrandTotal, amountLabelToIls } from "@/lib/invoices";
 import { clientFacingMoney } from "@/lib/clientFinance";
+import { clientMonthlyFeeLabel } from "@/lib/money";
 import StatementDocument, { type StatementRow } from "@/components/docs/StatementDocument";
 
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ export default async function StatementPage({ params }: { params: { slug: string
           totalPaid: money ? money.paidIls : totalPaid,
           totalOpen: money ? money.openIls : totalOpen,
           balance: money ? money.balanceLabel : client.data.plan?.balance || "",
-          monthlyFee: client.data.finance?.monthlyFee || "",
+          monthlyFee: clientMonthlyFeeLabel(client.data.finance),
           currency: "ILS",
         }}
         initialLang={client.data.onboarding?.lang === "ar" ? "ar" : "en"}
