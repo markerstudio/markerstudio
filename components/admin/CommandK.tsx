@@ -169,16 +169,16 @@ export default function CommandK({ clients }: { clients: PaletteClient[] }) {
 
   if (!open)
     return (
+      // Lives inside the rail (desktop) so it never floats over page headers.
       <button
         type="button"
         onClick={() => setOpen(true)}
         title="Search & commands — ⌘K"
-        className="lq-press hidden min-[900px]:flex fixed top-5 z-40 items-center gap-2 lq-chrome rounded-full ps-3.5 pe-3 py-2 text-[12px] font-display font-semibold text-charcoal-60 hover:text-ink"
-        style={{ insetInlineEnd: 20 }}
+        className="lq-press w-full flex items-center gap-2 rounded-2xl bg-charcoal/5 hover:bg-charcoal/10 px-3 py-2 mb-1.5 text-[12px] font-display font-semibold text-charcoal-60 hover:text-ink"
       >
-        <Search className="w-3.5 h-3.5" />
+        <Search className="w-3.5 h-3.5 shrink-0" />
         Search
-        <kbd className="font-mono text-[10px] bg-charcoal/10 rounded-md px-1.5 py-0.5">⌘K</kbd>
+        <kbd className="ms-auto font-mono text-[10px] bg-white/80 border border-charcoal/10 rounded-md px-1.5 py-0.5">⌘K</kbd>
       </button>
     );
 

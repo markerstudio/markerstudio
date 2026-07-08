@@ -7,6 +7,7 @@
    optimistic and rolls back on failure with an inline error line. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import type { CSSProperties, ReactNode } from "react";
 import {
   Archive,
@@ -416,6 +417,18 @@ export default function NotesApp({
   const [notes, setNotes] = useState<Note[]>(initialNotes);
   const notesRef = useRef(notes);
   notesRef.current = notes;
+
+  // Next's client router caches this route's payload for ~30s, so coming back
+  // to Notes could resurrect stale pins/edits ("my unpin undid itself").
+  // Refresh server truth once on mount and adopt whatever it returns.
+  const router = useRouter();
+  useEffect(() => {
+    router.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    setNotes(initialNotes);
+  }, [initialNotes]);
 
   // Inline error line (optimistic updates roll back to it, no toasts).
   const [err, setErrRaw] = useState<string | null>(null);
@@ -931,6 +944,13 @@ export default function NotesApp({
       </div>
 
       {err && <p className="text-[12px] font-semibold text-rose-700 px-2">{err}</p>}
+      {/* Failures must be visible wherever you are — a rollback with a hidden
+          error reads as "the button doesn't work" (e.g. unpin snapping back). */}
+      {err && (
+        <div className="lq-toast lq-chrome fixed z-[130] left-1/2 -translate-x-1/2 !text-rose-700 bottom-[calc(96px+env(safe-area-inset-bottom,0px))] min-[900px]:bottom-6">
+          {err}
+        </div>
+      )}
 
       {/* filter row */}
       {notes.length > 0 && (
