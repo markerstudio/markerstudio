@@ -46,3 +46,19 @@ export function amountLabelToIls(label: string): number {
   const usd = usdM ? parseFloat(usdM[1].replace(/,/g, "")) || 0 : 0;
   return Math.round(ils + usd * APPROX_USD_ILS);
 }
+
+// The ONE monthly figure a client ever sees — marketing + stories combined.
+// The client doesn't know the Marker/Ramzi split, so every client-facing
+// "monthly fee" (portal Finance tab, statement) must show the sum. When
+// stories are off or unpriced the marketing label passes through untouched
+// (preserving mixed-currency labels like "1,500 ILS + $50" verbatim).
+export function clientMonthlyFeeLabel(
+  finance?: { monthlyFee?: string; storiesFee?: string; storiesActive?: boolean } | null
+): string {
+  const base = finance?.monthlyFee || "";
+  if (!finance?.storiesActive) return base;
+  const storiesIls = amountLabelToIls(finance.storiesFee || "");
+  if (storiesIls <= 0) return base;
+  const totalIls = Math.round(amountLabelToIls(base) + storiesIls);
+  return `${totalIls.toLocaleString("en-US")} ILS`;
+}

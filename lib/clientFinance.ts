@@ -34,25 +34,21 @@ export async function clientFacingMoney(client: Client): Promise<ClientFacingMon
     } catch {
       /* keep the saved figures */
     }
+    // Stories the client still owes come ONLY from real invoices (a stories
+    // line billed but not collected) — the same way Ramzi's own page counts
+    // them. The stories fee field is a recurring RATE, not an outstanding
+    // balance, so it is never phantom-added here: doing so put the whole fee
+    // on every stories client's money-left forever, because collection happens
+    // in Ramzi's portal and the app never sees it. The client still sees one
+    // combined figure; it just tracks what's actually been invoiced.
     const stories = await clientStoriesFinanceIls(client.id, client.slug);
-    // Stories handled entirely through Ramzi's portal / the fee agreement (no
-    // stories invoice raised this cycle): the agreed fee minus what he already
-    // collected this cycle is still the client's money — the client only ever
-    // sees ONE combined figure, never the Marker/Ramzi split. Once the cycle's
-    // stories line IS invoiced, the invoice numbers above cover it and this
-    // top-up drops to zero, so nothing double-counts.
-    let feeDueIls = 0;
-    if (d.finance?.storiesActive && stories.billedCycleIls <= 0) {
-      const feeIls = amountLabelToIls(d.finance?.storiesFee || "");
-      feeDueIls = Math.max(0, Math.round(feeIls - stories.collectedCycleIls));
-    }
     const p = Math.max(0, Math.min(100, progress));
     // Reconstruct Marker's paid from (left, progress%); clamp near p=100 so the
     // ratio can't explode. Money-left stays exact regardless.
     const markerPaid = p > 0 && p < 100 ? Math.min(markerLeft * 100, (markerLeft * p) / (100 - p)) : 0;
-    const totalIls = Math.round(markerPaid + markerLeft + stories.billedIls + feeDueIls);
+    const totalIls = Math.round(markerPaid + markerLeft + stories.billedIls);
     const paidIls = Math.round(markerPaid + stories.collectedIls);
-    const openIls = Math.max(0, Math.round(markerLeft + stories.openIls + feeDueIls));
+    const openIls = Math.max(0, Math.round(markerLeft + stories.openIls));
     const prog = totalIls > 0 ? Math.max(0, Math.min(100, Math.round((paidIls / totalIls) * 100))) : p;
     return { totalIls, paidIls, openIls, progress: prog, balanceLabel: `${openIls.toLocaleString("en-US")} ILS` };
   }
