@@ -191,32 +191,53 @@ export async function clientInvoiceFinanceIls(
 export async function clientStoriesFinanceIls(
   clientId: number,
   clientSlug: string
-): Promise<{ billedIls: number; collectedIls: number; openIls: number }> {
+): Promise<{ billedIls: number; collectedIls: number; openIls: number; billedCycleIls: number; collectedCycleIls: number }> {
   let invs: Invoice[] = [];
   try {
     invs = await listClientInvoices(clientId);
   } catch {
     invs = [];
   }
+  // Month key from LOCAL date parts — `issued_date`/`paid_on` may arrive as a
+  // Date object, and toISOString() shifts local midnight into the previous
+  // month east of UTC (same pitfall the partner page guards against).
+  const ym = (v: unknown): string => {
+    if (typeof v === "string" && /^\d{4}-\d{2}/.test(v)) return v.slice(0, 7);
+    const d = v instanceof Date ? v : new Date(String(v ?? ""));
+    return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  };
+  const ymNow = ym(new Date());
   let billedIls = 0;
+  let billedCycleIls = 0;
   for (const inv of invs) {
     if (inv.archived_at || inv.status === "draft") continue;
     // Stories lines summed in ILS per line (handles a USD stories line on an
     // otherwise-ILS invoice, and vice-versa).
-    billedIls += (inv.items || []).filter(isRamziLine).reduce((s, it) => s + toIls(it.amount || ""), 0);
+    const ils = (inv.items || []).filter(isRamziLine).reduce((s, it) => s + toIls(it.amount || ""), 0);
+    billedIls += ils;
+    if (ym(inv.issued_date) === ymNow) billedCycleIls += ils;
   }
   let collectedIls = 0;
+  let collectedCycleIls = 0;
   try {
     for (const p of await listClientPayments(clientSlug)) {
       const rate = p.currency === "USD" ? APPROX_USD_ILS : 1;
-      collectedIls += ramziAmountOf(p) * rate;
+      const ils = ramziAmountOf(p) * rate;
+      collectedIls += ils;
+      if (ym(p.paid_on) === ymNow) collectedCycleIls += ils;
     }
   } catch {
     /* no payments / table — collected stays 0 */
   }
   billedIls = Math.round(billedIls);
   collectedIls = Math.round(collectedIls);
-  return { billedIls, collectedIls, openIls: Math.max(0, billedIls - collectedIls) };
+  return {
+    billedIls,
+    collectedIls,
+    openIls: Math.max(0, billedIls - collectedIls),
+    billedCycleIls: Math.round(billedCycleIls),
+    collectedCycleIls: Math.round(collectedCycleIls),
+  };
 }
 
 export async function getInvoice(id: number): Promise<Invoice | undefined> {
