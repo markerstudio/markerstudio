@@ -18,6 +18,24 @@ function typeFor(name: string, contentType: string): string {
 }
 const titleFor = (name: string) => name.replace(/\.[^.]+$/, "");
 
+// Browsers sometimes report an empty file.type (common for HEIC, some docs).
+// Infer a content type from the extension so the upload token accepts it.
+function contentTypeFor(file: File): string | undefined {
+  if (file.type) return file.type;
+  const ext = file.name.split(".").pop()?.toLowerCase() || "";
+  const map: Record<string, string> = {
+    pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+    webp: "image/webp", gif: "image/gif", svg: "image/svg+xml", heic: "image/heic",
+    heif: "image/heif", avif: "image/avif", tiff: "image/tiff", bmp: "image/bmp",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    csv: "text/csv", txt: "text/plain", zip: "application/zip",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
 // Mirrors the portal's Documents tab: client-facing files, plus (server-rendered)
 // the proposal & agreement builder cards passed in as a slot.
 export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: string; data: ClientData; patch: (p: Partial<ClientData>) => void; docsSlot?: ReactNode }) {
@@ -43,17 +61,21 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
     setProgress({ done: 0, total: list.length });
     const uploaded: DocItem[] = [];
     let failed = 0;
+    let firstError = "";
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
       try {
         const blob = await upload(file.name, file, {
           access: "public",
           handleUploadUrl: "/api/upload",
-          contentType: file.type || undefined,
+          contentType: contentTypeFor(file),
         });
         uploaded.push({ title: titleFor(file.name), type: typeFor(file.name, file.type), url: blob.url });
-      } catch {
+      } catch (e) {
         failed++;
+        // Keep the real reason (bad/missing BLOB_READ_WRITE_TOKEN, too large,
+        // signed out, unsupported type) — a bare count is impossible to debug.
+        if (!firstError) firstError = e instanceof Error ? e.message : "";
       }
       setProgress({ done: i + 1, total: list.length });
     }
@@ -66,7 +88,14 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
           : { tone: "err", text: res.error || "Uploaded, but saving failed — hit “Save files”." }
       );
     } else {
-      setNote({ tone: "err", text: failed ? `Couldn’t upload ${failed} file${failed === 1 ? "" : "s"}.` : "Nothing to upload." });
+      setNote({
+        tone: "err",
+        text: firstError
+          ? `Upload failed — ${firstError}`
+          : failed
+          ? `Couldn’t upload ${failed} file${failed === 1 ? "" : "s"}.`
+          : "Nothing to upload.",
+      });
     }
     setBusy(false);
     setProgress(null);
