@@ -43,7 +43,10 @@ export async function addClientDocuments(
   if (!session) return { ok: false, error: "Not signed in." };
   if (!slug) return { ok: false, error: "Missing client." };
   const clean = (items || [])
-    .map((it) => ({ title: String(it?.title || "").trim(), type: String(it?.type || "File").trim() || "File", url: String(it?.url || "").trim() }))
+    .map((it) => {
+      const folder = String(it?.folder || "").trim();
+      return { title: String(it?.title || "").trim(), type: String(it?.type || "File").trim() || "File", url: String(it?.url || "").trim(), ...(folder ? { folder } : {}) };
+    })
     .filter((it) => it.url);
   if (!clean.length) return { ok: false, error: "Nothing to add." };
   await updateClientData(slug, (d) => {

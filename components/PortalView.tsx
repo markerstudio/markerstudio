@@ -1016,8 +1016,18 @@ export default function PortalView({
                 </div>
               )}
 
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lq-stagger">
-                {(d.documents ?? []).map((doc, i) => (
+              {(() => {
+                // Group files by folder so the client sees them sorted the same
+                // way the studio filed them; portals with no folders render one
+                // clean grid (no headers), exactly as before.
+                const all = (d.documents ?? []).map((doc, i) => ({ doc, i }));
+                const names = d.docFolders ?? [];
+                const groups = [
+                  ...names.map((name) => ({ name, items: all.filter(({ doc }) => (doc.folder || "") === name) })),
+                  { name: "", items: all.filter(({ doc }) => !doc.folder || !names.includes(doc.folder)) },
+                ].filter((g) => g.items.length > 0);
+                const showHeaders = groups.some((g) => g.name);
+                const card = (doc: (typeof all)[number]["doc"], i: number) => (
                   <div key={i} className="lq-card p-5 flex flex-col gap-3 relative" style={{ "--i": i } as React.CSSProperties}>
                     {del(() => up((c) => c.documents.splice(i, 1)))}
                     <span className="lq-chip lq-chip--orange self-start uppercase !text-[10px]">{f(doc.type || "DOC", (v) => up((c) => (c.documents[i].type = v)), false, "PDF")}</span>
@@ -1041,9 +1051,25 @@ export default function PortalView({
                       <span className="text-sm text-charcoal-40">{ui("Shared soon.", "ستُشارك قريباً.")}</span>
                     )}
                   </div>
-                ))}
-                {edit && <div style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => c.documents.push({ title: "", type: "PDF", url: "" })), ui("Add document", "مستند"))}</div>}
-              </div>
+                );
+                return (
+                  <div className="space-y-6">
+                    {groups.map((g) => (
+                      <div key={g.name || "__ungrouped"} className="space-y-3">
+                        {showHeaders && (
+                          <p className="text-[11px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60">
+                            {g.name || ui("Other", "أخرى")}
+                          </p>
+                        )}
+                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 lq-stagger">
+                          {g.items.map(({ doc, i }) => card(doc, i))}
+                        </div>
+                      </div>
+                    ))}
+                    {edit && <div style={{ display: "flex", alignItems: "center" }}>{add(() => up((c) => c.documents.push({ title: "", type: "PDF", url: "" })), ui("Add document", "مستند"))}</div>}
+                  </div>
+                );
+              })()}
 
               {/* Brand assets — final creative deliverables to download. */}
               <div className="pt-4">
