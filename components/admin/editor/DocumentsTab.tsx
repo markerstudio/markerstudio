@@ -1,11 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, type ReactNode } from "react";
-import { upload } from "@vercel/blob/client";
 import { UploadCloud, GripVertical, FolderPlus, X, Check, Pencil } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { saveSection, addClientDocuments } from "@/app/admin/clients/section-actions";
-import { diagnoseUploadError, safeBlobName } from "@/lib/uploadClient";
+import { uploadFile } from "@/lib/uploadClient";
 import type { ClientData, DocItem } from "@/lib/clients";
 
 // Give an uploaded file a sensible Type chip from its name / MIME.
@@ -17,24 +16,6 @@ function typeFor(name: string, contentType: string): string {
   return "File";
 }
 const titleFor = (name: string) => name.replace(/\.[^.]+$/, "");
-
-// Browsers sometimes report an empty file.type (common for HEIC, some docs).
-// Infer a content type from the extension so the upload token accepts it.
-function contentTypeFor(file: File): string | undefined {
-  if (file.type) return file.type;
-  const ext = file.name.split(".").pop()?.toLowerCase() || "";
-  const map: Record<string, string> = {
-    pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
-    webp: "image/webp", gif: "image/gif", svg: "image/svg+xml", heic: "image/heic",
-    heif: "image/heif", avif: "image/avif", tiff: "image/tiff", bmp: "image/bmp",
-    doc: "application/msword",
-    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    xls: "application/vnd.ms-excel",
-    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    csv: "text/csv", txt: "text/plain", zip: "application/zip",
-  };
-  return map[ext] || "application/octet-stream";
-}
 
 const UNGROUPED = "__ungrouped__";
 const lbl = "block text-[10px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-40 mb-1";
@@ -86,20 +67,15 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
     let firstError = "";
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
-      // Guard against an upload that never resolves — on a protected Preview
-      // deployment the finalize callback is blocked and upload() hangs forever.
-      // Abort after 90s so it surfaces instead of spinning at "0/1".
+      // Abort a stuck request after 90s so it surfaces instead of spinning.
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 90_000);
       try {
-        const blob = await upload(safeBlobName(file.name), file, { access: "public", handleUploadUrl: "/api/upload", contentType: contentTypeFor(file), abortSignal: ctrl.signal });
+        const blob = await uploadFile(file, ctrl.signal);
         uploaded.push({ title: titleFor(file.name), type: typeFor(file.name, file.type), url: blob.url, ...(folder ? { folder } : {}) });
       } catch (e) {
         failed++;
-        const msg = ctrl.signal.aborted
-          ? "the deployment couldn’t finalize the file (this happens on protected Preview deployments — try on the live site)"
-          : e instanceof Error ? e.message : "";
-        if (!firstError) firstError = msg;
+        if (!firstError) firstError = e instanceof Error ? e.message : "";
       } finally {
         clearTimeout(timer);
       }
@@ -115,7 +91,7 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
       );
     } else {
       const raw = firstError ? `Upload failed — ${firstError}` : failed ? `Couldn’t upload ${failed} file${failed === 1 ? "" : "s"}.` : "Nothing to upload.";
-      setNote({ tone: "err", text: failed ? await diagnoseUploadError(raw) : raw });
+      setNote({ tone: "err", text: raw });
     }
     setBusy(false);
     setProgress(null);

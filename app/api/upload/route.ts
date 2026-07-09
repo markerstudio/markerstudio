@@ -1,71 +1,55 @@
-import { handleUpload, type HandleUploadBody } from "@vercel/blob/client";
+import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { safeBlobName } from "@/lib/blobName";
 
 export const runtime = "nodejs";
 
-// Diagnostic for the uploader UI. The Blob client only ever reports a generic
-// "Failed to retrieve the client token" when this route refuses a token, so the
-// UI calls this to learn the real reason: signed out, or no storage configured
-// on THIS deployment (the usual cause — Blob store not connected / not redeployed).
+// Vercel platform caps a Serverless Function request body at ~4.5 MB. Keep a
+// hair under so the check fires before the platform rejects with an opaque 413.
+const MAX_BYTES = 4.4 * 1024 * 1024;
+
+// Diagnostic for the uploader UI — reports whether this deployment is signed in
+// and has storage configured, so a failure can name the real cause.
 export async function GET(): Promise<NextResponse> {
   const s = await getSession();
   return NextResponse.json({ signedIn: !!s, storage: !!process.env.BLOB_READ_WRITE_TOKEN });
 }
 
-// Client-side uploads (logos, document PDFs) go straight to Vercel Blob. The
-// browser asks this route for a one-time upload token; we only hand one out to a
-// signed-in studio/admin user. Requires BLOB_READ_WRITE_TOKEN in the env.
+// Server-side upload. The browser POSTs the file here (multipart form) and we
+// write it to Blob with the read-write token. This deliberately avoids the
+// @vercel/blob CLIENT upload flow (client token + vercel.com/api/blob endpoint +
+// finalize callback), which failed opaquely — retrying a 400 until it looked
+// like a hang. Here any Blob rejection comes back as a real message the UI shows.
 export async function POST(request: Request): Promise<NextResponse> {
-  const body = (await request.json()) as HandleUploadBody;
+  const s = await getSession();
+  if (!s) return NextResponse.json({ error: "You’re signed out — sign in again and retry." }, { status: 401 });
+  if (!process.env.BLOB_READ_WRITE_TOKEN)
+    return NextResponse.json({ error: "File storage isn’t configured — set BLOB_READ_WRITE_TOKEN and redeploy." }, { status: 400 });
+
+  let file: FormDataEntryValue | null;
   try {
-    const json = await handleUpload({
-      body,
-      request,
-      onBeforeGenerateToken: async () => {
-        const s = await getSession();
-        if (!s) throw new Error("Not signed in.");
-        // The one env this route needs. Without it every upload 400s with an
-        // opaque SDK error — name it plainly so it's obvious what to set.
-        if (!process.env.BLOB_READ_WRITE_TOKEN)
-          throw new Error("File storage isn’t configured — set BLOB_READ_WRITE_TOKEN in the environment.");
-        return {
-          // Admin-only, authenticated uploads (logos + client documents). Kept
-          // broad on purpose: the Documents tab is meant to hold whatever the
-          // studio wants to file — iPhone HEIC photos, Word/Excel, zips — not
-          // just PDFs. octet-stream is the fallback for files the browser can't
-          // type. (25 MB cap + random suffix still apply.)
-          allowedContentTypes: [
-            // images (incl. iPhone HEIC/HEIF and modern formats)
-            "image/png", "image/jpeg", "image/webp", "image/svg+xml", "image/gif",
-            "image/heic", "image/heif", "image/avif", "image/tiff", "image/bmp",
-            // documents
-            "application/pdf",
-            "application/msword",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/vnd.ms-excel",
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-powerpoint",
-            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "text/plain", "text/csv",
-            // archives + catch-all for anything the browser reports as unknown
-            "application/zip", "application/x-zip-compressed",
-            "application/octet-stream",
-          ],
-          maximumSizeInBytes: 25 * 1024 * 1024,
-          addRandomSuffix: true,
-        };
-      },
-      // Intentionally NO onUploadCompleted. Defining it (even as a no-op) makes
-      // the Blob SDK embed a callback URL in the client token, so every upload
-      // then waits for Vercel Blob to call that URL back before it finalizes —
-      // and when that callback can't be reached (deployment protection, aliased
-      // domains, etc.) the browser upload hangs forever at "0/N". We don't need
-      // it: the client gets the blob URL straight from upload() and persists it
-      // itself. Leaving it out lets uploads complete the moment the file lands.
+    const form = await request.formData();
+    file = form.get("file");
+  } catch {
+    return NextResponse.json({ error: "Couldn’t read the upload." }, { status: 400 });
+  }
+  if (!(file instanceof File) || file.size === 0) return NextResponse.json({ error: "No file received." }, { status: 400 });
+  if (file.size > MAX_BYTES)
+    return NextResponse.json(
+      { error: `“${file.name}” is ${(file.size / 1024 / 1024).toFixed(1)} MB — too large to upload (max 4 MB). Compress it or paste a link instead.` },
+      { status: 413 },
+    );
+
+  try {
+    const blob = await put(safeBlobName(file.name), file, {
+      access: "public",
+      addRandomSuffix: true,
+      contentType: file.type || undefined,
     });
-    return NextResponse.json(json);
+    return NextResponse.json({ url: blob.url, name: file.name, contentType: file.type || "" });
   } catch (error) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 400 });
+    // Surface the real Blob error (token, store, quota…) so it's fixable.
+    return NextResponse.json({ error: (error as Error).message || "Upload failed." }, { status: 400 });
   }
 }
