@@ -1,3 +1,20 @@
+// Vercel Blob rejects upload pathnames containing spaces and certain characters
+// (e.g. "@") with a 400. Sanitise the name we send to Blob — keep the extension,
+// replace anything unsafe with "-", collapse repeats — while callers keep the
+// ORIGINAL filename for the human-facing document title. addRandomSuffix keeps
+// names unique, so flattening them here is safe.
+export function safeBlobName(name: string): string {
+  const dot = name.lastIndexOf(".");
+  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
+  const base = (dot > 0 ? name.slice(0, dot) : name)
+    .normalize("NFKD")
+    .replace(/[^A-Za-z0-9._-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^[-.]+|[-.]+$/g, "")
+    .slice(0, 100) || "file";
+  return ext ? `${base}.${ext}` : base;
+}
+
 // Turn the Blob client's opaque "Failed to retrieve the client token" into a
 // message that names the real cause. The token route (GET /api/upload) reports
 // whether this deployment is signed in and has storage configured; we map that
