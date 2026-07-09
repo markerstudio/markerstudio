@@ -60,7 +60,9 @@ export type AiAnalysis = {
   html: LocalizedText;
   generatedAt: string;
 };
-export type DocItem = { title: string; type: string; url: string };
+// A client-facing file. `folder` groups it for sorting (empty = "Ungrouped");
+// the array order is the sort order within a folder (drag-to-reorder).
+export type DocItem = { title: string; type: string; url: string; folder?: string };
 // One unit of stories work Ramzi tracks per client (e.g. "Produce 5 daily
 // stories for the week"). Lives on the client so the partner portal can show
 // Ramzi exactly what he has to do, independent of Marker's marketing work.
@@ -229,6 +231,7 @@ export type ClientData = {
     brandingLeft?: string;
   };
   documents: DocItem[];
+  docFolders?: string[]; // ordered folder names for sorting the Documents tab (empty folders persist here)
   photo?: ClientPhoto; // photography — shoot schedule + to-do shared with the photographer (and optionally the client)
   deliverables?: ClientDeliverables; // smart to-do list — what's owed and by when (own key; never in the form payload)
   storiesTasks?: StoriesTask[]; // Ramzi's stories work list for this client (managed from the partner portal)
