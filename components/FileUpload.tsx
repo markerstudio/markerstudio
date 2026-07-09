@@ -1,11 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { upload } from "@vercel/blob/client";
-import { diagnoseUploadError, safeBlobName } from "@/lib/uploadClient";
+import { uploadFile } from "@/lib/uploadClient";
 
-// Small reusable upload button. Streams the file straight to Vercel Blob via the
-// /api/upload token route, then hands the public URL back to the caller.
+// Small reusable upload button. Sends the file to our /api/upload route (which
+// writes it to Vercel Blob), then hands the public URL back to the caller.
 export default function FileUpload({
   accept = "image/*,application/pdf",
   label = "Upload",
@@ -26,18 +25,13 @@ export default function FileUpload({
     setBusy(true);
     setErr("");
     try {
-      const blob = await upload(safeBlobName(file.name), file, {
-        access: "public",
-        handleUploadUrl: "/api/upload",
-        contentType: file.type || undefined,
-      });
-      onUploaded({ url: blob.url, name: file.name, contentType: file.type });
+      const blob = await uploadFile(file);
+      onUploaded(blob);
     } catch (e) {
-      // Surface the real reason (bad/missing blob token, unsupported type,
-      // too large, signed-out) instead of a blanket "failed" — otherwise the
-      // upload is impossible to debug from the UI.
+      // Surface the real reason (Blob rejection, too large, signed-out) instead
+      // of a blanket "failed" — otherwise the upload is impossible to debug.
       const msg = e instanceof Error ? e.message : "";
-      setErr(await diagnoseUploadError(msg ? `Upload failed — ${msg}` : "Upload failed."));
+      setErr(msg ? `Upload failed — ${msg}` : "Upload failed.");
     } finally {
       setBusy(false);
       e.target.value = "";

@@ -1,36 +1,27 @@
-// Vercel Blob rejects upload pathnames containing spaces and certain characters
-// (e.g. "@") with a 400. Sanitise the name we send to Blob — keep the extension,
-// replace anything unsafe with "-", collapse repeats — while callers keep the
-// ORIGINAL filename for the human-facing document title. addRandomSuffix keeps
-// names unique, so flattening them here is safe.
-export function safeBlobName(name: string): string {
-  const dot = name.lastIndexOf(".");
-  const ext = dot > 0 ? name.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "") : "";
-  const base = (dot > 0 ? name.slice(0, dot) : name)
-    .normalize("NFKD")
-    .replace(/[^A-Za-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^[-.]+|[-.]+$/g, "")
-    .slice(0, 100) || "file";
-  return ext ? `${base}.${ext}` : base;
-}
+// Shared browser-side upload helper. Sends a file to our own /api/upload route
+// (server-side Blob write) and returns the stored URL. Avoids the @vercel/blob
+// client-upload flow, which failed opaquely (retrying a 400 until it looked like
+// a hang). Any Blob rejection here comes back as a real, showable message.
+export type UploadedFile = { url: string; name: string; contentType: string };
 
-// Turn the Blob client's opaque "Failed to retrieve the client token" into a
-// message that names the real cause. The token route (GET /api/upload) reports
-// whether this deployment is signed in and has storage configured; we map that
-// to plain guidance. Falls back to the raw error when the probe can't run.
-export async function diagnoseUploadError(fallback: string): Promise<string> {
+export async function uploadFile(file: File, signal?: AbortSignal): Promise<UploadedFile> {
+  const fd = new FormData();
+  fd.append("file", file);
+  let res: Response;
   try {
-    const r = await fetch("/api/upload", { method: "GET", cache: "no-store" });
-    if (r.ok) {
-      const j = (await r.json()) as { signedIn?: boolean; storage?: boolean };
-      if (j.storage === false)
-        return "File storage isn’t connected to this deployment — add a Vercel Blob store (BLOB_READ_WRITE_TOKEN) and redeploy this deployment.";
-      if (j.signedIn === false)
-        return "You’re signed out on this deployment — sign in again, then retry.";
-    }
-  } catch {
-    /* network / probe failed — use the raw error */
+    res = await fetch("/api/upload", { method: "POST", body: fd, signal });
+  } catch (e) {
+    if ((e as Error)?.name === "AbortError") throw new Error("Upload timed out.");
+    throw new Error("Network error — couldn’t reach the server.");
   }
-  return fallback;
+  let json: { url?: string; name?: string; contentType?: string; error?: string } = {};
+  try {
+    json = await res.json();
+  } catch {
+    /* non-JSON (e.g. platform 413 page) — fall through to status handling */
+  }
+  if (!res.ok || !json.url) {
+    throw new Error(json.error || (res.status === 413 ? "File too large to upload (max 4 MB)." : `Upload failed (${res.status}).`));
+  }
+  return { url: json.url, name: json.name || file.name, contentType: json.contentType || file.type || "" };
 }
