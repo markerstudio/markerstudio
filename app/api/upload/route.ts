@@ -56,8 +56,13 @@ export async function POST(request: Request): Promise<NextResponse> {
           addRandomSuffix: true,
         };
       },
-      // Nothing to persist here — the caller stores the returned URL itself.
-      onUploadCompleted: async () => {},
+      // Intentionally NO onUploadCompleted. Defining it (even as a no-op) makes
+      // the Blob SDK embed a callback URL in the client token, so every upload
+      // then waits for Vercel Blob to call that URL back before it finalizes —
+      // and when that callback can't be reached (deployment protection, aliased
+      // domains, etc.) the browser upload hangs forever at "0/N". We don't need
+      // it: the client gets the blob URL straight from upload() and persists it
+      // itself. Leaving it out lets uploads complete the moment the file lands.
     });
     return NextResponse.json(json);
   } catch (error) {
