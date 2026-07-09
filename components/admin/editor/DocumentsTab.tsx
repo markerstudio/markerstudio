@@ -5,7 +5,7 @@ import { upload } from "@vercel/blob/client";
 import { UploadCloud, GripVertical, FolderPlus, X, Check, Pencil } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { saveSection, addClientDocuments } from "@/app/admin/clients/section-actions";
-import { diagnoseUploadError } from "@/lib/uploadClient";
+import { diagnoseUploadError, safeBlobName } from "@/lib/uploadClient";
 import type { ClientData, DocItem } from "@/lib/clients";
 
 // Give an uploaded file a sensible Type chip from its name / MIME.
@@ -92,7 +92,7 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 90_000);
       try {
-        const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload", contentType: contentTypeFor(file), abortSignal: ctrl.signal });
+        const blob = await upload(safeBlobName(file.name), file, { access: "public", handleUploadUrl: "/api/upload", contentType: contentTypeFor(file), abortSignal: ctrl.signal });
         uploaded.push({ title: titleFor(file.name), type: typeFor(file.name, file.type), url: blob.url, ...(folder ? { folder } : {}) });
       } catch (e) {
         failed++;

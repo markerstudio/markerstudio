@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
-import { diagnoseUploadError } from "@/lib/uploadClient";
+import { diagnoseUploadError, safeBlobName } from "@/lib/uploadClient";
 
 // Small reusable upload button. Streams the file straight to Vercel Blob via the
 // /api/upload token route, then hands the public URL back to the caller.
@@ -26,7 +26,7 @@ export default function FileUpload({
     setBusy(true);
     setErr("");
     try {
-      const blob = await upload(file.name, file, {
+      const blob = await upload(safeBlobName(file.name), file, {
         access: "public",
         handleUploadUrl: "/api/upload",
         contentType: file.type || undefined,
