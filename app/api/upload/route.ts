@@ -4,6 +4,15 @@ import { getSession } from "@/lib/auth";
 
 export const runtime = "nodejs";
 
+// Diagnostic for the uploader UI. The Blob client only ever reports a generic
+// "Failed to retrieve the client token" when this route refuses a token, so the
+// UI calls this to learn the real reason: signed out, or no storage configured
+// on THIS deployment (the usual cause — Blob store not connected / not redeployed).
+export async function GET(): Promise<NextResponse> {
+  const s = await getSession();
+  return NextResponse.json({ signedIn: !!s, storage: !!process.env.BLOB_READ_WRITE_TOKEN });
+}
+
 // Client-side uploads (logos, document PDFs) go straight to Vercel Blob. The
 // browser asks this route for a one-time upload token; we only hand one out to a
 // signed-in studio/admin user. Requires BLOB_READ_WRITE_TOKEN in the env.

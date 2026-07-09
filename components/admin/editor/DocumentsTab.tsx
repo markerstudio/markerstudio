@@ -5,6 +5,7 @@ import { upload } from "@vercel/blob/client";
 import { UploadCloud, GripVertical, FolderPlus, X, Check, Pencil } from "lucide-react";
 import FileUpload from "@/components/FileUpload";
 import { saveSection, addClientDocuments } from "@/app/admin/clients/section-actions";
+import { diagnoseUploadError } from "@/lib/uploadClient";
 import type { ClientData, DocItem } from "@/lib/clients";
 
 // Give an uploaded file a sensible Type chip from its name / MIME.
@@ -103,7 +104,8 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
           : { tone: "err", text: res.error || "Uploaded, but saving failed — try again." }
       );
     } else {
-      setNote({ tone: "err", text: firstError ? `Upload failed — ${firstError}` : failed ? `Couldn’t upload ${failed} file${failed === 1 ? "" : "s"}.` : "Nothing to upload." });
+      const raw = firstError ? `Upload failed — ${firstError}` : failed ? `Couldn’t upload ${failed} file${failed === 1 ? "" : "s"}.` : "Nothing to upload.";
+      setNote({ tone: "err", text: failed ? await diagnoseUploadError(raw) : raw });
     }
     setBusy(false);
     setProgress(null);

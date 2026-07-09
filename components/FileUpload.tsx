@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { upload } from "@vercel/blob/client";
+import { diagnoseUploadError } from "@/lib/uploadClient";
 
 // Small reusable upload button. Streams the file straight to Vercel Blob via the
 // /api/upload token route, then hands the public URL back to the caller.
@@ -36,7 +37,7 @@ export default function FileUpload({
       // too large, signed-out) instead of a blanket "failed" — otherwise the
       // upload is impossible to debug from the UI.
       const msg = e instanceof Error ? e.message : "";
-      setErr(msg ? `Upload failed — ${msg}` : "Upload failed.");
+      setErr(await diagnoseUploadError(msg ? `Upload failed — ${msg}` : "Upload failed."));
     } finally {
       setBusy(false);
       e.target.value = "";
