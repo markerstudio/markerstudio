@@ -86,12 +86,22 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
     let firstError = "";
     for (let i = 0; i < list.length; i++) {
       const file = list[i];
+      // Guard against an upload that never resolves — on a protected Preview
+      // deployment the finalize callback is blocked and upload() hangs forever.
+      // Abort after 90s so it surfaces instead of spinning at "0/1".
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 90_000);
       try {
-        const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload", contentType: contentTypeFor(file) });
+        const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/upload", contentType: contentTypeFor(file), abortSignal: ctrl.signal });
         uploaded.push({ title: titleFor(file.name), type: typeFor(file.name, file.type), url: blob.url, ...(folder ? { folder } : {}) });
       } catch (e) {
         failed++;
-        if (!firstError) firstError = e instanceof Error ? e.message : "";
+        const msg = ctrl.signal.aborted
+          ? "the deployment couldn’t finalize the file (this happens on protected Preview deployments — try on the live site)"
+          : e instanceof Error ? e.message : "";
+        if (!firstError) firstError = msg;
+      } finally {
+        clearTimeout(timer);
       }
       setProgress({ done: i + 1, total: list.length });
     }

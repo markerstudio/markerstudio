@@ -176,8 +176,9 @@ export default function AdminShell({
           href="/admin"
           className="flex items-center gap-2.5 px-2.5 pb-3 no-underline lq-press rounded-2xl"
         >
-          <span className="w-9 h-9 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00] shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_6px_16px_-4px_rgba(255,145,0,.55)] flex items-center justify-center font-display font-black text-white text-[15px]">
-            M
+          <span className="w-9 h-9 rounded-full overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_6px_16px_-4px_rgba(255,145,0,.55)] flex items-center justify-center bg-gradient-to-br from-[#FFA226] to-[#F57F00]">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo-favicon.png" alt="Marker Studio" className="w-full h-full object-cover" />
           </span>
           <span className="font-display font-extrabold tracking-tight text-[15px] text-ink leading-none">
             Marker
