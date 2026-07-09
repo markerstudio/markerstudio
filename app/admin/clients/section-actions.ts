@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getSql } from "@/lib/db";
 import { getSession } from "@/lib/auth";
-import { savePhotoBlock, mergeClientData, type ClientData, type ClientPhoto } from "@/lib/clients";
+import { savePhotoBlock, mergeClientData, updateClientData, type ClientData, type ClientPhoto, type DocItem } from "@/lib/clients";
 
 // Per-section saves for the tabbed client editor. Each writes only the keys its
 // tab owns, via a shallow top-level merge (lib/clients mergeClientData → Postgres
@@ -27,6 +27,28 @@ export async function saveSection(
   if (!slug) return { ok: false, error: "Missing client." };
   const ok = await mergeClientData(slug, fields);
   if (!ok) return { ok: false, error: "Save failed — no database." };
+  revalidateClient(slug);
+  return { ok: true };
+}
+
+// Append newly-uploaded client files to the documents list in one atomic
+// read-mutate-write. Used by the Documents tab's bulk uploader so a drop of
+// several PDFs persists immediately (and can never clobber the rows a
+// concurrent edit already saved — it only ever adds).
+export async function addClientDocuments(
+  slug: string,
+  items: DocItem[],
+): Promise<{ ok: boolean; error?: string }> {
+  const session = await getSession();
+  if (!session) return { ok: false, error: "Not signed in." };
+  if (!slug) return { ok: false, error: "Missing client." };
+  const clean = (items || [])
+    .map((it) => ({ title: String(it?.title || "").trim(), type: String(it?.type || "File").trim() || "File", url: String(it?.url || "").trim() }))
+    .filter((it) => it.url);
+  if (!clean.length) return { ok: false, error: "Nothing to add." };
+  await updateClientData(slug, (d) => {
+    d.documents = [...(d.documents ?? []), ...clean];
+  });
   revalidateClient(slug);
   return { ok: true };
 }
