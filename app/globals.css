@@ -1136,6 +1136,19 @@ select.lq-input { padding-inline-end: 34px; background-image: url("data:image/sv
 @media (max-width: 640px) {
   .lq-modal { inset: auto 0 0 0; margin: 0 auto; width: 100%; border-radius: var(--lq-r-xl) var(--lq-r-xl) 0 0; animation: lq-sheet-up 420ms var(--lq-spring) both; }
 }
+/* Full-screen editor variant. Desktop: a tall centred panel. Mobile: fills the
+   sheet from just under the status bar / notch down to the bottom, so the title
+   row can't slide up under the Dynamic Island and the footer clears the home
+   indicator. */
+.lq-modal--full { width: min(96vw, 860px); height: 92dvh; max-height: none; display: flex; flex-direction: column; }
+@media (max-width: 640px) {
+  .lq-modal--full {
+    width: 100%; height: auto;
+    top: env(safe-area-inset-top, 0px);
+    padding-top: 16px;
+    padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+}
 .lq-pop { border-radius: var(--lq-r-lg); animation: lq-pop 240ms var(--lq-spring) both; }
 
 /* ---- Feedback ---- */
