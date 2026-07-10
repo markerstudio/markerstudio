@@ -1092,7 +1092,7 @@ export default function NotesApp({
       <Modal
         open={!!editing}
         onClose={closeEditor}
-        className={fullscreen ? "!w-[min(96vw,860px)] !h-[92dvh] !max-h-none flex flex-col" : ""}
+        className={fullscreen ? "lq-modal--full" : ""}
       >
         {editing && (
           <div className={fullscreen ? "flex flex-col h-full min-h-0 gap-3" : "space-y-3"}>
