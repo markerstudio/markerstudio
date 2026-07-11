@@ -37,6 +37,14 @@ export function noticeIcon(kind: NoticeKind): string {
   return ICONS[kind];
 }
 
+// Deep-link a notice to the exact task on the board (which scrolls to it and
+// highlights it), instead of dropping onto the generic Tasks page. The board
+// keys every row as `${slug}:${id}` — mirror that here so the two line up. When
+// a legacy row still lacks an id we fall back to the plain page.
+function taskHref(slug: string, id?: string | null): string {
+  return id ? `/admin/deliverables?task=${encodeURIComponent(`${slug}:${id}`)}` : "/admin/deliverables";
+}
+
 async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   try {
     return await fn();
@@ -133,7 +141,7 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
           kind: "task-request",
           title: `${list.name} requested a task`,
           body: t.title,
-          href: "/admin/deliverables",
+          href: taskHref(list.slug, t.id),
           at: now.toISOString(),
         });
         continue;
@@ -145,7 +153,7 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
           kind: "task-due",
           title: `Overdue: ${t.title}`,
           body: list.name,
-          href: "/admin/deliverables",
+          href: taskHref(list.slug, t.id),
           at: `${t.due}T09:00:00`,
         });
       } else if (t.due === today) {
@@ -159,7 +167,7 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
             kind: "task-due",
             title: `${t.title} — at ${t.time}`,
             body: list.name,
-            href: "/admin/deliverables",
+            href: taskHref(list.slug, t.id),
             at: fire.toISOString(),
           });
         } else {
@@ -168,7 +176,7 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
             kind: "task-due",
             title: `Due today: ${t.title}`,
             body: list.name,
-            href: "/admin/deliverables",
+            href: taskHref(list.slug, t.id),
             at: `${today}T08:00:00`,
           });
         }

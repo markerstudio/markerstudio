@@ -6,6 +6,7 @@
 // re-prioritise; drag a row into another date group to move it. All writes are
 // optimistic with rollback + toast on failure.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { TaskPriority, Deliverable, DeliverableStatus } from "@/lib/clients";
 import { friendlyDue, toISODate, type ProjectOption } from "@/lib/taskParse";
 import { patchTask, createTask, deleteTask, restoreTask, reorderTasks, clearDoneTasks, approveRequest, rejectRequest, bulkDeleteTasks, bulkRestoreTasks, bulkCompleteTasks, type TaskPatch } from "@/app/admin/deliverables/actions";
@@ -102,7 +103,9 @@ export default function TasksBoard({
   const [wizardOpen, setWizardOpen] = useState(false);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+  const [focusedKey, setFocusedKey] = useState<string | null>(null);
   const toastId = useRef(0);
+  const searchParams = useSearchParams();
 
   // Server refreshes (revalidation) hand us new props — adopt them, but keep
   // any in-flight optimistic rows (matched by key).
@@ -353,6 +356,39 @@ export default function TasksBoard({
 
   const pendingRequests = tasks.filter((t) => t.requestedByClient && t.pending);
 
+  // Arriving from a notification tap: /admin/deliverables?task=<slug>:<id>.
+  // Reveal that exact row — drop any filter that would hide it, expand its
+  // group, scroll to it, and pulse a highlight so it's clear which task the
+  // reminder meant. Handled once per link (waiting for the row to load), so
+  // later edits don't yank the view back.
+  const focusParam = searchParams?.get("task") || null;
+  const handledFocus = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusParam || handledFocus.current === focusParam) return;
+    const target = tasks.find((t) => t.key === focusParam);
+    if (!target) return; // board may still be hydrating — retry when tasks change
+    handledFocus.current = focusParam;
+    setListFilter("all");
+    setPrioFilter("all");
+    setQuery("");
+    const g = groupOf(target, today, tomorrow, weekEnd);
+    setCollapsed((s) => {
+      if (!s.has(g)) return s;
+      const n = new Set(s);
+      n.delete(g);
+      return n;
+    });
+    setFocusedKey(target.key);
+    const scroll = setTimeout(() => {
+      document.getElementById(`task-${target.key}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const clear = setTimeout(() => setFocusedKey((k) => (k === target.key ? null : k)), 4200);
+    return () => {
+      clearTimeout(scroll);
+      clearTimeout(clear);
+    };
+  }, [focusParam, tasks, today, tomorrow, weekEnd]);
+
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return tasks.filter((t) => {
@@ -433,7 +469,7 @@ export default function TasksBoard({
     if (selectMode) {
       const sel = selectedKeys.has(t.key);
       return (
-        <li key={t.key}>
+        <li key={t.key} id={`task-${t.key}`}>
           <button
             type="button"
             onClick={() => toggleSelected(t.key)}
@@ -453,9 +489,11 @@ export default function TasksBoard({
       );
     }
 
+    const focused = focusedKey === t.key;
     return (
       <li
         key={t.key}
+        id={`task-${t.key}`}
         draggable={!editing}
         onDragStart={(e) => {
           setDragKey(t.key);
@@ -477,7 +515,7 @@ export default function TasksBoard({
         }}
         className={`ms-task group relative rounded-xl transition-all duration-200 ${dragKey === t.key ? "opacity-40" : ""} ${
           dropHint?.beforeKey === t.key ? "ms-drop-before" : ""
-        } ${t.priority === "urgent" && !done ? "bg-rose-500/[0.06]" : "hover:bg-white/70"}`}
+        } ${focused ? "ring-2 ring-orange ring-offset-1 bg-orange/[0.08]" : t.priority === "urgent" && !done ? "bg-rose-500/[0.06]" : "hover:bg-white/70"}`}
       >
         <div className="flex items-start gap-3 px-2.5 py-2">
           {/* check */}

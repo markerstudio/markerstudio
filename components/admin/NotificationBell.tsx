@@ -84,12 +84,19 @@ export default function NotificationBell({
           n.notify(item.title, item.body).catch(() => undefined);
         } else if (typeof Notification !== "undefined" && Notification.permission === "granted") {
           try {
-            new Notification(`Marker — ${item.title}`, { body: item.body, tag: item.id, icon: "/assets/logo-favicon.png" });
+            const notif = new Notification(`Marker — ${item.title}`, { body: item.body, tag: item.id, icon: "/assets/logo-favicon.png" });
+            // Tapping the toast should land on the item it's about — the exact
+            // task, inquiry, invoice… — not wherever the app happens to be.
+            notif.onclick = () => {
+              window.focus();
+              router.push(item.href);
+              notif.close();
+            };
           } catch { /* platform quirk — the bell badge still shows it */ }
         }
       }
     },
-    []
+    [router]
   );
 
   const refresh = useCallback(async () => {
