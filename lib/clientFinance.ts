@@ -6,8 +6,9 @@
 // Notion stays Marker's internal books; this only shapes what the client sees.
 import { getLiveNotionClient } from "@/lib/notion";
 import { clientInvoiceFinanceIls, clientStoriesFinanceIls } from "@/lib/invoices";
+import { listClientPayments, ramziAmountOf } from "@/lib/payments";
 import { amountLabelToIls } from "@/lib/money";
-import type { Client } from "@/lib/clients";
+import type { Client, Invoice } from "@/lib/clients";
 
 export type ClientFacingMoney = {
   totalIls: number;
@@ -16,6 +17,53 @@ export type ClientFacingMoney = {
   progress: number; // paid %, 0–100
   balanceLabel: string; // openIls formatted, e.g. "1,800 ILS"
 };
+
+// The ISO day a history entry belongs to, for ordering the merged list —
+// entries carry it in their desc ("Due 2026-07-06 · Paid 2026-07-13").
+function historyDay(desc: string): string {
+  const m = /Paid (\d{4}-\d{2}-\d{2})/.exec(desc || "") || /Due (\d{4}-\d{2}-\d{2})/.exec(desc || "");
+  return m ? m[1] : "";
+}
+
+// Layer the STORIES side of each recorded payment into a Notion-mirrored
+// payment history. Notion's Income rows are Marker's books only — the stories
+// portion is collected for Ramzi and deliberately dropped on sync — so a
+// 2,000 payment split 1,200 plan / 800 stories reads as "Plan Payment 1,200"
+// to the client, as if 800 vanished. The client must see the full money they
+// handed over, so each payment's stories portion becomes its own "Stories"
+// line (matching the per-category rows Notion already produces: a payment can
+// already appear as Branding + Plan Payment). Merged newest-first, same as
+// the Notion list. Best-effort: with no payments table it returns the history
+// unchanged.
+export async function withStoriesHistory(history: Invoice[], clientSlug: string): Promise<Invoice[]> {
+  let stories: { inv: Invoice; d: string }[] = [];
+  try {
+    stories = (await listClientPayments(clientSlug))
+      .map((p) => ({ p, ramzi: ramziAmountOf(p) }))
+      .filter(({ ramzi }) => ramzi > 0)
+      .map(({ p, ramzi }) => {
+        const day = (p.paid_on || "").slice(0, 10);
+        const n = Math.round(ramzi).toLocaleString("en-US");
+        return {
+          inv: {
+            cycle: "Stories",
+            desc: day ? `Paid ${day}` : "",
+            amount: p.currency === "USD" ? `$${n}` : `${n} ILS`,
+            status: "paid" as const,
+          },
+          d: day,
+        };
+      });
+  } catch {
+    stories = [];
+  }
+  if (!stories.length) return history;
+  const merged = [...history.map((inv) => ({ inv, d: historyDay(inv.desc) })), ...stories];
+  // Stable sort, newest first; a payment's Stories line lands right beside its
+  // same-day Marker rows. Undated entries sink to the end.
+  merged.sort((a, b) => (a.d < b.d ? 1 : a.d > b.d ? -1 : 0));
+  return merged.map((x) => x.inv);
+}
 
 export async function clientFacingMoney(client: Client): Promise<ClientFacingMoney> {
   const d = client.data;

@@ -9,6 +9,7 @@ import { createSession, destroySession, getSession, isSuperAdmin, isPartnerOnly,
 import { SEED_PROJECTS, toRow, type Project } from "@/lib/projects";
 import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOrCreateClientByName, type ClientData } from "@/lib/clients";
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients, createNotionClientWithSource } from "@/lib/notion";
+import { withStoriesHistory } from "@/lib/clientFinance";
 import { snapshotForUndo } from "@/lib/undo";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
@@ -786,7 +787,9 @@ export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; err
         progress: info.progress || data.finance?.progress || 0,
         brandingFee: info.brandingFee || data.finance?.brandingFee || "",
       };
-      if (info.invoices.length) data.invoices = info.invoices;
+      // Notion's rows are Marker-only — layer each payment's stories portion
+      // back in so the saved history shows the client's full money.
+      if (info.invoices.length) data.invoices = await withStoriesHistory(info.invoices, slug);
     }
     if (data.notionDbId) {
       const posts = await fetchNotionPosts(data.notionDbId);
@@ -872,7 +875,8 @@ export async function syncNotionClient(formData: FormData) {
     progress: info.progress || data.finance?.progress || 0,
     brandingFee: info.brandingFee || data.finance?.brandingFee || "",
   };
-  if (info.invoices.length) data.invoices = info.invoices;
+  // Stories portions live only in the app's payment ledger — see resyncFromNotion.
+  if (info.invoices.length) data.invoices = await withStoriesHistory(info.invoices, slug);
 
   const name = info.name || undefined;
   if (name) {
@@ -959,7 +963,7 @@ export async function importAllNotionClients() {
       (e) => !e.data?.notionPageId && (e.slug === base || e.name.trim().toLowerCase() === name.trim().toLowerCase())
     );
 
-    const apply = (data: ClientData): ClientData => {
+    const apply = async (data: ClientData, forSlug: string): Promise<ClientData> => {
       data.notionPageId = pageId;
       data.plan = {
         name: info.planName || data.plan?.name || "",
@@ -976,12 +980,14 @@ export async function importAllNotionClients() {
         progress: info.progress || data.finance?.progress || 0,
         brandingFee: info.brandingFee || data.finance?.brandingFee || "",
       };
-      if (info.invoices.length) data.invoices = info.invoices;
+      // A hand-made portal being linked may already hold recorded payments —
+      // layer their stories portions in (no-op for a brand-new import).
+      if (info.invoices.length) data.invoices = await withStoriesHistory(info.invoices, forSlug);
       return data;
     };
 
     if (match) {
-      const data = apply((match.data || blankClientData()) as ClientData);
+      const data = await apply((match.data || blankClientData()) as ClientData, match.slug);
       await sql`UPDATE clients SET name = ${name}, data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${match.id}`;
       linkedPages.add(norm(pageId));
       linked++;
@@ -992,7 +998,7 @@ export async function importAllNotionClients() {
     let n = 2;
     while (slugs.has(slug)) slug = `${base}-${n++}`;
     slugs.add(slug);
-    const data = apply(blankClientData());
+    const data = await apply(blankClientData(), slug);
     await sql`INSERT INTO clients (slug, name, color, data) VALUES (${slug}, ${name}, '#303030', ${JSON.stringify(data)}::jsonb)`;
     linkedPages.add(norm(pageId));
     imported++;
