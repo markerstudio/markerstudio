@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { clientFacingMoney } from "@/lib/clientFinance";
+import { clientFacingMoney, withStoriesHistory } from "@/lib/clientFinance";
 import { getLiveNotionClient } from "@/lib/notion";
 import { getLiveMetaAnalysis } from "@/lib/meta";
 import { isDbEnabled, getSql } from "@/lib/db";
@@ -69,7 +69,12 @@ export default async function PortalPage({ params }: { params: { slug: string } 
         progress: live.progress || d.finance?.progress || 0,
         brandingFee: live.brandingFee || d.finance?.brandingFee || "",
       };
-      if (live.invoices.length) d.invoices = live.invoices;
+      // Notion's Income rows are Marker-only (stories are collected for Ramzi
+      // and dropped on sync) — layer each payment's stories portion back in so
+      // the client's history shows the full money they paid, not just Marker's
+      // share (a 2,000 payment split 1,200 plan / 800 stories must not read as
+      // "1,200 paid").
+      if (live.invoices.length) d.invoices = await withStoriesHistory(live.invoices, client.slug);
     }
     if (isDbEnabled() && JSON.stringify(client.data) !== before) {
       try {
