@@ -650,8 +650,22 @@ export const getLiveNotionClient = unstable_cache(
   { revalidate: 300, tags: ["notion-live"] },
 );
 
+// Identity of the client a calendar pull is for — used to keep a shared,
+// multi-client Notion calendar from leaking other clients' rows into this
+// client's portal (and into the AI-fill prompts built from it).
+export type NotionPostsClientFilter = { name?: string; slug?: string; notionPageId?: string };
+
+// Loose-but-safe name comparison: lowercase, strip punctuation, collapse
+// whitespace (keeps Arabic letters). "Dr. Jack Sabat" ≡ "dr-jack-sabat".
+function normClientName(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9؀-ۿ]+/gi, " ")
+    .trim();
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
+export async function fetchNotionPosts(dbId: string, forClient?: NotionPostsClientFilter): Promise<SocialPost[]> {
   const token = process.env.NOTION_TOKEN;
   if (!token) throw new Error("NOTION_TOKEN not set");
 
@@ -668,7 +682,13 @@ export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
   if (!res.ok) throw new Error(`Notion ${res.status}`);
   const json = await res.json();
 
-  const posts: SocialPost[] = [];
+  // A "Client"/"Brand"-ish column marks a shared calendar. When the database
+  // has one and we know who we're pulling for, only that client's rows are
+  // kept — rows tagged for someone else (or left untagged) never cross over.
+  const CLIENT_PROP = /client|brand|account|project/i;
+  let dbHasClientProp = false;
+
+  const rows: { post: SocialPost; clientNames: string[]; clientRelIds: string[] }[] = [];
   for (const page of json.results || []) {
     const props = page.properties || {};
     let date = "";
@@ -676,6 +696,8 @@ export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
     let platform = "";
     let notes = "";
     let status: SocialPost["status"] = "planned";
+    const clientNames: string[] = [];
+    const clientRelIds: string[] = [];
 
     for (const [name, prop] of Object.entries<any>(props)) {
       const type = prop?.type;
@@ -683,6 +705,13 @@ export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
         date = String(prop.date.start).slice(0, 10);
       } else if (type === "title") {
         title = (prop.title || []).map((t: any) => t.plain_text).join("");
+      } else if (CLIENT_PROP.test(name) && ["select", "multi_select", "rich_text", "relation", "people"].includes(type)) {
+        dbHasClientProp = true;
+        if (type === "select" && prop.select?.name) clientNames.push(prop.select.name);
+        else if (type === "multi_select") clientNames.push(...(prop.multi_select || []).map((x: any) => String(x.name || "")));
+        else if (type === "rich_text") clientNames.push((prop.rich_text || []).map((t: any) => t.plain_text).join(""));
+        else if (type === "people") clientNames.push(...(prop.people || []).map((x: any) => String(x.name || "")));
+        else if (type === "relation") clientRelIds.push(...(prop.relation || []).map((x: any) => String(x.id || "")));
       } else if (/platform|channel/i.test(name)) {
         if (type === "select") platform = prop.select?.name || "";
         else if (type === "multi_select") platform = (prop.multi_select || []).map((x: any) => x.name).join(", ");
@@ -696,9 +725,21 @@ export async function fetchNotionPosts(dbId: string): Promise<SocialPost[]> {
       }
     }
 
-    if (date || title) posts.push({ date, platform, title, notes, status });
+    if (date || title) rows.push({ post: { date, platform, title, notes, status }, clientNames, clientRelIds });
   }
 
+  let kept = rows;
+  if (forClient && dbHasClientProp) {
+    const wanted = new Set([forClient.name, forClient.slug].filter(Boolean).map((s) => normClientName(String(s))).filter(Boolean));
+    const wantedPageId = (forClient.notionPageId || "").replace(/-/g, "").toLowerCase();
+    kept = rows.filter(
+      (r) =>
+        (wantedPageId && r.clientRelIds.some((id) => id.replace(/-/g, "").toLowerCase() === wantedPageId)) ||
+        r.clientNames.some((n) => wanted.has(normClientName(n)))
+    );
+  }
+
+  const posts = kept.map((r) => r.post);
   posts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   return posts;
 }

@@ -429,7 +429,7 @@ export default async function EditClientPage({
 
           <div className="lq-well p-4">
             <div className="font-display font-bold text-sm tracking-tight text-ink mb-1">Content calendar → social posts</div>
-            <p className="text-xs text-charcoal-60 mb-3">Paste a Notion <b>content-calendar database</b>. Maps Date → day, Title → post, and Platform / Status if present.</p>
+            <p className="text-xs text-charcoal-60 mb-3">Paste a Notion <b>content-calendar database</b>. Maps Date → day, Title → post, and Platform / Status if present. If the calendar has a <b>Client / Brand</b> column, only rows tagged for this client are pulled.</p>
             <form action={syncNotion} className="flex items-end gap-3 flex-wrap">
               <input type="hidden" name="slug" value={client.slug} />
               <div className="flex-1 min-w-[240px]">
