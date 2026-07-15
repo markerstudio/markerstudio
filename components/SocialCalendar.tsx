@@ -34,6 +34,18 @@ const STAGES: { id: ContentStage; en: string; ar: string }[] = [
 const statusFromStage = (s: ContentStage): SocialPost["status"] => (s === "posted" ? "posted" : s === "scheduled" ? "scheduled" : "planned");
 const stageOf = (p: SocialPost): ContentStage => p.stage ?? (p.status === "posted" ? "posted" : p.status === "scheduled" ? "scheduled" : "idea");
 
+// Disclosure that starts open when there's already content, then follows the
+// user's toggle without React snapping it back on re-render while they type.
+function Reveal({ label, defaultOpen, children }: { label: string; defaultOpen: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <details className="ms-cal-copy" open={open} onToggle={(e) => setOpen((e.target as HTMLDetailsElement).open)}>
+      <summary>{label}</summary>
+      {children}
+    </details>
+  );
+}
+
 export type CalendarFeedback = {
   role: "studio" | "client";
   onApprove: (idx: number, approval: "approved" | "changes") => void;
@@ -79,12 +91,14 @@ export default function SocialCalendar({
   const init = first ? new Date(first + "T00:00:00") : new Date();
   const [y, setY] = useState(init.getFullYear());
   const [m, setM] = useState(init.getMonth());
-  const [view, setView] = useState<"month" | "week">("month");
+  const [view, setView] = useState<"month" | "week" | "plan">("month");
   const startOfWeek = (d: Date) => { const s = new Date(d); s.setDate(d.getDate() - d.getDay()); s.setHours(0, 0, 0, 0); return s; };
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(init));
   const [sel, setSel] = useState<string | null>(null);
   const [open, setOpen] = useState<number | null>(null); // expanded entry (view mode)
   const [draft, setDraft] = useState(""); // comment composer for the open entry
+  const [quick, setQuick] = useState<{ date: string; text: string } | null>(null); // planner quick-add draft
+  const [quickType, setQuickType] = useState<SocialContentType>("post"); // sticky across days — plan reels row after row
 
   const APPROVAL_PILL: Record<string, string> = { approved: "lq-chip--green", changes: "lq-chip--red", pending: "" };
   const approvalLabel = (a?: string) =>
@@ -122,8 +136,16 @@ export default function SocialCalendar({
 
   const update = (idx: number, patch: Partial<SocialPost>) => onChange?.(posts.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   const remove = (idx: number) => onChange?.(posts.filter((_, i) => i !== idx));
-  const addOn = (date: string, type: SocialPost["type"] = "post") =>
-    onChange?.([...posts, { date, platform: "", title: "", notes: "", status: "planned", stage: "idea", type, brief: "" }]);
+  const addOn = (date: string, type: SocialPost["type"] = "post", title = "") =>
+    onChange?.([...posts, { date, platform: "", title, notes: "", status: "planned", stage: "idea", type, brief: "" }]);
+  // Copy an entry to the same weekday next week — the "repeat the format" move.
+  const dupNextWeek = (idx: number) => {
+    const p = posts[idx];
+    if (!p?.date) return;
+    const d = new Date(p.date + "T00:00:00");
+    d.setDate(d.getDate() + 7);
+    onChange?.([...posts, { ...p, date: fmt(d.getFullYear(), d.getMonth(), d.getDate()), stage: "idea", status: "planned", approval: undefined, comments: undefined }]);
+  };
 
   // --- Drag and drop ---------------------------------------------------------
   const dndOn = editable || !!onDropShot;
@@ -173,15 +195,26 @@ export default function SocialCalendar({
           </div>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button type="button" onClick={() => setView(view === "month" ? "week" : "month")} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Toggle view">
-            {view === "month" ? ui("Week", "أسبوع") : ui("Month", "شهر")}
-          </button>
+          {editable ? (
+            <div className="lq-seg" role="tablist">
+              {([["month", ui("Month", "شهر")], ["week", ui("Week", "أسبوع")], ["plan", ui("Planner", "المخطّط")]] as const).map(([v, label]) => (
+                <button key={v} type="button" role="tab" aria-selected={view === v} className={`lq-seg__opt ${view === v ? "is-on" : ""}`} onClick={() => setView(v)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <button type="button" onClick={() => setView(view === "month" ? "week" : "month")} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Toggle view">
+              {view === "month" ? ui("Week", "أسبوع") : ui("Month", "شهر")}
+            </button>
+          )}
           <button type="button" onClick={prev} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Previous">‹</button>
           <button type="button" onClick={goToday} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Today">{ui("Today", "اليوم")}</button>
           <button type="button" onClick={next} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Next">›</button>
         </div>
       </div>
 
+      {view !== "plan" && (
       <div className="ms-cal-grid">
         {WD[lang].map((w) => <div key={w} className="ms-cal-wd">{w}</div>)}
         {cells.map((date, ci) => {
@@ -198,6 +231,14 @@ export default function SocialCalendar({
               role="button"
               tabIndex={0}
             >
+              {editable && (
+                <button
+                  type="button"
+                  className="ms-cal-dayadd"
+                  aria-label={ui("Add here", "أضف هنا")}
+                  onClick={(e) => { e.stopPropagation(); setSel(date); addOn(date); }}
+                >＋</button>
+              )}
               <span className="ms-cal-num">{d}</span>
               {dayPosts.slice(0, 3).map(({ p, idx }, k) => (
                 <span
@@ -216,9 +257,68 @@ export default function SocialCalendar({
           );
         })}
       </div>
+      )}
+
+      {/* Planner — the whole month as day rows: type a title, hit Enter, done.
+          Built for laying a month out fast without day-by-day round-trips. */}
+      {view === "plan" && editable && (
+        <div className="ms-cal-plan">
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const date = fmt(y, m, i + 1);
+            const dt = new Date(date + "T00:00:00");
+            const dayPosts = byDate[date] ?? [];
+            const qText = quick?.date === date ? quick.text : "";
+            return (
+              <div key={date} className={`ms-cal-plan__day ${date === todayStr ? "is-today" : ""} ${dt.getDay() === 0 && i > 0 ? "is-weekstart" : ""}`} onDragOver={onDayDragOver} onDrop={onDayDrop(date)}>
+                <button type="button" className="ms-cal-plan__date" title={ui("Open in month view", "افتح في عرض الشهر")} onClick={() => { setView("month"); setSel(date); setOpen(null); }}>
+                  <i>{WD[lang][dt.getDay()]}</i>
+                  <b>{dt.getDate()}</b>
+                </button>
+                <div className="ms-cal-plan__rows">
+                  {dayPosts.map(({ p, idx }) => (
+                    <div key={idx} className={`ms-cal-plan__row ms-cal-plan__row--${p.type || "post"}`}>
+                      <i aria-hidden title={tLabel(p.type)}>{typeMeta(p.type).icon}</i>
+                      <input
+                        className="ms-edit ms-cal-plan__title"
+                        value={p.title}
+                        placeholder={p.type === "story" ? ui("Story direction…", "إخراج الستوري…") : ui("Title / hook…", "العنوان / الخطّاف…")}
+                        dir="auto"
+                        onChange={(e) => update(idx, { title: e.target.value })}
+                      />
+                      <select className="ms-edit ms-cal-plan__stage" value={stageOf(p)} onChange={(e) => { const stage = e.target.value as ContentStage; update(idx, { stage, status: statusFromStage(stage) }); }}>
+                        {STAGES.map((s) => <option key={s.id} value={s.id}>{ui(s.en, s.ar)}</option>)}
+                      </select>
+                      <button type="button" className="ms-cal-iconbtn" title={ui("Repeat next week", "كرّر الأسبوع القادم")} onClick={() => dupNextWeek(idx)}>⧉</button>
+                      <button type="button" className="ms-cal-iconbtn ms-cal-iconbtn--del" title={ui("Remove", "حذف")} onClick={() => remove(idx)}>✕</button>
+                    </div>
+                  ))}
+                  <div className="ms-cal-plan__add">
+                    <select className="ms-edit" value={quickType} onChange={(e) => setQuickType(e.target.value as SocialContentType)} aria-label={ui("Type", "النوع")}>
+                      {TYPES.map((t) => <option key={t.id} value={t.id}>{t.icon} {tLabel(t.id)}</option>)}
+                    </select>
+                    <input
+                      className="ms-edit"
+                      value={qText}
+                      placeholder={ui("Add & press Enter…", "أضف واضغط Enter…")}
+                      dir="auto"
+                      onChange={(e) => setQuick({ date, text: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter") return;
+                        e.preventDefault();
+                        addOn(date, quickType, qText.trim());
+                        setQuick({ date, text: "" });
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Selected-day panel — premium per-entry cards */}
-      {sel && (
+      {sel && view !== "plan" && (
         <div className="lq-well p-4 mt-4">
           <div className="ms-cal-panel__head">
             <b>{prettyDay(sel)}</b>
@@ -237,6 +337,30 @@ export default function SocialCalendar({
             {selEntries.map(({ p, idx }) => {
               const type = p.type || "post";
               if (editable) {
+                // Stories are lightweight on purpose: a direction line + stage.
+                // Frame-by-frame detail tucks behind a disclosure — no platform,
+                // caption, or hashtag fields to wade through.
+                if (type === "story") {
+                  return (
+                    <div key={idx} className="ms-cal-entry ms-cal-entry--story">
+                      <div className="ms-cal-entry__head">
+                        <select className="ms-edit" value={type} onChange={(e) => update(idx, { type: e.target.value as SocialPost["type"] })}>
+                          {TYPES.map((t) => <option key={t.id} value={t.id}>{tLabel(t.id)}</option>)}
+                        </select>
+                        <select className="ms-edit" value={stageOf(p)} onChange={(e) => { const stage = e.target.value as ContentStage; update(idx, { stage, status: statusFromStage(stage) }); }}>
+                          {STAGES.map((s) => <option key={s.id} value={s.id}>{ui(s.en, s.ar)}</option>)}
+                        </select>
+                        <button type="button" className="ms-cal-iconbtn ms-cal-dup" title={ui("Repeat next week", "كرّر الأسبوع القادم")} onClick={() => dupNextWeek(idx)}>⧉</button>
+                        <button type="button" className="ms-cal-del" onClick={() => remove(idx)} aria-label="Remove">✕</button>
+                      </div>
+                      <input className="ms-edit ms-cal-entry__title" value={p.title} placeholder={ui("Story direction — poll, behind the scenes, countdown…", "إخراج الستوري — تصويت، كواليس، عدّ تنازلي…")} dir="auto" onChange={(e) => update(idx, { title: e.target.value })} />
+                      <Reveal label={ui("Frame-by-frame", "إطاراً بإطار")} defaultOpen={!!p.brief}>
+                        <textarea className="ms-edit ms-cal-brief__area" rows={3} value={p.brief || ""} placeholder={briefPlaceholder("story")} dir="auto" onChange={(e) => update(idx, { brief: e.target.value })} />
+                      </Reveal>
+                    </div>
+                  );
+                }
+                const hasCopy = !!(p.hook || p.caption || p.hashtags || p.cta);
                 return (
                   <div key={idx} className={`ms-cal-entry ms-cal-entry--${type}`}>
                     <div className="ms-cal-entry__head">
@@ -247,6 +371,7 @@ export default function SocialCalendar({
                       <select className="ms-edit" value={stageOf(p)} onChange={(e) => { const stage = e.target.value as ContentStage; update(idx, { stage, status: statusFromStage(stage) }); }}>
                         {STAGES.map((s) => <option key={s.id} value={s.id}>{ui(s.en, s.ar)}</option>)}
                       </select>
+                      <button type="button" className="ms-cal-iconbtn ms-cal-dup" title={ui("Repeat next week", "كرّر الأسبوع القادم")} onClick={() => dupNextWeek(idx)}>⧉</button>
                       <button type="button" className="ms-cal-del" onClick={() => remove(idx)} aria-label="Remove">✕</button>
                     </div>
                     {p.mediaUrl && <div style={{ marginTop: 8 }}><Thumb url={p.mediaUrl} kind={p.mediaKind} /></div>}
@@ -260,12 +385,15 @@ export default function SocialCalendar({
                       <span className="ms-cal-brief__label">{typeMeta(type).icon} {briefLabel(type)}</span>
                       <textarea className="ms-edit ms-cal-brief__area" rows={type === "reel" ? 5 : 3} value={p.brief || ""} placeholder={briefPlaceholder(type)} dir="auto" onChange={(e) => update(idx, { brief: e.target.value })} />
                     </label>
-                    <div className="ms-cal-rich">
-                      <input className="ms-edit" value={p.hook || ""} placeholder={ui("Hook", "الخطّاف")} onChange={(e) => update(idx, { hook: e.target.value })} />
-                      <textarea className="ms-edit" rows={2} value={p.caption || ""} placeholder={ui("Caption", "التعليق")} dir="auto" onChange={(e) => update(idx, { caption: e.target.value })} />
-                      <input className="ms-edit" value={p.hashtags || ""} placeholder={ui("Hashtags", "الهاشتاغات")} onChange={(e) => update(idx, { hashtags: e.target.value })} />
-                      <input className="ms-edit" value={p.cta || ""} placeholder={ui("Call to action", "دعوة لإجراء")} onChange={(e) => update(idx, { cta: e.target.value })} />
-                    </div>
+                    {/* Copywriting stays out of the way while you're sketching ideas. */}
+                    <Reveal label={ui("Copywriting — hook · caption · hashtags · CTA", "الكتابة — الخطّاف · التعليق · الهاشتاغات · الدعوة")} defaultOpen={hasCopy}>
+                      <div className="ms-cal-rich">
+                        <input className="ms-edit" value={p.hook || ""} placeholder={ui("Hook", "الخطّاف")} onChange={(e) => update(idx, { hook: e.target.value })} />
+                        <textarea className="ms-edit" rows={2} value={p.caption || ""} placeholder={ui("Caption", "التعليق")} dir="auto" onChange={(e) => update(idx, { caption: e.target.value })} />
+                        <input className="ms-edit" value={p.hashtags || ""} placeholder={ui("Hashtags", "الهاشتاغات")} onChange={(e) => update(idx, { hashtags: e.target.value })} />
+                        <input className="ms-edit" value={p.cta || ""} placeholder={ui("Call to action", "دعوة لإجراء")} onChange={(e) => update(idx, { cta: e.target.value })} />
+                      </div>
+                    </Reveal>
                   </div>
                 );
               }

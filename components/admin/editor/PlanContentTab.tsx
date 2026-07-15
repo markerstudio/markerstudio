@@ -4,6 +4,7 @@ import { memo, useCallback, useState, useTransition } from "react";
 import { savePhotoSection, saveSection } from "@/app/admin/clients/section-actions";
 import { ensurePhotoIds, genPhotoId } from "@/lib/photo";
 import SocialCalendar from "@/components/SocialCalendar";
+import MonthScaffold from "./MonthScaffold";
 import ShotRail from "./ShotRail";
 import { input, lbl, Text, Bi } from "./fields";
 import { planContentPrompt } from "./aiPrompts";
@@ -69,6 +70,7 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
   const [aiMsg, setAiMsg] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [showAi, setShowAi] = useState(false);
+  const [showRhythm, setShowRhythm] = useState(false);
   const mark = () => { setDirty(true); setMsg(""); };
 
   function copyPrompt() {
@@ -184,9 +186,17 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
           <div className="w-24"><label className={lbl}>Start</label><input className={input} value={plan.start} placeholder="Feb 26" onChange={(e) => patchPlan({ start: e.target.value })} /></div>
           <div className="w-24"><label className={lbl}>End</label><input className={input} value={plan.end} placeholder="ongoing" onChange={(e) => patchPlan({ end: e.target.value })} /></div>
           <label className="flex items-center gap-2 text-sm h-[38px] whitespace-nowrap"><input type="checkbox" className="custom-checkbox" checked={plan.active} onChange={(e) => patchPlan({ active: e.target.checked })} /> Active</label>
-          <button type="button" onClick={() => setShowAi((v) => !v)} className="lq-btn lq-btn--primary">✨ AI fill</button>
+          <button type="button" onClick={() => { setShowRhythm((v) => !v); setShowAi(false); }} className="lq-btn lq-btn--dark">📅 Plan month</button>
+          <button type="button" onClick={() => { setShowAi((v) => !v); setShowRhythm(false); }} className="lq-btn lq-btn--primary">✨ AI fill</button>
           <button type="button" onClick={() => setShowDetails((v) => !v)} className="lq-btn lq-btn--glass">{showDetails ? "Hide details" : "Plan details"}</button>
         </div>
+
+        {showRhythm && (
+          <div className="mt-4 border-t border-charcoal/5 pt-4">
+            <p className="text-sm text-charcoal-60 mb-3">Set the month&apos;s rhythm once — which days get posts, reels or carousels, plus daily stories — and lay the whole month out in one click. Then fill the ideas in the calendar&apos;s <b>Planner</b> view, or let AI fill write them.</p>
+            <MonthScaffold posts={posts} onAdd={(slots) => { setPosts((cur) => [...cur, ...slots]); mark(); }} />
+          </div>
+        )}
 
         {showAi && (
           <div className="mt-4 border-t border-charcoal/5 pt-4">
