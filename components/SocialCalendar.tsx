@@ -62,6 +62,7 @@ export default function SocialCalendar({
   feedback,
   onDropShot,
   onNeedsShoot,
+  onRequestApproval,
 }: {
   posts: SocialPost[];
   onChange?: (posts: SocialPost[]) => void;
@@ -74,6 +75,9 @@ export default function SocialCalendar({
   // When provided, an editable post shows a "Needs shoot" toggle that adds (or
   // removes) a linked shot in the shoot to-do list. The host owns the photo block.
   onNeedsShoot?: (idx: number) => void;
+  // When provided (admin editor), entries show "Ask client to approve" — the
+  // host persists approval=pending server-side and notifies the client.
+  onRequestApproval?: (idx: number) => void;
 }) {
   const ui = (en: string, ar: string) => (lang === "ar" ? ar : en);
   const tLabel = (t?: string) => ui(typeMeta(t).en, typeMeta(t).ar);
@@ -391,6 +395,16 @@ export default function SocialCalendar({
                         <button type="button" className="ms-cal-del" onClick={() => remove(idx)} aria-label="Remove">✕</button>
                       </div>
                       <input className="ms-edit ms-cal-entry__title" value={p.title} placeholder={ui("Story direction — poll, behind the scenes, countdown…", "إخراج الستوري — تصويت، كواليس، عدّ تنازلي…")} dir="auto" onChange={(e) => update(idx, { title: e.target.value })} />
+                      {onRequestApproval &&
+                        (p.approval === "pending" ? (
+                          <span className="lq-chip lq-chip--orange ms-cal-approvechip">{ui("Awaiting client approval", "بانتظار موافقة العميل")}</span>
+                        ) : p.approval === "approved" ? (
+                          <span className="lq-chip lq-chip--green ms-cal-approvechip">{ui("Client approved ✓", "وافق العميل ✓")}</span>
+                        ) : (
+                          <button type="button" onClick={() => onRequestApproval(idx)} className="ms-cal-needshoot">
+                            📨 {ui(p.approval === "changes" ? "Re-ask for approval" : "Ask client to approve", "اطلب موافقة العميل")}
+                          </button>
+                        ))}
                       <Reveal label={ui("Frame-by-frame", "إطاراً بإطار")} defaultOpen={!!p.brief}>
                         <textarea className="ms-edit ms-cal-brief__area" rows={3} value={p.brief || ""} placeholder={briefPlaceholder("story")} dir="auto" onChange={(e) => update(idx, { brief: e.target.value })} />
                       </Reveal>
@@ -413,11 +427,23 @@ export default function SocialCalendar({
                     </div>
                     {p.mediaUrl && <div style={{ marginTop: 8 }}><Thumb url={p.mediaUrl} kind={p.mediaKind} /></div>}
                     <input className="ms-edit ms-cal-entry__title" value={p.title} placeholder={ui("Title / hook…", "العنوان / الخطّاف…")} onChange={(e) => update(idx, { title: e.target.value })} />
-                    {onNeedsShoot && (
-                      <button type="button" onClick={() => onNeedsShoot(idx)} className={`ms-cal-needshoot ${p.fromShot ? "is-on" : ""}`}>
-                        {p.fromShot ? `✓ ${ui("In shoot list", "في قائمة التصوير")}` : `📷 ${ui("Needs shoot", "يحتاج تصوير")}`}
-                      </button>
-                    )}
+                    <span className="flex items-center gap-1.5 flex-wrap">
+                      {onNeedsShoot && (
+                        <button type="button" onClick={() => onNeedsShoot(idx)} className={`ms-cal-needshoot ${p.fromShot ? "is-on" : ""}`}>
+                          {p.fromShot ? `✓ ${ui("In shoot list", "في قائمة التصوير")}` : `📷 ${ui("Needs shoot", "يحتاج تصوير")}`}
+                        </button>
+                      )}
+                      {onRequestApproval &&
+                        (p.approval === "pending" ? (
+                          <span className="lq-chip lq-chip--orange ms-cal-approvechip">{ui("Awaiting client approval", "بانتظار موافقة العميل")}</span>
+                        ) : p.approval === "approved" ? (
+                          <span className="lq-chip lq-chip--green ms-cal-approvechip">{ui("Client approved ✓", "وافق العميل ✓")}</span>
+                        ) : (
+                          <button type="button" onClick={() => onRequestApproval(idx)} className="ms-cal-needshoot">
+                            📨 {ui(p.approval === "changes" ? "Re-ask for approval" : "Ask client to approve", "اطلب موافقة العميل")}
+                          </button>
+                        ))}
+                    </span>
                     <label className="ms-cal-brief">
                       <span className="ms-cal-brief__label">{typeMeta(type).icon} {briefLabel(type)}</span>
                       <textarea className="ms-edit ms-cal-brief__area" rows={type === "reel" ? 5 : 3} value={p.brief || ""} placeholder={briefPlaceholder(type)} dir="auto" onChange={(e) => update(idx, { brief: e.target.value })} />

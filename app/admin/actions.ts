@@ -11,6 +11,7 @@ import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOr
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients, createNotionClientWithSource } from "@/lib/notion";
 import { withStoriesHistory } from "@/lib/clientFinance";
 import { snapshotForUndo } from "@/lib/undo";
+import { notifyClientDevices } from "@/lib/clientNotify";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -254,6 +255,7 @@ export async function sendProposal(formData: FormData) {
   const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
   if (!rows[0]) redirect("/admin/clients");
   const data = (rows[0].data || {}) as ClientData;
+  const wasPublished = !!data.proposal?.published;
   data.proposal = {
     ...data.proposal,
     published: send,
@@ -261,6 +263,14 @@ export async function sendProposal(formData: FormData) {
     sentAt: send ? data.proposal?.sentAt || new Date().toISOString() : data.proposal?.sentAt,
   };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  if (send && !wasPublished) {
+    await notifyClientDevices(rows[0].id, {
+      title: "Marker Studio — your proposal is ready",
+      body: "Review and accept it in your portal.",
+      url: `/portal/${slug}/proposal`,
+      tag: `proposal-${slug}`,
+    });
+  }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=${send ? "proposal-sent" : "proposal-unsent"}`);
 }
@@ -276,6 +286,7 @@ export async function sendAgreement(formData: FormData) {
   const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
   if (!rows[0]) redirect("/admin/clients");
   const data = (rows[0].data || {}) as ClientData;
+  const wasPublished = !!data.agreement?.published;
   data.agreement = {
     ...data.agreement,
     published: send,
@@ -283,6 +294,14 @@ export async function sendAgreement(formData: FormData) {
     sentAt: send ? data.agreement?.sentAt || new Date().toISOString() : data.agreement?.sentAt,
   };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  if (send && !wasPublished) {
+    await notifyClientDevices(rows[0].id, {
+      title: "Marker Studio — your agreement is ready",
+      body: "Review and e-sign it in your portal.",
+      url: `/portal/${slug}/agreement`,
+      tag: `agreement-${slug}`,
+    });
+  }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=${send ? "agreement-sent" : "agreement-unsent"}`);
 }

@@ -2,6 +2,7 @@
 
 import { memo, useCallback, useState } from "react";
 import { savePhotoSection, saveSection } from "@/app/admin/clients/section-actions";
+import { requestPostApproval } from "@/app/portal-feedback-actions";
 import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import { ensurePhotoIds, genPhotoId } from "@/lib/photo";
 import SocialCalendar from "@/components/SocialCalendar";
@@ -97,6 +98,19 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
       setMsg("Restored unsaved changes — saving…");
     },
   });
+
+  // "Ask client to approve" — flush the latest snapshot first so the server's
+  // post indexes match what's on screen, then mark + notify server-side.
+  async function askApproval(idx: number) {
+    await sync.saveNow();
+    const r = await requestPostApproval(slug, idx);
+    if (r.ok) {
+      setPosts((cur) => cur.map((p, i) => (i === idx ? { ...p, approval: "pending" as const } : p)));
+      setMsg("Approval requested — the client's devices were notified 🔔");
+    } else {
+      setMsg("Couldn't request approval — try again.");
+    }
+  }
 
   function copyPrompt() {
     navigator.clipboard?.writeText(planContentPrompt({ ...data, plan, photo, social: { headline, posts } }));
@@ -276,7 +290,7 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
       {/* Content calendar — full width on its own line. */}
       <fieldset className="lq-card p-5 min-w-0">
         <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Content calendar</legend>
-        <SocialCalendar posts={posts} editable lang="en" onChange={(p) => { setPosts(p); mark(); }} onDropShot={onDropShot} onNeedsShoot={onNeedsShoot} />
+        <SocialCalendar posts={posts} editable lang="en" onChange={(p) => { setPosts(p); mark(); }} onDropShot={onDropShot} onNeedsShoot={onNeedsShoot} onRequestApproval={askApproval} />
       </fieldset>
 
       {/* Auto-save status — everything saves itself; ⌘S / the button force it. */}

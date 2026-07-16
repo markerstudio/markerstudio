@@ -10,6 +10,7 @@ import { revalidatePath } from "next/cache";
 import { getSession } from "@/lib/auth";
 import { getSql } from "@/lib/db";
 import { updateDeliverablesBlock } from "@/lib/clients";
+import { notifyClientDevices } from "@/lib/clientNotify";
 import { genId } from "@/lib/deliverables";
 import type { ActivityItem, ClientData, SocialPost } from "@/lib/clients";
 
@@ -28,6 +29,42 @@ async function loadClient(slug: string) {
 // Newest-first cap so the feed never grows unbounded.
 function pushUpdate(data: ClientData, item: ActivityItem) {
   data.updates = [item, ...(data.updates ?? [])].slice(0, 50);
+}
+
+// Studio → client: mark a planned post as awaiting the client's sign-off,
+// log it on the portal's activity feed, and nudge the client's devices.
+// Triggered from the admin calendar's day drawer ("Ask client to approve").
+export async function requestPostApproval(slug: string, index: number): Promise<Result> {
+  const s = await getSession();
+  if (!s || s.role === "client") return { ok: false, error: "unauthorized" };
+  const c = await loadClient(slug);
+  if (!c) return { ok: false, error: "not found" };
+
+  const data = (c.data || {}) as ClientData;
+  const post = data.social?.posts?.[index];
+  if (!post) return { ok: false, error: "no post" };
+  post.approval = "pending";
+  const label = post.title || post.platform || "a planned post";
+  pushUpdate(data, {
+    at: new Date().toISOString(),
+    kind: "approval",
+    title: { en: "A post is waiting for your approval", ar: "منشور بانتظار موافقتك" },
+    body: { en: label, ar: label },
+  });
+
+  try {
+    await getSql()`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${c.id}`;
+  } catch {
+    return { ok: false, error: "db" };
+  }
+  await notifyClientDevices(c.id, {
+    title: "Marker Studio — approval needed",
+    body: `“${label}” is waiting for your review.`,
+    url: `/portal/${slug}`,
+    tag: `approve-${slug}-${index}`,
+  });
+  revalidatePath(`/portal/${slug}`);
+  return { ok: true };
 }
 
 export async function setPostApproval(slug: string, index: number, approval: SocialPost["approval"]): Promise<Result> {

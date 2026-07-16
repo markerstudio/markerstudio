@@ -77,8 +77,11 @@ depend on them.
    Client-facing (Story / Analysis / Documents segments), Setup demoted to a
    quiet rail-footer entry; every legacy deep link still resolves.
 4. **Offline Phase 2** (IndexedDB snapshot + offline banner + queue everywhere).
-5. **Client notifications:** push/email nudges on "sent for approval",
-   invoice due, plan published — reusing the agenda derivations.
+5. ✅ **Client notifications (push):** automatic device nudges when a proposal
+   or agreement is first sent, when an invoice is issued, and when a post is
+   sent for approval — via the new "Ask client to approve" flow in the
+   calendar drawer (which also logs to the portal activity feed). All
+   best-effort through lib/clientNotify; email digests remain a later option.
 6. **Offline Phase 3** (local-first + sync log). Re-evaluate scope after 4.
 7. **Later / optional:** Meta insights on posted calendar entries (needs Meta
    connection), in-app AI fill (needs credits), content pillars & balance,
