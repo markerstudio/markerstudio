@@ -25,6 +25,7 @@ const inputCls = "lq-input w-full";
 
 const MSG: Record<string, { text: string; ok?: boolean }> = {
   saved: { text: "Client saved.", ok: true },
+  created: { text: "Client created ✓ — this is their workspace. Set the plan under Plan & Content, and share access under Setup.", ok: true },
   imported: { text: "Imported from Notion ✓ — review and Save changes.", ok: true },
   login: { text: "Client login created.", ok: true },
   removed: { text: "Login removed.", ok: true },

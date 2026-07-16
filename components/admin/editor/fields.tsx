@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { LocalizedText } from "@/lib/clients";
 
 // Shared form primitives for the tabbed client editor. Extracted from the old
-// monolithic ClientForm so every tab renders identical-looking fields.
+// retired monolithic editor so every tab renders identical-looking fields.
 
 export const input = "lq-input";
 export const lbl = "block text-[11px] font-display font-bold uppercase tracking-[0.1em] text-charcoal-60 mb-1";
