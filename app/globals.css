@@ -1304,9 +1304,10 @@ textarea.ms-edit { resize: vertical; }
 
 /* Social calendar — premium content plan
    purple = reel, orange = story, charcoal = post */
-.ms-cal { --reel: #7a3ff2; }
+.ms-cal { --reel: #7a3ff2; --car: #0e8f85; }
 .ms-cal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
-.ms-cal-headline strong { display: block; font: 800 22px/1 var(--font-display); letter-spacing: -0.01em; }
+.ms-cal-headline strong { display: block; font: 800 24px/1 var(--font-display); letter-spacing: -0.015em; }
+.ms-cal-yr { color: var(--fg-subtle); font-weight: 700; }
 .ms-cal-summary { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 10px; }
 .ms-cal-key { display: inline-flex; align-items: center; gap: 5px; font: 700 11px/1 var(--font-display); color: var(--fg-muted); }
 .ms-cal-key i { font-style: normal; font-size: 12px; }
@@ -1319,24 +1320,33 @@ textarea.ms-edit { resize: vertical; }
 .ms-cal-nav button:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
 .ms-cal-today { font: 700 11px/1 var(--font-display) !important; text-transform: uppercase; letter-spacing: 0.06em; padding: 0 12px !important; }
 
-.ms-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.ms-cal-wd { font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-subtle); text-align: center; padding: 6px 0; }
-.ms-cal-day { min-height: 92px; border: 1px solid var(--border); border-radius: var(--r-md); padding: 7px; background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: transform 140ms, border-color 140ms, box-shadow 140ms; overflow: hidden; }
-.ms-cal-day:hover { border-color: var(--marker-orange); transform: translateY(-2px); box-shadow: 0 6px 16px rgba(48,48,48,.08); }
-.ms-cal-day.is-other { background: transparent; border-color: transparent; cursor: default; min-height: 0; box-shadow: none; transform: none; }
-.ms-cal-day.is-selected { border-color: var(--marker-orange); box-shadow: 0 0 0 2px var(--marker-orange); }
-.ms-cal-day.is-today .ms-cal-num { background: var(--marker-orange); color: #fff; width: 20px; height: 20px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; }
-.ms-cal-num { font: 700 12px/1 var(--font-display); color: var(--fg-muted); align-self: flex-start; }
-.ms-cal-post { font: 600 10px/1.25 var(--font-display); padding: 3px 5px; border-radius: 4px; background: var(--marker-charcoal-10); color: var(--marker-charcoal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 3px; }
-.ms-cal-post--posted { background: rgba(43,182,115,.16); color: #1f9d63; }
-.ms-cal-post--scheduled { background: rgba(46,111,181,.14); color: #2e6fb5; }
-.ms-cal-post--planned { background: var(--marker-charcoal-10); color: var(--marker-charcoal-80); }
-.ms-cal-post__type { font-style: normal; font-size: 9px; flex: none; }
-.ms-cal-post--story { box-shadow: inset 3px 0 0 var(--marker-orange); }
+/* Continuous hairline grid — the container paints the lines (Notion/Google
+   Calendar style): 1px gaps over a line-colored background, one soft outer
+   radius, no per-cell borders or hover lifts. */
+.ms-cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.ms-cal-wd { background: var(--marker-paper); font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-subtle); text-align: center; padding: 10px 0 9px; }
+.ms-cal-day { min-height: 106px; padding: 7px; background: #fff; cursor: pointer; display: flex; flex-direction: column; gap: 3px; transition: background 140ms; overflow: hidden; }
+.ms-cal-day:hover { background: rgba(255,145,0,.05); }
+.ms-cal-day.is-other { background: #fcfbf8; }
+.ms-cal-day.is-other .ms-cal-num { opacity: 0.4; }
+.ms-cal-day.is-other .ms-cal-post { opacity: 0.45; }
+.ms-cal-day.is-selected { background: rgba(255,145,0,.07); box-shadow: inset 0 0 0 2px var(--marker-orange); }
+.ms-cal-num { font: 700 12px/1 var(--font-display); color: var(--fg-muted); align-self: flex-start; width: 22px; height: 22px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin: -2px 0 0 -2px; }
+.ms-cal-day.is-today .ms-cal-num { background: var(--marker-orange); color: #fff; }
+/* Event chips: the content TYPE owns the color (like Later/Planable), posted
+   items fade with a check — status detail lives in the day panel. */
+.ms-cal-post { font: 600 11px/1.3 var(--font-display); padding: 4px 6px; border-radius: 6px; background: rgba(48,48,48,.07); color: var(--marker-charcoal); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: flex; align-items: center; gap: 5px; }
+.ms-cal-post--posted { opacity: 0.55; }
+.ms-cal-post__done { font-style: normal; font-size: 9px; flex: none; color: #1f9d63; }
+.ms-cal-post__type { font-style: normal; font-size: 10px; flex: none; }
+.ms-cal-post--story { background: rgba(255,145,0,.13); color: #a35c00; }
 .ms-cal-post--story .ms-cal-post__type { color: var(--marker-orange); }
-.ms-cal-post--reel { box-shadow: inset 3px 0 0 var(--reel); }
+.ms-cal-post--reel { background: rgba(122,63,242,.10); color: #6531cf; }
 .ms-cal-post--reel .ms-cal-post__type { color: var(--reel); }
-.ms-cal-more { font: 700 9px/1 var(--font-display); color: var(--fg-subtle); }
+.ms-cal-post--carousel { background: rgba(14,143,133,.11); color: #0b7168; }
+.ms-cal-post--carousel .ms-cal-post__type { color: var(--car); }
+.ms-cal-key--carousel i { color: var(--car); }
+.ms-cal-more { font: 700 9px/1 var(--font-display); color: var(--fg-subtle); padding-inline-start: 2px; }
 
 /* Day panel + entry cards */
 .ms-cal-panel { margin-top: 18px; border: 1px solid var(--border); border-radius: var(--r-lg, 16px); padding: 18px; background: linear-gradient(180deg, #fff, var(--marker-paper)); box-shadow: 0 10px 30px rgba(48,48,48,.06); }
@@ -1348,9 +1358,10 @@ textarea.ms-edit { resize: vertical; }
 .ms-cal-add--story:hover { border-color: var(--marker-orange); }
 .ms-cal-add--reel:hover { border-color: var(--reel); color: var(--reel); }
 .ms-cal-entries { display: flex; flex-direction: column; gap: 12px; }
-.ms-cal-entry { border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; padding: 12px; position: relative; border-inline-start: 4px solid var(--marker-charcoal-20); transition: box-shadow 140ms; }
+.ms-cal-entry { border: 1px solid var(--border); border-radius: 14px; background: #fff; padding: 14px; position: relative; border-inline-start: 4px solid var(--marker-charcoal-20); transition: box-shadow 140ms; }
 .ms-cal-entry--story { border-inline-start-color: var(--marker-orange); }
 .ms-cal-entry--reel { border-inline-start-color: var(--reel); }
+.ms-cal-entry--carousel { border-inline-start-color: var(--car); }
 .ms-cal-entry:hover { box-shadow: 0 6px 16px rgba(48,48,48,.07); }
 .ms-cal-entry__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ms-cal-entry__head .ms-edit { width: auto; }
@@ -1402,10 +1413,20 @@ textarea.ms-edit { resize: vertical; }
 .ms-live-pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #1f9d63; box-shadow: 0 0 0 0 rgba(31,157,99,.55); animation: ms-live-pulse 1.8s ease-out infinite; }
 @keyframes ms-live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31,157,99,.55); } 70% { box-shadow: 0 0 0 6px rgba(31,157,99,0); } 100% { box-shadow: 0 0 0 0 rgba(31,157,99,0); } }
 @media (max-width: 640px) {
-  .ms-cal-day { min-height: 62px; }
-  .ms-cal-post { font-size: 0; padding: 4px; gap: 0; }
-  .ms-cal-post__type { font-size: 11px; }
+  /* Phone month grid reads like Apple Calendar: the day number plus a row of
+     type-colored dots — the tap-through day panel carries the detail. */
+  .ms-cal-day { min-height: 54px; padding: 5px 6px; flex-direction: row; flex-wrap: wrap; align-content: flex-start; align-items: center; gap: 3px; }
+  .ms-cal-num { flex-basis: 100%; width: 18px; height: 18px; font-size: 11px; margin: 0; }
+  .ms-cal-day .ms-cal-post { width: 7px; height: 7px; padding: 0; border-radius: 50%; font-size: 0; gap: 0; flex: none; background: var(--marker-charcoal-40); }
+  .ms-cal-day .ms-cal-post--story { background: var(--marker-orange); }
+  .ms-cal-day .ms-cal-post--reel { background: var(--reel); }
+  .ms-cal-day .ms-cal-post--carousel { background: var(--car); }
+  .ms-cal-day .ms-cal-post--posted { opacity: 0.4; }
+  .ms-cal-day .ms-cal-post__type, .ms-cal-day .ms-cal-post__done { display: none; }
+  .ms-cal-day .ms-cal-thumb { display: none; }
+  .ms-cal-more { font-size: 8px; }
   .ms-cal-summary { display: none; }
+  .ms-cal-dayadd { display: none; } /* hover affordance — day panel adds on touch */
 }
 
 /* ===============================================================

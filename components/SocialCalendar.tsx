@@ -87,14 +87,15 @@ export default function SocialCalendar({
       ? ui("Slide-by-slide outline…", "مخطّط شريحة بشريحة…")
       : ui("Caption, key message, visual direction…", "التعليق، الرسالة الأساسية، التوجيه البصري…");
 
-  const first = posts.find((p) => p.date)?.date;
-  const init = first ? new Date(first + "T00:00:00") : new Date();
+  // Open on TODAY, like every mainstream calendar — never on the month of the
+  // oldest saved post (which left the calendar "stuck" on stale months).
+  const init = new Date();
   const [y, setY] = useState(init.getFullYear());
   const [m, setM] = useState(init.getMonth());
   const [view, setView] = useState<"month" | "week" | "plan">("month");
   const startOfWeek = (d: Date) => { const s = new Date(d); s.setDate(d.getDate() - d.getDay()); s.setHours(0, 0, 0, 0); return s; };
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(init));
-  const [sel, setSel] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(() => fmt(init.getFullYear(), init.getMonth(), init.getDate()));
   const [open, setOpen] = useState<number | null>(null); // expanded entry (view mode)
   const [draft, setDraft] = useState(""); // comment composer for the open entry
   const [quick, setQuick] = useState<{ date: string; text: string } | null>(null); // planner quick-add draft
@@ -114,15 +115,21 @@ export default function SocialCalendar({
     (byDate[p.date] ||= []).push({ p, idx });
   });
 
-  // Cells to render: month = leading blanks + days; week = the 7 days of weekStart.
+  // Cells to render. Month view fills complete weeks with the adjacent months'
+  // days (dimmed, still usable) — a continuous grid like Notion/Google Calendar
+  // instead of blank holes. Week view is the 7 days of weekStart.
   const weekDates: string[] = Array.from({ length: 7 }).map((_, i) => {
     const dt = new Date(weekStart);
     dt.setDate(weekStart.getDate() + i);
     return fmt(dt.getFullYear(), dt.getMonth(), dt.getDate());
   });
-  const cells: (string | null)[] = view === "week"
-    ? weekDates
-    : [...Array.from({ length: firstWeekday }).map(() => null), ...Array.from({ length: daysInMonth }).map((_, i) => fmt(y, m, i + 1))];
+  const cells: { date: string; other: boolean }[] =
+    view === "week"
+      ? weekDates.map((date) => ({ date, other: false }))
+      : Array.from({ length: Math.ceil((firstWeekday + daysInMonth) / 7) * 7 }).map((_, i) => {
+          const dt = new Date(y, m, 1 - firstWeekday + i);
+          return { date: fmt(dt.getFullYear(), dt.getMonth(), dt.getDate()), other: dt.getMonth() !== m };
+        });
 
   const prev = () => {
     if (view === "week") { const s = new Date(weekStart); s.setDate(weekStart.getDate() - 7); setWeekStart(s); setY(s.getFullYear()); setM(s.getMonth()); }
@@ -186,7 +193,7 @@ export default function SocialCalendar({
     <div className="ms-cal lq-card p-4 sm:p-5">
       <div className="ms-cal-head">
         <div className="ms-cal-headline">
-          <strong>{view === "week" ? weekLabel : `${MONTHS[lang][m]} ${y}`}</strong>
+          <strong>{view === "week" ? weekLabel : <>{MONTHS[lang][m]} <span className="ms-cal-yr">{y}</span></>}</strong>
           <div className="ms-cal-summary">
             {TYPES.map((t) => (
               <span key={t.id} className={`ms-cal-key ms-cal-key--${t.id}`}><i>{t.icon}</i>{countOf(t.id)} {tLabel(t.id)}</span>
@@ -217,14 +224,13 @@ export default function SocialCalendar({
       {view !== "plan" && (
       <div className="ms-cal-grid">
         {WD[lang].map((w) => <div key={w} className="ms-cal-wd">{w}</div>)}
-        {cells.map((date, ci) => {
-          if (!date) return <div key={`b${ci}`} className="ms-cal-day is-other" />;
+        {cells.map(({ date, other }) => {
           const d = new Date(date + "T00:00:00").getDate();
           const dayPosts = byDate[date] ?? [];
           return (
             <div
               key={date}
-              className={`ms-cal-day ${sel === date ? "is-selected" : ""} ${date === todayStr ? "is-today" : ""} ${dayPosts.length ? "has-posts" : ""}`}
+              className={`ms-cal-day ${other ? "is-other" : ""} ${sel === date ? "is-selected" : ""} ${date === todayStr ? "is-today" : ""} ${dayPosts.length ? "has-posts" : ""}`}
               onClick={() => { setSel(date); setOpen(null); }}
               onDragOver={onDayDragOver}
               onDrop={onDayDrop(date)}
@@ -249,6 +255,7 @@ export default function SocialCalendar({
                   onDragStart={editable ? (e) => { e.dataTransfer.setData("text/plain", JSON.stringify({ kind: "post", idx })); e.dataTransfer.effectAllowed = "move"; } : undefined}
                 >
                   {p.mediaUrl ? <Thumb url={p.mediaUrl} kind={p.mediaKind} /> : <i className="ms-cal-post__type" aria-hidden>{typeMeta(p.type).icon}</i>}
+                  {p.status === "posted" && <i className="ms-cal-post__done" aria-hidden>✓</i>}
                   {p.title || p.platform || tLabel(p.type)}
                 </span>
               ))}
