@@ -764,7 +764,7 @@ export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; err
   if (!process.env.NOTION_TOKEN) return { ok: false, error: "Notion isn't connected (NOTION_TOKEN not set)." };
 
   const sql = getSql();
-  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  const rows = (await sql`SELECT name, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { name: string; data: ClientData }[];
   if (!rows[0]) return { ok: false, error: "Client not found." };
   const data = rows[0].data;
   if (!data.notionPageId && !data.notionDbId) return { ok: false, error: "This client isn't linked to Notion yet — set it up in Edit." };
@@ -792,7 +792,9 @@ export async function resyncFromNotion(slug: string): Promise<{ ok: boolean; err
       if (info.invoices.length) data.invoices = await withStoriesHistory(info.invoices, slug);
     }
     if (data.notionDbId) {
-      const posts = await fetchNotionPosts(data.notionDbId);
+      // Scope a shared calendar to this client so other clients' rows never
+      // land in their portal or AI prompts.
+      const posts = await fetchNotionPosts(data.notionDbId, { name: rows[0].name, slug, notionPageId: data.notionPageId });
       data.social = { headline: data.social?.headline ?? { en: "", ar: "" }, posts };
     }
   } catch {
@@ -819,12 +821,14 @@ export async function syncNotion(formData: FormData) {
   if (!dbId) redirect(`/admin/clients/${slug}/edit?error=notion-id`);
 
   const sql = getSql();
-  const rows = (await sql`SELECT data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { data: ClientData }[];
+  const rows = (await sql`SELECT name, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { name: string; data: ClientData }[];
   if (!rows[0]) redirect("/admin/clients");
 
   let posts;
   try {
-    posts = await fetchNotionPosts(dbId);
+    // Scope a shared calendar to this client so other clients' rows never
+    // land in their portal or AI prompts.
+    posts = await fetchNotionPosts(dbId, { name: rows[0].name, slug, notionPageId: rows[0].data?.notionPageId });
   } catch {
     redirect(`/admin/clients/${slug}/edit?error=notion-fetch`);
   }

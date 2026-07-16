@@ -2065,3 +2065,51 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-cal-needshoot { align-self: flex-start; margin-top: 6px; font: 600 12px/1 var(--font-display); color: var(--fg-subtle); background: rgba(0,0,0,.04); border: 1px solid var(--marker-line, #e5e5e5); border-radius: 999px; padding: 5px 10px; cursor: pointer; }
 .ms-cal-needshoot:hover { color: var(--marker-orange); border-color: var(--marker-orange); }
 .ms-cal-needshoot.is-on { color: #1f9d63; border-color: rgba(43,182,115,.4); background: rgba(43,182,115,.1); }
+
+/* Plan & Content — planning workflow: quick-add on day cells, the Planner
+   day-row view, collapsed copywriting, and the month-scaffold controls. */
+.ms-cal-day { position: relative; }
+.ms-cal-dayadd { position: absolute; top: 4px; inset-inline-end: 4px; width: 20px; height: 20px; border: 0; border-radius: 50%; background: var(--marker-orange); color: #fff; font: 700 13px/20px var(--font-display); cursor: pointer; opacity: 0; transition: opacity 140ms, transform 140ms; z-index: 2; padding: 0; }
+.ms-cal-day:hover .ms-cal-dayadd, .ms-cal-dayadd:focus-visible { opacity: 1; }
+.ms-cal-dayadd:hover { transform: scale(1.12); }
+
+.ms-cal-plan { display: flex; flex-direction: column; gap: 6px; }
+.ms-cal-plan__day { display: flex; gap: 10px; align-items: flex-start; padding: 7px 9px; border: 1px solid var(--border); border-radius: var(--r-md); background: #fff; }
+.ms-cal-plan__day.is-weekstart { margin-top: 14px; }
+.ms-cal-plan__day.is-today { border-color: var(--marker-orange); box-shadow: 0 0 0 1px var(--marker-orange); }
+.ms-cal-plan__date { flex: none; width: 48px; display: flex; flex-direction: column; align-items: center; gap: 1px; border: 0; background: none; cursor: pointer; padding: 4px 0; border-radius: 8px; transition: background 140ms; }
+.ms-cal-plan__date:hover { background: rgba(255,145,0,.10); }
+.ms-cal-plan__date i { font: 700 9px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-subtle); font-style: normal; }
+.ms-cal-plan__date b { font: 800 16px/1.2 var(--font-display); color: var(--marker-charcoal); }
+.ms-cal-plan__day.is-today .ms-cal-plan__date b { color: var(--marker-orange); }
+.ms-cal-plan__rows { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+.ms-cal-plan__row { display: flex; align-items: center; gap: 7px; }
+.ms-cal-plan__row > i { font-style: normal; font-size: 11px; flex: none; width: 14px; text-align: center; color: var(--marker-charcoal-80); }
+.ms-cal-plan__row--story > i { color: var(--marker-orange); }
+.ms-cal-plan__row--reel > i { color: var(--reel); }
+.ms-cal-plan__row .ms-edit { padding: 4px 8px; font-size: 13px; }
+.ms-cal-plan__title { flex: 1; min-width: 0; }
+.ms-cal-plan__stage { width: auto !important; flex: none; }
+.ms-cal-plan__add { display: flex; align-items: center; gap: 7px; }
+.ms-cal-plan__add select.ms-edit { width: auto; flex: none; padding: 4px 6px; font-size: 12px; }
+.ms-cal-plan__add input.ms-edit { flex: 1; min-width: 0; background: transparent; }
+.ms-cal-iconbtn { width: 24px; height: 24px; flex: none; border: 1px solid var(--border); border-radius: 50%; background: #fff; color: var(--fg-muted); cursor: pointer; font-size: 11px; line-height: 1; padding: 0; transition: all 140ms; }
+.ms-cal-iconbtn:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
+.ms-cal-iconbtn--del:hover { border-color: var(--marker-danger); color: var(--marker-danger); }
+.ms-cal-entry__head .ms-cal-dup { margin-inline-start: auto; }
+.ms-cal-entry__head .ms-cal-dup + .ms-cal-del { margin-inline-start: 0; }
+
+.ms-cal-copy { margin-top: 10px; }
+.ms-cal-copy > summary { cursor: pointer; list-style: none; display: inline-flex; align-items: center; gap: 6px; font: 700 10px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-muted); user-select: none; }
+.ms-cal-copy > summary::-webkit-details-marker { display: none; }
+.ms-cal-copy > summary::after { content: "▾"; font-size: 9px; }
+.ms-cal-copy[open] > summary { color: var(--marker-orange); }
+.ms-cal-copy[open] > summary::after { content: "▴"; }
+.ms-cal-copy > .ms-cal-brief__area { margin-top: 8px; width: 100%; }
+
+.ms-scaffold-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.ms-scaffold-row > b { flex: none; width: 96px; font: 700 11px/1.2 var(--font-display); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-muted); }
+.ms-scaffold-days { display: flex; gap: 5px; flex-wrap: wrap; }
+.ms-scaffold-day { min-width: 42px; padding: 8px 0; border: 1px solid var(--border-strong); border-radius: 999px; background: #fff; font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); cursor: pointer; text-align: center; transition: all 140ms; }
+.ms-scaffold-day:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
+.ms-scaffold-day.is-on { background: var(--marker-charcoal); border-color: var(--marker-charcoal); color: #fff; }
