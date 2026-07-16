@@ -266,17 +266,19 @@ export default function PortalView({
         </div>
       </aside>
 
-      {/* ---------- Mobile floating pill cluster (top-end) ---------- */}
-      <div
-        className="fixed z-40 lq-chrome rounded-full p-1.5 flex items-center gap-1.5 min-[900px]:hidden"
-        style={{ insetInlineEnd: 12, top: 12 }}
-      >
-        <EnablePushButton lang={lang} />
-        {langSeg}
-        <form action={logout}>
-          <button className="lq-btn lq-btn--ghost lq-btn--sm">{ui("Sign out", "خروج")}</button>
-        </form>
-      </div>
+      {/* ---------- Mobile top bar — full width so it never floats over content;
+          the centre stays free for the admin "Back to settings" pill. ---------- */}
+      <header className="lq-topbar lq-chrome min-[900px]:hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={MARKER_LOGO} alt="Marker Studio" className="h-6 w-auto" />
+        <span className="flex items-center gap-1.5 ms-auto">
+          <EnablePushButton lang={lang} compact />
+          {langSeg}
+          <form action={logout}>
+            <button className="lq-btn lq-btn--ghost lq-btn--sm">{ui("Sign out", "خروج")}</button>
+          </form>
+        </span>
+      </header>
 
       {/* ---------- Main column ---------- */}
       <main className="lq-main">
