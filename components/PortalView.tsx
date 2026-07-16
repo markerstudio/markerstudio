@@ -118,10 +118,15 @@ export default function PortalView({
     shot: { en: "Shot", ar: "تم التصوير", cls: "lq-chip--blue" },
     delivered: { en: "Delivered", ar: "تم التسليم", cls: "lq-chip--green" },
   };
+  // Deterministic date label — toLocaleDateString differs between the server's
+  // and the browser's ICU ("Mon 20 Jul" vs "Mon, 20 Jul"), which broke hydration.
   const fmtShootDate = (iso: string) => {
     if (!iso) return "";
     const dt = new Date(`${iso}T00:00:00`);
-    return Number.isNaN(dt.getTime()) ? iso : dt.toLocaleDateString(lang === "ar" ? "ar" : "en-GB", { weekday: "short", day: "2-digit", month: "short" });
+    if (Number.isNaN(dt.getTime())) return iso;
+    const wd = { en: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], ar: ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس", "الجمعة", "السبت"] }[lang][dt.getDay()];
+    const mo = { en: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"], ar: ["يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس", "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر"] }[lang][dt.getMonth()];
+    return lang === "ar" ? `${wd}، ${dt.getDate()} ${mo}` : `${wd}, ${dt.getDate()} ${mo}`;
   };
   const shotsDone = shots.filter((t) => t.status === "done").length;
   // Next upcoming shoot — a "Lately" row on the dashboard (sessions are already
@@ -291,7 +296,9 @@ export default function PortalView({
                   </span>
                 )}
                 <div className="relative">
-                  <p className="text-[12px] font-display font-bold tracking-[0.04em] text-orange-soft">
+                  {/* suppressHydrationWarning: the greeting depends on the viewer's
+                      local hour, which legitimately differs from the server's. */}
+                  <p suppressHydrationWarning className="text-[12px] font-display font-bold tracking-[0.04em] text-orange-soft">
                     {(() => {
                       const h = new Date().getHours();
                       return h < 12 ? ui("Good morning", "صباح الخير") : h < 18 ? ui("Good afternoon", "نهارك سعيد") : ui("Good evening", "مساء الخير");
@@ -372,6 +379,36 @@ export default function PortalView({
                           {step.cta}
                         </button>
                       ))}
+                  </section>
+                );
+              })()}
+
+              {/* Auto month-at-a-glance — the dashboard fills itself from live
+                  data (calendar, shoots, tasks) whenever the studio hasn't
+                  authored the story section below; authoring overrides it. */}
+              {!edit && !(tr(d.dashboard?.headline) || (d.dashboard?.vitals ?? []).length > 0 || (d.dashboard?.cards ?? []).length > 0 || tr(d.dashboard?.diagnosis)) && (() => {
+                const mp = today.slice(0, 7);
+                const monthPosts = (d.social?.posts ?? []).filter((p) => p.date?.startsWith(mp));
+                const postedCount = monthPosts.filter((p) => p.status === "posted").length;
+                const storyDays = new Set(monthPosts.filter((p) => p.type === "story").map((p) => p.date)).size;
+                const tiles: { v: string; l: string }[] = [];
+                if (monthPosts.length) tiles.push({ v: String(monthPosts.length), l: ui("Planned this month", "مخطّط هذا الشهر") });
+                if (postedCount) tiles.push({ v: String(postedCount), l: ui("Posted so far", "نُشر حتى الآن") });
+                if (storyDays) tiles.push({ v: String(storyDays), l: ui("Story days", "أيام الستوري") });
+                if (shootsShared && nextShootSession) tiles.push({ v: fmtShootDate(nextShootSession.date), l: ui("Next shoot", "التصوير القادم") });
+                if (dlvShared && dlvItems.length) tiles.push({ v: `${dlvPct}%`, l: ui("Tasks delivered", "المهام المسلّمة") });
+                if (!tiles.length) return null;
+                return (
+                  <section className="lq-card lq-rise p-5 sm:p-6" style={{ animationDelay: "100ms" }}>
+                    <p className="text-[10px] font-display font-bold uppercase tracking-[0.14em] text-charcoal-60 mb-4">{ui("Your month at a glance", "شهرك بلمحة")}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-5">
+                      {tiles.slice(0, 4).map((t) => (
+                        <div key={t.l}>
+                          <div className="font-display font-extrabold text-[26px] tracking-tight tabular-nums text-ink">{t.v}</div>
+                          <div className="text-[12px] text-charcoal-60 mt-0.5">{t.l}</div>
+                        </div>
+                      ))}
+                    </div>
                   </section>
                 );
               })()}
