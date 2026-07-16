@@ -62,7 +62,7 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
 
       <fieldset className="lq-card p-5">
         <legend className="px-2 -ms-2 font-display font-bold text-[16px] tracking-tight text-ink">Dashboard</legend>
-        <p className="text-xs text-charcoal-40 mb-3">The Dashboard is an auto quick-view (plan, money left, next post, top result). You set a one-line headline and a few optional health bars.</p>
+        <p className="text-xs text-charcoal-40 mb-3">Leave this empty and the client&apos;s dashboard builds itself from live data — posts planned/posted this month, story days, next shoot, task progress. Anything you author here replaces the auto view.</p>
         <Bi label="Headline" value={data.dashboard.headline} onChange={(headline) => patch({ dashboard: { ...data.dashboard, headline } })} />
         <Bi label="Diagnosis (optional)" value={data.dashboard.diagnosis} onChange={(diagnosis) => patch({ dashboard: { ...data.dashboard, diagnosis } })} area />
         <label className={`${lbl} mt-2`}>Story cards (optional)</label>

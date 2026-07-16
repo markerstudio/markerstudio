@@ -2108,6 +2108,9 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-cal-plan__row > i { font-style: normal; font-size: 11px; flex: none; width: 14px; text-align: center; color: var(--marker-charcoal-80); }
 .ms-cal-plan__row--story > i { color: var(--marker-orange); }
 .ms-cal-plan__row--reel > i { color: var(--reel); }
+.ms-cal-plan__row--carousel > i { color: var(--car); }
+.ms-cal-plan__grab { cursor: grab; }
+.ms-cal-plan__grab:active { cursor: grabbing; }
 .ms-cal-plan__row .ms-edit { padding: 4px 8px; font-size: 13px; }
 .ms-cal-plan__title { flex: 1; min-width: 0; }
 .ms-cal-plan__stage { width: auto !important; flex: none; }
@@ -2134,6 +2137,18 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-scaffold-day { min-width: 42px; padding: 8px 0; border: 1px solid var(--border-strong); border-radius: 999px; background: #fff; font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); cursor: pointer; text-align: center; transition: all 140ms; }
 .ms-scaffold-day:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
 .ms-scaffold-day.is-on { background: var(--marker-charcoal); border-color: var(--marker-charcoal); color: #fff; }
+
+/* Auto-save status pill (client editor). */
+.ms-sync { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--font-display); color: var(--fg-muted); padding: 8px 14px; border-radius: 999px; background: rgba(48,48,48,.05); }
+.ms-sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--marker-charcoal-20); flex: none; }
+.ms-sync.is-clean::before { background: #2bb673; }
+.ms-sync.is-saving::before { background: var(--marker-orange); animation: ms-sync-blink 0.9s ease-in-out infinite alternate; }
+@keyframes ms-sync-blink { from { opacity: 0.3; } to { opacity: 1; } }
+.ms-sync.is-dirty::before { background: var(--marker-orange); }
+.ms-sync.is-offline { color: #8a6d00; background: rgba(224,168,0,.12); }
+.ms-sync.is-offline::before { background: #e0a800; }
+.ms-sync.is-error { color: #b3261e; background: rgba(179,38,30,.08); }
+.ms-sync.is-error::before { background: #b3261e; }
 
 /* Day drawer — side panel on desktop, bottom sheet on phones. Non-modal:
    the grid stays interactive, clicking days retargets the open drawer. */

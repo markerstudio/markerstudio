@@ -162,7 +162,9 @@ export default function SocialCalendar({
     if (!p?.date) return;
     const d = new Date(p.date + "T00:00:00");
     d.setDate(d.getDate() + 7);
-    onChange?.([...posts, { ...p, date: fmt(d.getFullYear(), d.getMonth(), d.getDate()), stage: "idea", status: "planned", approval: undefined, comments: undefined }]);
+    // The copy is a fresh idea: no approval/comments, and no claim on the
+    // original's shot (fromShot must stay unique per post).
+    onChange?.([...posts, { ...p, date: fmt(d.getFullYear(), d.getMonth(), d.getDate()), stage: "idea", status: "planned", approval: undefined, comments: undefined, fromShot: undefined }]);
   };
 
   // --- Drag and drop ---------------------------------------------------------
@@ -295,7 +297,12 @@ export default function SocialCalendar({
                 <div className="ms-cal-plan__rows">
                   {dayPosts.map(({ p, idx }) => (
                     <div key={idx} className={`ms-cal-plan__row ms-cal-plan__row--${p.type || "post"}`}>
-                      <i aria-hidden title={tLabel(p.type)}>{typeMeta(p.type).icon}</i>
+                      <i
+                        className="ms-cal-plan__grab"
+                        title={`${tLabel(p.type)} — ${ui("drag to another day", "اسحب ليوم آخر")}`}
+                        draggable
+                        onDragStart={(e) => { e.dataTransfer.setData("text/plain", JSON.stringify({ kind: "post", idx })); e.dataTransfer.effectAllowed = "move"; }}
+                      >{typeMeta(p.type).icon}</i>
                       <input
                         className="ms-edit ms-cal-plan__title"
                         value={p.title}
