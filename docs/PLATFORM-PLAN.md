@@ -73,7 +73,9 @@ depend on them.
 2. **Store rollout:** extract `useClientSection` from Plan & Content; adopt in
    Dashboard/Portal-content, Analysis, Documents, Deliverables. Delete manual
    Save buttons everywhere. Retire `ClientForm.tsx`.
-3. **Editor consolidation to 5 tabs** + move Setup into Overview.
+3. ✅ **Editor consolidation:** 6 focused tabs — Documents folded into
+   Client-facing (Story / Analysis / Documents segments), Setup demoted to a
+   quiet rail-footer entry; every legacy deep link still resolves.
 4. **Offline Phase 2** (IndexedDB snapshot + offline banner + queue everywhere).
 5. **Client notifications:** push/email nudges on "sent for approval",
    invoice due, plan published — reusing the agenda derivations.

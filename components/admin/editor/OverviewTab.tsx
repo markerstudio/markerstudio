@@ -33,7 +33,7 @@ export default function OverviewTab({
 }: {
   client: Client;
   data: ClientData;
-  onNavigate: (tab: TabId) => void;
+  onNavigate: (tab: TabId | "documents") => void;
   latestNote?: import("@/lib/notes").Note | null;
 }) {
   const slug = client.slug;
@@ -55,7 +55,7 @@ export default function OverviewTab({
 
   // What the client (and photographer) can currently see — the same underlying
   // fields the owning tabs save. Managed there, only reported here.
-  const visibility: { label: string; sub: string; on: boolean; onLabel?: string; tab: TabId; manage: string }[] = [
+  const visibility: { label: string; sub: string; on: boolean; onLabel?: string; tab: TabId | "documents"; manage: string }[] = [
     {
       label: "Plan shown as active",
       sub: "The plan card on the client's dashboard.",
@@ -103,7 +103,7 @@ export default function OverviewTab({
   ];
 
   // The numbers the studio checks first, each with a jump to its owning tab.
-  const glance: { label: string; value: string; sub?: string; tab: TabId; manage: string }[] = [
+  const glance: { label: string; value: string; sub?: string; tab: TabId | "documents"; manage: string }[] = [
     {
       label: "Plan",
       value: data.plan.name || "—",
