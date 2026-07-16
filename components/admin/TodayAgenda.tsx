@@ -26,6 +26,7 @@ import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
 const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>> = {
   task: CheckCircle2,
   post: Megaphone,
+  prep: NotebookPen,
   approval: Clock,
   invoice: Wallet,
   shoot: Camera,

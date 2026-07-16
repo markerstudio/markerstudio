@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import type { SocialPost, SocialContentType, ContentStage } from "@/lib/clients";
 
 const WD = {
@@ -104,6 +105,12 @@ export default function SocialCalendar({
   const [draft, setDraft] = useState(""); // comment composer for the open entry
   const [quick, setQuick] = useState<{ date: string; text: string } | null>(null); // planner quick-add draft
   const [quickType, setQuickType] = useState<SocialContentType>("post"); // sticky across days — plan reels row after row
+  // The drawer renders through a portal on <body>: inside the calendar card,
+  // ancestors with backdrop-filter/transform (glass chrome, rise animations)
+  // hijack position:fixed — the drawer anchored to the card, showed blank when
+  // the page was scrolled, and got clipped by the card radius.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const APPROVAL_PILL: Record<string, string> = { approved: "lq-chip--green", changes: "lq-chip--red", pending: "" };
   const approvalLabel = (a?: string) =>
@@ -344,8 +351,8 @@ export default function SocialCalendar({
 
       {/* Selected-day drawer — slides in from the side (bottom sheet on phones),
           non-modal: the grid stays visible and clicking days retargets it. */}
-      {sel && drawerOpen && view !== "plan" && (
-        <div className="ms-cal-drawer" role="dialog" aria-label={prettyDay(sel)}>
+      {sel && drawerOpen && view !== "plan" && mounted && createPortal(
+        <div className="ms-cal-drawer" dir={lang === "ar" ? "rtl" : "ltr"} role="dialog" aria-label={prettyDay(sel)}>
           <div className="ms-cal-drawer__head">
             <div className="ms-cal-drawer__bar">
               <b>{prettyDay(sel)}</b>
@@ -529,7 +536,8 @@ export default function SocialCalendar({
             })}
           </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

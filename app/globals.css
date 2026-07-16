@@ -2165,7 +2165,7 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
    the grid stays interactive, clicking days retargets the open drawer. */
 .ms-cal-drawer { position: fixed; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 94vw); background: #fff; z-index: 70; box-shadow: 0 0 60px rgba(48,48,48,.22); border-inline-start: 1px solid var(--border); display: flex; flex-direction: column; animation: ms-drawer-in 240ms var(--ease-out, ease-out); }
 @keyframes ms-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
-[dir="rtl"] .ms-cal-drawer { animation-name: ms-drawer-in-rtl; }
+[dir="rtl"] .ms-cal-drawer, .ms-cal-drawer[dir="rtl"] { animation-name: ms-drawer-in-rtl; }
 @keyframes ms-drawer-in-rtl { from { transform: translateX(-100%); } to { transform: translateX(0); } }
 .ms-cal-drawer__head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); background: var(--marker-paper); flex: none; }
 .ms-cal-drawer__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
