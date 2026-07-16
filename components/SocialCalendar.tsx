@@ -239,9 +239,12 @@ export default function SocialCalendar({
               {view === "month" ? ui("Week", "أسبوع") : ui("Month", "شهر")}
             </button>
           )}
-          <button type="button" onClick={prev} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Previous">‹</button>
-          <button type="button" onClick={goToday} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Today">{ui("Today", "اليوم")}</button>
-          <button type="button" onClick={next} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Next">›</button>
+          {/* One unbreakable group — never splits across wrap lines on phones. */}
+          <span className="flex items-center gap-1.5 shrink-0">
+            <button type="button" onClick={prev} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Previous">‹</button>
+            <button type="button" onClick={goToday} className="lq-btn lq-btn--glass lq-btn--sm lq-press" aria-label="Today">{ui("Today", "اليوم")}</button>
+            <button type="button" onClick={next} className="lq-btn lq-btn--glass lq-btn--sm lq-press !px-3 text-[16px]" aria-label="Next">›</button>
+          </span>
         </div>
       </div>
 

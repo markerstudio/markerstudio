@@ -206,7 +206,12 @@ export default function ClientEditor({
 
       <div className="min-w-0">
         {/* <900px: the horizontal scrollable seg. */}
-        <nav className="min-[900px]:hidden sticky top-16 z-10 -mx-1 px-1 py-1 overflow-x-auto mb-5" aria-label="Client sections">
+        {/* Sticks below the admin mobile top bar; solid glass so cards never
+            show through it while scrolling. */}
+        <nav
+          className="min-[900px]:hidden sticky top-[calc(env(safe-area-inset-top,0px)+48px)] z-30 -mx-1 px-1 py-1 overflow-x-auto mb-5 lq-chrome !rounded-full"
+          aria-label="Client sections"
+        >
           <div className="lq-seg" role="tablist">
             {TABS.map(({ id, label }) => {
               const active = tab === id;

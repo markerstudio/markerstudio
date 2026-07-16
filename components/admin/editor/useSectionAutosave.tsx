@@ -114,7 +114,7 @@ export function useSectionAutosave<T>({
 // The auto-save footer every tab shares (styles: .ms-sync in globals.css).
 export function SyncPill({ state, dirty, saveNow }: { state: SyncState; dirty: boolean; saveNow: () => void }) {
   return (
-    <div className="flex items-center gap-3 sticky bottom-0 bg-paper/95 py-3">
+    <div className="ms-syncdock">
       <span className={`ms-sync ${state === "saving" ? "is-saving" : state === "offline" ? "is-offline" : state === "error" ? "is-error" : dirty ? "is-dirty" : "is-clean"}`}>
         {state === "saving"
           ? "Saving…"

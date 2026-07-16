@@ -566,7 +566,9 @@ export default async function EditClientPage({
             <span className="lq-chip !text-[10px] uppercase">{ramziOwned ? "Ramzi-owned" : "From Notion"}</span>
           </div>
           {ramziOwned ? null : client.data.notionPageId ? (
-            <div className="flex items-center gap-3">
+            // flex-wrap: with large iOS text sizes the pair can't fit one line —
+            // the button wraps below the link instead of colliding with it.
+            <div className="flex items-center gap-x-3 gap-y-2 flex-wrap justify-end">
               <a
                 href={`https://www.notion.so/${client.data.notionPageId.replace(/-/g, "")}`}
                 target="_blank"

@@ -2163,8 +2163,13 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-offline span { opacity: 0.65; }
 @media (min-width: 900px) { .ms-offline { bottom: 18px; } }
 
-/* Auto-save status pill (client editor). */
-.ms-sync { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--font-display); color: var(--fg-muted); padding: 8px 14px; border-radius: 999px; background: rgba(48,48,48,.05); }
+/* Auto-save status pill (client editor) + its dock. The dock is transparent
+   (no full-width band cutting the page); the pill itself is solid so it stays
+   readable floating over content. On phones it rises above the admin tab bar. */
+.ms-syncdock { position: sticky; bottom: 0; z-index: 20; display: flex; align-items: center; gap: 12px; padding: 10px 0; pointer-events: none; }
+.ms-syncdock > * { pointer-events: auto; }
+@media (max-width: 899px) { .ms-syncdock { bottom: calc(74px + env(safe-area-inset-bottom, 0px)); } }
+.ms-sync { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--font-display); color: var(--fg-muted); padding: 8px 14px; border-radius: 999px; background: rgba(250, 248, 243, 0.95); border: 1px solid rgba(48,48,48,.08); box-shadow: 0 6px 18px -6px rgba(48,48,48,.18); }
 .ms-sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--marker-charcoal-20); flex: none; }
 .ms-sync.is-clean::before { background: #2bb673; }
 .ms-sync.is-saving::before { background: var(--marker-orange); animation: ms-sync-blink 0.9s ease-in-out infinite alternate; }
