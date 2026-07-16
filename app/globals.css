@@ -2149,6 +2149,19 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-scaffold-day:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
 .ms-scaffold-day.is-on { background: var(--marker-charcoal); border-color: var(--marker-charcoal); color: #fff; }
 
+/* Offline banner — global, above tab bars, below sheets/drawers. */
+.ms-offline {
+  position: fixed; z-index: 85; inset-inline: 0; margin-inline: auto; width: fit-content; max-width: 92vw;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 16px; border-radius: 999px;
+  background: #3a3630; color: #f5f2ec; font: 600 12.5px/1.35 var(--font-display);
+  box-shadow: 0 12px 32px -10px rgba(48,48,48,.5);
+}
+.ms-offline i { width: 7px; height: 7px; border-radius: 50%; background: #e0a800; flex: none; animation: ms-sync-blink 1.1s ease-in-out infinite alternate; }
+.ms-offline span { opacity: 0.65; }
+@media (min-width: 900px) { .ms-offline { bottom: 18px; } }
+
 /* Auto-save status pill (client editor). */
 .ms-sync { display: inline-flex; align-items: center; gap: 8px; font: 600 12.5px/1 var(--font-display); color: var(--fg-muted); padding: 8px 14px; border-radius: 999px; background: rgba(48,48,48,.05); }
 .ms-sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--marker-charcoal-20); flex: none; }

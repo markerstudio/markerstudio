@@ -54,9 +54,11 @@ depend on them.
   authored content always wins when present.
 - **Desktop offline (chosen: full editing + sync)**
   - *Phase 1 — done:* draft journal + offline queue in Plan & Content.
-  - *Phase 2:* extract the store hook to all tabs; snapshot last-loaded data
-    (IndexedDB) so the app opens readable offline with an "offline — viewing
-    saved copy" banner; queued edits flush on reconnect.
+  - *Phase 2 — shipped:* the service worker (`public/sw.js`) caches static
+    assets cache-first and every visited page/RSC payload network-first, so
+    the last-loaded copy of anywhere you've been opens with no internet;
+    unvisited pages get a branded offline screen, a global banner announces
+    offline mode, and the store hook keeps rolling out to remaining tabs.
   - *Phase 3:* local-first store with a mutation log per section (the JSONB
     per-section merge maps 1:1 to this), conflict = last-writer-wins per
     section + a visible "changed remotely" nudge. The Tauri shell serves the
