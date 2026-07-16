@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { memo, useCallback, useState } from "react";
 import { savePhotoSection, saveSection } from "@/app/admin/clients/section-actions";
+import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import { ensurePhotoIds, genPhotoId } from "@/lib/photo";
 import SocialCalendar from "@/components/SocialCalendar";
 import MonthScaffold from "./MonthScaffold";
@@ -67,28 +68,35 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
   const [photo, setPhoto] = useState<ClientPhoto>(() => ensurePhotoIds(data.photo));
   const [posts, setPosts] = useState<SocialPost[]>(data.social?.posts ?? []);
   const [headline, setHeadline] = useState<LocalizedText>(data.social?.headline ?? { en: "", ar: "" });
-  const [dirty, setDirty] = useState(false);
-  const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState("");
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "offline" | "error">("idle");
   const [aiCopied, setAiCopied] = useState(false);
   const [aiPaste, setAiPaste] = useState("");
   const [aiMsg, setAiMsg] = useState("");
   const [showDetails, setShowDetails] = useState(false);
   const [showAi, setShowAi] = useState(false);
   const [showRhythm, setShowRhythm] = useState(false);
+  const mark = () => setMsg("");
 
-  // ---- Auto-save with an offline-safe draft queue -------------------------
-  // Every edit bumps `ver`; a debounce saves the latest snapshot. The snapshot
-  // is journaled to localStorage BEFORE the network call, so a crash, refresh,
-  // or lost connection never loses work — the draft restores on next open and
-  // flushes as soon as we're back online.
-  const verRef = useRef(0);
-  const savingRef = useRef(false);
-  const latest = useRef({ plan, photo, posts, headline });
-  latest.current = { plan, photo, posts, headline };
-  const draftKey = `ms-draft:plancontent:${slug}`;
-  const mark = () => { verRef.current++; setDirty(true); setMsg(""); };
+  // Auto-save + offline drafts — the shared per-section contract.
+  const sync = useSectionAutosave({
+    slug,
+    section: "plancontent",
+    payload: { plan, photo, social: { headline, posts } },
+    save: async (p) => {
+      const [r1, r2] = await Promise.all([
+        savePhotoSection(slug, p.photo),
+        saveSection(slug, { plan: p.plan, social: p.social }),
+      ]);
+      return r1.ok && r2.ok ? { ok: true } : { ok: false, error: r1.error || r2.error };
+    },
+    onRestore: (d) => {
+      setPlan(d.plan);
+      setPhoto(ensurePhotoIds(d.photo));
+      setPosts(d.social?.posts ?? []);
+      setHeadline(d.social?.headline ?? { en: "", ar: "" });
+      setMsg("Restored unsaved changes — saving…");
+    },
+  });
 
   function copyPrompt() {
     navigator.clipboard?.writeText(planContentPrompt({ ...data, plan, photo, social: { headline, posts } }));
@@ -130,7 +138,7 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
     if (!added) { setAiMsg("Parsed OK, but found no sessions / shots / posts to add."); return; }
     mark();
     setAiPaste("");
-    setAiMsg(`Filled ${added} item${added > 1 ? "s" : ""} ✓ — review on the calendar & rail, then Save.`);
+    setAiMsg(`Filled ${added} item${added > 1 ? "s" : ""} ✓ — review on the calendar & rail; it saves automatically.`);
   }
 
   const patchPlan = (p: Partial<typeof plan>) => { setPlan((cur) => ({ ...cur, ...p })); mark(); };
@@ -138,15 +146,15 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
 
   const changeSession = useCallback((id: string, patch: Partial<PhotoSession>) => {
     setPhoto((cur) => ({ ...cur, sessions: (cur.sessions ?? []).map((s) => (s.id === id ? { ...s, ...patch } : s)) }));
-    verRef.current++; setDirty(true); setMsg("");
+    setMsg("");
   }, []);
   const removeSession = useCallback((id: string) => {
     setPhoto((cur) => ({ ...cur, sessions: (cur.sessions ?? []).filter((s) => s.id !== id) }));
-    verRef.current++; setDirty(true); setMsg("");
+    setMsg("");
   }, []);
   const addSession = () => { setPhoto((cur) => ({ ...cur, sessions: [...(cur.sessions ?? []), { id: genPhotoId(), date: "", time: "", location: "", title: "", brief: { en: "", ar: "" }, status: "planned" }] })); mark(); };
 
-  const setShots = useCallback((shots: ClientPhoto["shots"]) => { setPhoto((cur) => ({ ...cur, shots })); verRef.current++; setDirty(true); setMsg(""); }, []);
+  const setShots = useCallback((shots: ClientPhoto["shots"]) => { setPhoto((cur) => ({ ...cur, shots })); setMsg(""); }, []);
 
   // Drag a shot onto a calendar day → schedule a linked post pre-filled from it.
   function onDropShot(date: string, shotId: string) {
@@ -180,77 +188,6 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
     mark();
   }
 
-  // Push the newest snapshot to the server; re-runs itself if edits landed
-  // while a save was in flight, and parks the draft locally on any failure.
-  const flush = useCallback(async () => {
-    if (savingRef.current) return;
-    savingRef.current = true;
-    setSaveState("saving");
-    const ver = verRef.current;
-    const snap = latest.current;
-    try {
-      const [r1, r2] = await Promise.all([
-        savePhotoSection(slug, snap.photo),
-        saveSection(slug, { plan: snap.plan, social: { headline: snap.headline, posts: snap.posts } }),
-      ]);
-      savingRef.current = false;
-      if (r1.ok && r2.ok) {
-        if (ver === verRef.current) {
-          setDirty(false);
-          setSaveState("saved");
-          try { localStorage.removeItem(draftKey); } catch { /* private mode */ }
-        } else {
-          flush(); // newer edits arrived mid-save — save again
-        }
-      } else {
-        setSaveState("error");
-      }
-    } catch {
-      savingRef.current = false;
-      setSaveState(typeof navigator !== "undefined" && !navigator.onLine ? "offline" : "error");
-    }
-  }, [slug, draftKey]);
-
-  // Debounced auto-save: journal the draft, then save 1.2s after the last edit.
-  useEffect(() => {
-    if (!dirty) return;
-    try {
-      localStorage.setItem(draftKey, JSON.stringify({ v: 1, at: Date.now(), plan, photo, posts, headline }));
-    } catch { /* storage full / private mode — network save still runs */ }
-    const t = setTimeout(flush, 1200);
-    return () => clearTimeout(t);
-  }, [dirty, plan, photo, posts, headline, draftKey, flush]);
-
-  // Restore an unsaved draft (crash / refresh / offline close) — max a day old.
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem(draftKey);
-      if (!raw) return;
-      const d = JSON.parse(raw);
-      if (!d || d.v !== 1 || Date.now() - (d.at || 0) > 24 * 3600 * 1000) { localStorage.removeItem(draftKey); return; }
-      setPlan(d.plan); setPhoto(ensurePhotoIds(d.photo)); setPosts(d.posts ?? []); setHeadline(d.headline ?? { en: "", ar: "" });
-      verRef.current++; setDirty(true);
-      setMsg("Restored unsaved changes — saving…");
-    } catch { /* corrupt draft — ignore */ }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Offline drafts flush the moment the connection returns (plus a slow retry
-  // for flaky links), ⌘S saves immediately, and closing with unsaved work warns.
-  useEffect(() => {
-    const onOnline = () => { if (verRef.current && dirty) flush(); };
-    const onKey = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); flush(); } };
-    const onLeave = (e: BeforeUnloadEvent) => { if (dirty) e.preventDefault(); };
-    window.addEventListener("online", onOnline);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("beforeunload", onLeave);
-    const retry = setInterval(() => { if (dirty && !savingRef.current && (saveState === "offline" || saveState === "error")) flush(); }, 30000);
-    return () => { window.removeEventListener("online", onOnline); window.removeEventListener("keydown", onKey); window.removeEventListener("beforeunload", onLeave); clearInterval(retry); };
-  }, [dirty, saveState, flush]);
-
-  function save() {
-    startTransition(async () => { await flush(); });
-  }
 
   const sessions = photo.sessions ?? [];
 
@@ -343,23 +280,8 @@ export default function PlanContentTab({ slug, data }: { slug: string; data: Cli
       </fieldset>
 
       {/* Auto-save status — everything saves itself; ⌘S / the button force it. */}
-      <div className="flex items-center gap-3 sticky bottom-0 bg-paper/95 py-3">
-        <span className={`ms-sync ${saveState === "saving" || pending ? "is-saving" : saveState === "offline" ? "is-offline" : saveState === "error" ? "is-error" : dirty ? "is-dirty" : "is-clean"}`}>
-          {saveState === "saving" || pending
-            ? "Saving…"
-            : saveState === "offline"
-            ? "Offline — changes kept safe, will sync when you're back"
-            : saveState === "error"
-            ? "Couldn't save — retrying automatically"
-            : dirty
-            ? "Editing…"
-            : saveState === "saved"
-            ? "All changes saved ✓"
-            : "Auto-save is on"}
-        </span>
-        {(saveState === "error" || saveState === "offline") && (
-          <button type="button" onClick={save} className="lq-btn lq-btn--glass lq-btn--sm">Save now</button>
-        )}
+      <div className="flex items-center gap-3">
+        <SyncPill {...sync} />
         {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
       </div>
     </div>

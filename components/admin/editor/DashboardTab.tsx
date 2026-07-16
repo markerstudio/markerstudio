@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { saveSection } from "@/app/admin/clients/section-actions";
-import { input, lbl, Text, Bi, Rows, SaveButton, coerceLT } from "./fields";
+import { input, lbl, Text, Bi, Rows, coerceLT } from "./fields";
+import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import type { ClientData, StoryCard, Vital } from "@/lib/clients";
 
 // Mirrors the client portal's Dashboard tab: the hero line + the auto quick-view's
@@ -10,6 +11,14 @@ import type { ClientData, StoryCard, Vital } from "@/lib/clients";
 export default function DashboardTab({ slug, data, patch }: { slug: string; data: ClientData; patch: (p: Partial<ClientData>) => void }) {
   const [portalJson, setPortalJson] = useState("");
   const [portalMsg, setPortalMsg] = useState("");
+
+  const sync = useSectionAutosave({
+    slug,
+    section: "dashboard",
+    payload: { hero: data.hero, accent: data.accent, dashboard: data.dashboard },
+    save: (p) => saveSection(slug, p),
+    onRestore: (d) => patch(d),
+  });
 
   // Take the JSON the onboarding "Copy AI prompt" produces and merge the hero +
   // dashboard fields it understands. Tolerant of code fences and string/{en,ar}.
@@ -48,7 +57,7 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
     }
     if (!filled.length) { setPortalMsg("Parsed OK, but found no portal fields — expected accent / hero / dashboard."); return; }
     patch(next);
-    setPortalMsg(`Filled ${filled.join(", ")} ✓ — review below, then Save.`);
+    setPortalMsg(`Filled ${filled.join(", ")} ✓ — review below; changes save automatically.`);
     setPortalJson("");
   }
 
@@ -103,7 +112,7 @@ export default function DashboardTab({ slug, data, patch }: { slug: string; data
         </div>
       </details>
 
-      <SaveButton onSave={() => saveSection(slug, { hero: data.hero, accent: data.accent, dashboard: data.dashboard })} />
+      <SyncPill {...sync} />
     </div>
   );
 }
