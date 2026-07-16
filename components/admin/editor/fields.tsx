@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import type { LocalizedText } from "@/lib/clients";
 
 // Shared form primitives for the tabbed client editor. Extracted from the old
@@ -83,26 +83,3 @@ export function Rows<T>({ items, onChange, blank, addLabel, render }: { items: T
 
 // Per-section save control. Each tab owns its own save; this handles the pending
 // state and the transient "Saved ✓" / error message so tabs stay declarative.
-export function SaveButton({ onSave, label = "Save section" }: { onSave: () => Promise<{ ok: boolean; error?: string }>; label?: string }) {
-  const [pending, startTransition] = useTransition();
-  const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
-  return (
-    <div className="flex items-center gap-3 sticky bottom-0 bg-paper/95 py-3 -mx-1 px-1">
-      <button
-        type="button"
-        disabled={pending}
-        onClick={() =>
-          startTransition(async () => {
-            setMsg(null);
-            const res = await onSave();
-            setMsg(res.ok ? { text: "Saved ✓", ok: true } : { text: res.error || "Save failed.", ok: false });
-          })
-        }
-        className="lq-btn lq-btn--primary"
-      >
-        {pending ? "Saving…" : label}
-      </button>
-      {msg && <span className={`text-sm ${msg.ok ? "text-emerald-700" : "text-rose-700"}`}>{msg.text}</span>}
-    </div>
-  );
-}
