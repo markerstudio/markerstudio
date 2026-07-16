@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { SocialPost, SocialContentType, ContentStage } from "@/lib/clients";
 
 const WD = {
@@ -96,6 +96,10 @@ export default function SocialCalendar({
   const startOfWeek = (d: Date) => { const s = new Date(d); s.setDate(d.getDate() - d.getDay()); s.setHours(0, 0, 0, 0); return s; };
   const [weekStart, setWeekStart] = useState<Date>(() => startOfWeek(init));
   const [sel, setSel] = useState<string | null>(() => fmt(init.getFullYear(), init.getMonth(), init.getDate()));
+  // The day editor is a slide-in drawer (side panel on desktop, bottom sheet on
+  // phones) — non-modal, so clicking other days retargets it while it's open.
+  // It never auto-opens on load; today is only pre-highlighted.
+  const [drawerOpen, setDrawerOpen] = useState(false);
   const [open, setOpen] = useState<number | null>(null); // expanded entry (view mode)
   const [draft, setDraft] = useState(""); // comment composer for the open entry
   const [quick, setQuick] = useState<{ date: string; text: string } | null>(null); // planner quick-add draft
@@ -140,6 +144,13 @@ export default function SocialCalendar({
     else if (m === 11) { setY(y + 1); setM(0); } else setM(m + 1);
   };
   const goToday = () => { setY(now.getFullYear()); setM(now.getMonth()); setWeekStart(startOfWeek(now)); };
+
+  useEffect(() => {
+    if (!drawerOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setDrawerOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [drawerOpen]);
 
   const update = (idx: number, patch: Partial<SocialPost>) => onChange?.(posts.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
   const remove = (idx: number) => onChange?.(posts.filter((_, i) => i !== idx));
@@ -231,7 +242,7 @@ export default function SocialCalendar({
             <div
               key={date}
               className={`ms-cal-day ${other ? "is-other" : ""} ${sel === date ? "is-selected" : ""} ${date === todayStr ? "is-today" : ""} ${dayPosts.length ? "has-posts" : ""}`}
-              onClick={() => { setSel(date); setOpen(null); }}
+              onClick={() => { setSel(date); setOpen(null); setDrawerOpen(true); }}
               onDragOver={onDayDragOver}
               onDrop={onDayDrop(date)}
               role="button"
@@ -242,7 +253,7 @@ export default function SocialCalendar({
                   type="button"
                   className="ms-cal-dayadd"
                   aria-label={ui("Add here", "أضف هنا")}
-                  onClick={(e) => { e.stopPropagation(); setSel(date); addOn(date); }}
+                  onClick={(e) => { e.stopPropagation(); setSel(date); addOn(date); setDrawerOpen(true); }}
                 >＋</button>
               )}
               <span className="ms-cal-num">{d}</span>
@@ -277,7 +288,7 @@ export default function SocialCalendar({
             const qText = quick?.date === date ? quick.text : "";
             return (
               <div key={date} className={`ms-cal-plan__day ${date === todayStr ? "is-today" : ""} ${dt.getDay() === 0 && i > 0 ? "is-weekstart" : ""}`} onDragOver={onDayDragOver} onDrop={onDayDrop(date)}>
-                <button type="button" className="ms-cal-plan__date" title={ui("Open in month view", "افتح في عرض الشهر")} onClick={() => { setView("month"); setSel(date); setOpen(null); }}>
+                <button type="button" className="ms-cal-plan__date" title={ui("Open in month view", "افتح في عرض الشهر")} onClick={() => { setView("month"); setSel(date); setOpen(null); setDrawerOpen(true); }}>
                   <i>{WD[lang][dt.getDay()]}</i>
                   <b>{dt.getDate()}</b>
                 </button>
@@ -324,11 +335,15 @@ export default function SocialCalendar({
         </div>
       )}
 
-      {/* Selected-day panel — premium per-entry cards */}
-      {sel && view !== "plan" && (
-        <div className="lq-well p-4 mt-4">
-          <div className="ms-cal-panel__head">
-            <b>{prettyDay(sel)}</b>
+      {/* Selected-day drawer — slides in from the side (bottom sheet on phones),
+          non-modal: the grid stays visible and clicking days retargets it. */}
+      {sel && drawerOpen && view !== "plan" && (
+        <div className="ms-cal-drawer" role="dialog" aria-label={prettyDay(sel)}>
+          <div className="ms-cal-drawer__head">
+            <div className="ms-cal-drawer__bar">
+              <b>{prettyDay(sel)}</b>
+              <button type="button" className="ms-cal-iconbtn ms-cal-drawer__close" onClick={() => setDrawerOpen(false)} aria-label={ui("Close", "إغلاق")}>✕</button>
+            </div>
             {editable && (
               <span className="ms-cal-add-group">
                 {TYPES.map((t) => (
@@ -338,7 +353,8 @@ export default function SocialCalendar({
             )}
           </div>
 
-          {selEntries.length === 0 && <p className="text-sm text-charcoal-60" style={{ margin: "8px 0 0" }}>{ui("Nothing planned for this day yet.", "لا شيء مخطّط لهذا اليوم بعد.")}</p>}
+          <div className="ms-cal-drawer__body">
+          {selEntries.length === 0 && <p className="text-sm text-charcoal-60" style={{ margin: 0 }}>{ui("Nothing planned for this day yet.", "لا شيء مخطّط لهذا اليوم بعد.")}</p>}
 
           <div className="ms-cal-entries">
             {selEntries.map(({ p, idx }) => {
@@ -504,6 +520,7 @@ export default function SocialCalendar({
                 </div>
               );
             })}
+          </div>
           </div>
         </div>
       )}

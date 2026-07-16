@@ -2134,3 +2134,22 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-scaffold-day { min-width: 42px; padding: 8px 0; border: 1px solid var(--border-strong); border-radius: 999px; background: #fff; font: 700 11px/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--fg-muted); cursor: pointer; text-align: center; transition: all 140ms; }
 .ms-scaffold-day:hover { border-color: var(--marker-orange); color: var(--marker-orange); }
 .ms-scaffold-day.is-on { background: var(--marker-charcoal); border-color: var(--marker-charcoal); color: #fff; }
+
+/* Day drawer — side panel on desktop, bottom sheet on phones. Non-modal:
+   the grid stays interactive, clicking days retargets the open drawer. */
+.ms-cal-drawer { position: fixed; top: 0; bottom: 0; inset-inline-end: 0; width: min(460px, 94vw); background: #fff; z-index: 70; box-shadow: 0 0 60px rgba(48,48,48,.22); border-inline-start: 1px solid var(--border); display: flex; flex-direction: column; animation: ms-drawer-in 240ms var(--ease-out, ease-out); }
+@keyframes ms-drawer-in { from { transform: translateX(100%); } to { transform: translateX(0); } }
+[dir="rtl"] .ms-cal-drawer { animation-name: ms-drawer-in-rtl; }
+@keyframes ms-drawer-in-rtl { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+.ms-cal-drawer__head { padding: 16px 18px 12px; border-bottom: 1px solid var(--border); background: var(--marker-paper); flex: none; }
+.ms-cal-drawer__bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ms-cal-drawer__bar b { font: 800 17px/1.2 var(--font-display); letter-spacing: -0.01em; }
+.ms-cal-drawer__close { width: 30px; height: 30px; font-size: 13px; }
+.ms-cal-drawer__head .ms-cal-add-group { margin-top: 10px; }
+.ms-cal-drawer__body { flex: 1; overflow-y: auto; padding: 16px 18px; overscroll-behavior: contain; }
+@media (max-width: 899px) {
+  .ms-cal-drawer { top: auto; inset-inline: 0; width: 100%; max-height: 76vh; border-radius: 20px 20px 0 0; border-inline-start: 0; border-top: 1px solid var(--border); animation-name: ms-sheet-in; }
+  .ms-cal-drawer::before { content: ""; position: absolute; top: 7px; left: 50%; transform: translateX(-50%); width: 40px; height: 4px; border-radius: 999px; background: var(--marker-charcoal-20); }
+  .ms-cal-drawer__head { padding-top: 20px; border-radius: 20px 20px 0 0; }
+  @keyframes ms-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
+}
