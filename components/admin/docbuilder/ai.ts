@@ -1,5 +1,5 @@
 // AI fill for the document builders — mirrors the copy-prompt → paste-reply
-// workflow used for analytics & the social calendar (ClientForm), but over the
+// workflow used for analytics & the social calendar (editor tabs), but over the
 // whole ProposalDoc / AgreementDoc JSON: copy one prompt, hand it to ChatGPT /
 // Claude together with any raw material (brief, old proposal HTML, notes),
 // paste the returned JSON back and the entire document fills in one apply.

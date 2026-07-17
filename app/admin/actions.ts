@@ -11,6 +11,7 @@ import { ensureClientSchema, EXAMPLE_CLIENT, blankClientData, slugify, resolveOr
 import { fetchNotionPosts, fetchNotionClient, extractNotionId, listNotionClients, createNotionClientWithSource } from "@/lib/notion";
 import { withStoriesHistory } from "@/lib/clientFinance";
 import { snapshotForUndo } from "@/lib/undo";
+import { notifyClientDevices } from "@/lib/clientNotify";
 
 type UserRow = { id: number; email: string; name: string; password_hash: string; role: Role; client_id: number | null };
 
@@ -254,6 +255,7 @@ export async function sendProposal(formData: FormData) {
   const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
   if (!rows[0]) redirect("/admin/clients");
   const data = (rows[0].data || {}) as ClientData;
+  const wasPublished = !!data.proposal?.published;
   data.proposal = {
     ...data.proposal,
     published: send,
@@ -261,6 +263,14 @@ export async function sendProposal(formData: FormData) {
     sentAt: send ? data.proposal?.sentAt || new Date().toISOString() : data.proposal?.sentAt,
   };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  if (send && !wasPublished) {
+    await notifyClientDevices(rows[0].id, {
+      title: "Marker Studio — your proposal is ready",
+      body: "Review and accept it in your portal.",
+      url: `/portal/${slug}/proposal`,
+      tag: `proposal-${slug}`,
+    });
+  }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=${send ? "proposal-sent" : "proposal-unsent"}`);
 }
@@ -276,6 +286,7 @@ export async function sendAgreement(formData: FormData) {
   const rows = (await sql`SELECT id, data FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as { id: number; data: ClientData }[];
   if (!rows[0]) redirect("/admin/clients");
   const data = (rows[0].data || {}) as ClientData;
+  const wasPublished = !!data.agreement?.published;
   data.agreement = {
     ...data.agreement,
     published: send,
@@ -283,6 +294,14 @@ export async function sendAgreement(formData: FormData) {
     sentAt: send ? data.agreement?.sentAt || new Date().toISOString() : data.agreement?.sentAt,
   };
   await sql`UPDATE clients SET data = ${JSON.stringify(data)}::jsonb, updated_at = now() WHERE id = ${rows[0].id}`;
+  if (send && !wasPublished) {
+    await notifyClientDevices(rows[0].id, {
+      title: "Marker Studio — your agreement is ready",
+      body: "Review and e-sign it in your portal.",
+      url: `/portal/${slug}/agreement`,
+      tag: `agreement-${slug}`,
+    });
+  }
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=${send ? "agreement-sent" : "agreement-unsent"}`);
 }
@@ -515,67 +534,44 @@ export async function deleteUser(formData: FormData) {
 
 // --- Client portals --------------------------------------------------------
 
-export async function saveClient(formData: FormData) {
+// Minimal create — name plus optional logo/color/owner. Everything else (plan,
+// portal content, logins, integrations) is authored in the tabbed editor right
+// after, so creation is one field instead of the old 600-line full form.
+export async function createClient(formData: FormData) {
   const session = await getSession();
   if (!session) redirect("/login");
   await ensureClientSchema();
-  const slug = String(formData.get("slug") || "").trim();
   const name = String(formData.get("name") || "").trim();
+  if (!name) redirect("/admin/clients/new?error=name");
   const logo = String(formData.get("logo") || "").trim();
   const color = String(formData.get("color") || "#303030").trim();
-  const original = String(formData.get("originalSlug") || "").trim();
+  const owner = String(formData.get("owner") || "marker") === "ramzi" ? "ramzi" : "marker";
 
-  let data: unknown;
-  try {
-    data = JSON.parse(String(formData.get("data") || "{}"));
-  } catch {
-    redirect(`/admin/clients/${original || "new"}/edit?error=json`);
-  }
   const sql = getSql();
+  const base = slugify(name);
+  let slug = base;
+  let n = 2;
+  for (;;) {
+    const r = (await sql`SELECT 1 FROM clients WHERE slug = ${slug} LIMIT 1`) as unknown as unknown[];
+    if (r.length === 0) break;
+    slug = `${base}-${n++}`;
+  }
 
-  if (original) {
-    // The photo block is saved separately (per-section editor + photographer portal,
-    // via jsonb_set) and is intentionally stripped from this form's payload — so
-    // restore the live one here. A full-form save must never wipe or clobber a
-    // concurrent shoot edit or photographer status change.
-    const live = (await sql`SELECT data->'photo' AS photo FROM clients WHERE slug = ${original} LIMIT 1`) as unknown as { photo: unknown }[];
-    const merged = data as Record<string, unknown>;
-    if (live[0]?.photo != null) merged.photo = live[0].photo;
-    const mergedJson = JSON.stringify(merged);
-    await sql`
-      UPDATE clients SET slug = ${slug}, name = ${name}, logo = ${logo}, color = ${color}, data = ${mergedJson}::jsonb, updated_at = now()
-      WHERE slug = ${original}
-    `;
-  } else {
-    // New client from the editor — auto-create it in Notion (with its source
-    // attached to All Time Clients Debt) unless it's already linked. Best-effort.
-    // Ramzi-owned clients are the partner's own and stay out of Marker's Notion.
-    const d = data as ClientData;
-    // A partner-only admin (Ramzi) can only ever create their own clients.
-    if (isPartnerOnly(session)) d.owner = "ramzi";
-    let outJson = JSON.stringify(d); // reflects any owner change above
-    if (!d.notionPageId && d.owner !== "ramzi") {
-      const made = await createNotionClientWithSource({
-        name,
-        monthlyFee: d.finance?.monthlyFee,
-        brandingFee: d.finance?.brandingFee,
-      });
-      if (made?.clientPageId) {
-        d.notionPageId = made.clientPageId;
-        outJson = JSON.stringify(d);
-      }
-    }
-    await sql`
-      INSERT INTO clients (slug, name, logo, color, data) VALUES (${slug}, ${name}, ${logo}, ${color}, ${outJson}::jsonb)
-    `;
+  const data = blankClientData();
+  // A partner-only admin (Ramzi) can only ever create their own clients.
+  data.owner = isPartnerOnly(session) ? "ramzi" : owner;
+  if (data.owner !== "ramzi") {
+    // Marker clients get their Notion record + budget source up front (money
+    // stays in Notion by design). Best-effort — never blocks creation.
+    try {
+      const made = await createNotionClientWithSource({ name });
+      if (made?.clientPageId) data.notionPageId = made.clientPageId;
+    } catch { /* Notion unreachable — link later from Setup */ }
   }
-  revalidatePath(`/portal/${slug}`);
-  revalidatePath(`/admin/clients/${slug}/edit`);
-  if (original && original !== slug) {
-    revalidatePath(`/portal/${original}`);
-    revalidatePath(`/admin/clients/${original}/edit`);
-  }
-  redirect(`/admin/clients/${slug}/edit?ok=saved`);
+
+  await sql`INSERT INTO clients (slug, name, logo, color, data) VALUES (${slug}, ${name}, ${logo}, ${color}, ${JSON.stringify(data)}::jsonb)`;
+  revalidatePath("/admin/clients");
+  redirect(`/admin/clients/${slug}/edit?ok=created`);
 }
 
 // Archive / restore a whole client. Archiving keeps everything (portal, logins,

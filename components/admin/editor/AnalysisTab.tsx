@@ -4,7 +4,8 @@ import { useState } from "react";
 import { fromCSV } from "@/lib/portalCsv";
 import { saveSection } from "@/app/admin/clients/section-actions";
 import AiAnalysisPanel from "@/components/admin/AiAnalysisPanel";
-import { input, lbl, Text, Bi, Rows, SaveButton } from "./fields";
+import { input, lbl, Text, Bi, Rows } from "./fields";
+import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import { analyticsPrompt } from "./aiPrompts";
 import type { Client, ClientData, MetricRow, Campaign } from "@/lib/clients";
 
@@ -15,6 +16,14 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
   const [paste, setPaste] = useState("");
   const [msg, setMsg] = useState("");
 
+  const sync = useSectionAutosave({
+    slug,
+    section: "analysis",
+    payload: { analysis: data.analysis },
+    save: (p) => saveSection(slug, p),
+    onRestore: (d) => patch(d),
+  });
+
   function copy() {
     navigator.clipboard?.writeText(analyticsPrompt(data));
     setCopied(true);
@@ -24,7 +33,7 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
     try {
       const parsed = fromCSV(paste);
       patch({ analysis: parsed.analysis });
-      setMsg("Analytics filled ✓ — review below, then Save.");
+      setMsg("Analytics filled ✓ — review below; changes save automatically.");
       setPaste("");
     } catch {
       setMsg("Couldn't read that — paste the CSV the AI returned (the field,en,ar,value table).");
@@ -95,7 +104,7 @@ export default function AnalysisTab({ slug, data, patch, client, apiEnabled }: {
         </div>
       </details>
 
-      <SaveButton onSave={() => saveSection(slug, { analysis: data.analysis })} />
+      <SyncPill {...sync} />
     </div>
   );
 }

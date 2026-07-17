@@ -249,12 +249,27 @@ export default function AdminShell({
         </div>
       </aside>
 
+      {/* ---------- Mobile top bar — real chrome from y=0, so in standalone/
+          translucent-status-bar mode content never scrolls visibly under the
+          clock. Purely decorative: the bell must NOT live inside it
+          (backdrop-filter would trap its fixed panel). ---------- */}
+      <header className="lq-topbar lq-chrome min-[900px]:hidden" aria-hidden>
+        <span className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center bg-gradient-to-br from-[#FFA226] to-[#F57F00] shrink-0">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/logo-favicon.png" alt="" className="w-full h-full object-cover" />
+        </span>
+        <b className="font-display font-extrabold tracking-tight text-[13px] text-ink leading-none">
+          Marker <span className="text-charcoal-40 font-bold text-[9px] uppercase tracking-[0.16em]">Studio OS</span>
+        </b>
+      </header>
+
       {/* ---------- Mobile floating bell ----------
           NOT .lq-chrome: backdrop-filter turns this wrapper into the containing
           block for the bell's fixed-position panel, trapping it inside the chip
-          (= "notifications don't show on mobile"). Solid glass look instead. */}
+          (= "notifications don't show on mobile"). Solid glass look instead.
+          Rides on the top bar, clear of the iOS status bar / notch. */}
       <div
-        className="fixed top-3 z-40 rounded-full p-1 min-[900px]:hidden bg-white/90 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_10px_28px_-10px_rgba(48,48,48,.28)]"
+        className="fixed top-[calc(env(safe-area-inset-top,0px)+5px)] z-[65] rounded-full p-1 min-[900px]:hidden bg-white/90 border border-white/60 shadow-[inset_0_1px_0_rgba(255,255,255,.9),0_10px_28px_-10px_rgba(48,48,48,.28)]"
         style={{ insetInlineEnd: 12 }}
       >
         <NotificationBell userKey={email} placement="top" />

@@ -22,6 +22,7 @@ import { isDbEnabled } from "@/lib/db";
 export type AgendaKind =
   | "task"
   | "post"
+  | "prep"
   | "approval"
   | "invoice"
   | "shoot"
@@ -120,12 +121,20 @@ function postItems(c: Client, today: string, horizon: string): AgendaItem[] {
   for (const p of posts) {
     if (!p.date) continue;
     // A post that isn't out yet and whose date has arrived (or is near).
+    // Posts still in production (idea / to-shoot / editing) surface as a
+    // "Prepare" reminder INSTEAD of a vague "not scheduled" line — planning a
+    // month (or laying one out with the scaffold) feeds the agenda by itself,
+    // with no duplicate task rows to maintain.
     if (p.status !== "posted") {
       const u = urgencyOf(p.date, today, horizon);
       if (u) {
+        const stage = p.stage ?? (p.status === "scheduled" ? "scheduled" : "idea");
+        const inProduction = stage === "idea" || stage === "shoot" || stage === "edit";
         out.push({
-          kind: "post",
-          title: p.status === "scheduled" ? `Goes live — ${p.title}` : `Not scheduled yet — ${p.title}`,
+          kind: inProduction ? "prep" : "post",
+          title: inProduction
+            ? `Prepare — ${p.title || `${p.type || "post"}`}${stage === "shoot" ? " (needs shoot)" : stage === "edit" ? " (in edit)" : ""}`
+            : `Goes live — ${p.title}`,
           sub: [p.platform, p.type].filter(Boolean).join(" · ") || undefined,
           href: `/admin/clients/${c.slug}/edit?tab=content`,
           date: p.date,
@@ -421,6 +430,7 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
 export const AGENDA_KIND_META: Record<AgendaKind, { icon: string; label: string }> = {
   task: { icon: "✓", label: "Task" },
   post: { icon: "▶", label: "Post" },
+  prep: { icon: "☐", label: "Prepare" },
   approval: { icon: "◔", label: "Approval" },
   invoice: { icon: "₪", label: "Invoice" },
   shoot: { icon: "◉", label: "Shoot" },

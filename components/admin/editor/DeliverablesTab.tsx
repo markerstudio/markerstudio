@@ -1,7 +1,8 @@
 "use client";
 
-import { memo, useCallback, useState, useTransition } from "react";
+import { memo, useCallback, useState } from "react";
 import { saveDeliverablesSection } from "@/app/admin/deliverables/actions";
+import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import { ensureDeliverableIds, genId, suggestDeliverables, mergeSuggestions, ORDER, LABELS, progress } from "@/lib/deliverables";
 import { EmptyState, Toggle } from "@/components/ui/glass";
 import type { ClientData, ClientDeliverables, Deliverable } from "@/lib/clients";
@@ -60,13 +61,20 @@ const Row = memo(function Row({ item, onChange, onRemove }: { item: Deliverable;
 // only the deliverables block (its own jsonb_set key) — independent of the rest.
 export default function DeliverablesTab({ slug, data }: { slug: string; data: ClientData }) {
   const [block, setBlock] = useState<ClientDeliverables>(() => ensureDeliverableIds(data.deliverables));
-  const [dirty, setDirty] = useState(false);
-  const [pending, startTransition] = useTransition();
   const [msg, setMsg] = useState("");
+
+  // Auto-save + offline drafts — the shared per-section contract.
+  const sync = useSectionAutosave({
+    slug,
+    section: "deliverables",
+    payload: { block },
+    save: (p) => saveDeliverablesSection(slug, p.block),
+    onRestore: (d) => { setBlock(ensureDeliverableIds(d.block)); setMsg("Restored unsaved changes — saving…"); },
+  });
 
   const items = block.items ?? [];
   const prog = progress(items);
-  const mark = () => { setDirty(true); setMsg(""); };
+  const mark = () => setMsg("");
 
   const change = useCallback((id: string, patch: Partial<Deliverable>) => {
     setBlock((b) => ({ ...b, items: (b.items ?? []).map((d) => (d.id === id ? { ...d, ...patch } : d)) }));
@@ -85,15 +93,7 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
     setBlock((b) => ({ ...b, active: b.active ?? true, items: merged }));
     mark();
     const added = merged.length - before;
-    setMsg(added > 0 ? `Added ${added} suggestion${added > 1 ? "s" : ""} — review dates, then Save.` : "No new suggestions — everything's already listed.");
-  }
-
-  function save() {
-    startTransition(async () => {
-      const res = await saveDeliverablesSection(slug, block);
-      if (res.ok) { setDirty(false); setMsg("Saved ✓"); }
-      else setMsg(res.error || "Save failed.");
-    });
+    setMsg(added > 0 ? `Added ${added} suggestion${added > 1 ? "s" : ""} — review the dates; changes save automatically.` : "No new suggestions — everything's already listed.");
   }
 
   return (
@@ -159,11 +159,8 @@ export default function DeliverablesTab({ slug, data }: { slug: string; data: Cl
         </div>
 
         <div className="mt-5 flex items-center gap-3">
-          <button type="button" onClick={save} disabled={pending || !dirty} className="lq-btn lq-btn--primary">
-            {pending ? "Saving…" : "Save deliverables"}
-          </button>
+          <SyncPill {...sync} />
           {msg && <span className="text-sm text-charcoal-60">{msg}</span>}
-          {dirty && !pending && <span className="text-xs text-amber-700">Unsaved changes</span>}
         </div>
       </section>
     </div>

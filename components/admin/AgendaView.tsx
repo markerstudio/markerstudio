@@ -28,6 +28,7 @@ import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
 const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>> = {
   task: CheckCircle2,
   post: Megaphone,
+  prep: NotebookPen,
   approval: Clock,
   invoice: Wallet,
   shoot: Camera,
@@ -41,6 +42,7 @@ const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>>
 const KIND_TONE: Record<AgendaKind, string> = {
   task: "lq-chip--blue",
   post: "lq-chip--orange",
+  prep: "lq-chip--orange",
   approval: "lq-chip--orange",
   invoice: "lq-chip--red",
   shoot: "lq-chip--blue",

@@ -6,7 +6,7 @@
 import { useEffect, useState } from "react";
 import { subscribeToPush, pushSupported } from "@/lib/pushClient";
 
-export default function EnablePushButton({ lang = "en" }: { lang?: "en" | "ar" }) {
+export default function EnablePushButton({ lang = "en", compact = false }: { lang?: "en" | "ar"; compact?: boolean }) {
   const [state, setState] = useState<"idle" | "busy" | "on" | "hidden">("idle");
   const t = (en: string, ar: string) => (lang === "ar" ? ar : en);
 
@@ -28,7 +28,7 @@ export default function EnablePushButton({ lang = "en" }: { lang?: "en" | "ar" }
   if (state === "on") {
     return (
       <span className="lq-chip lq-chip--orange whitespace-nowrap" title={t("Notifications are on for this device", "الإشعارات مفعّلة على هذا الجهاز")}>
-        🔔 {t("On", "مفعّل")}
+        🔔{!compact && <> {t("On", "مفعّل")}</>}
       </span>
     );
   }
@@ -44,7 +44,7 @@ export default function EnablePushButton({ lang = "en" }: { lang?: "en" | "ar" }
       }}
       title={t("Get updates from the studio on this device", "استقبل تحديثات الاستوديو على هذا الجهاز")}
     >
-      🔔 {state === "busy" ? "…" : t("Get updates", "فعّل الإشعارات")}
+      🔔{state === "busy" ? " …" : !compact && <> {t("Get updates", "فعّل الإشعارات")}</>}
     </button>
   );
 }

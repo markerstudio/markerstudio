@@ -15,6 +15,7 @@ import { syncPaymentToNotion, reconcilePendingNotionPayments } from "@/lib/notio
 import { notionArchivePage } from "@/lib/notion";
 import { usdIlsRateOn } from "@/lib/money";
 import { snapshotForUndo, withParam } from "@/lib/undo";
+import { notifyClientDevices } from "@/lib/clientNotify";
 
 async function clientBySlug(slug: string) {
   const sql = getSql();
@@ -122,6 +123,7 @@ export async function createInvoiceAction(formData: FormData) {
 
   const { id: invoiceId, number } = await createInvoice({ clientId: c.id, clientSlug: c.slug, items, note, dueDate: dueDate || undefined, source: "custom", vatRate });
   await recordDepositPayment({ invoiceId, slug, items, amount: paidAmount, label: `${number} deposit`, dueDate });
+  await notifyClientDevices(c.id, { title: "Marker Studio — new invoice", body: `${number} is ready in your portal.`, url: `/portal/${slug}`, tag: `invoice-${number}` });
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }
@@ -139,7 +141,8 @@ export async function createInvoiceFromNotion(formData: FormData) {
   const cycle = plan?.start || plan?.end ? ` (${plan?.start || ""}${plan?.end ? ` → ${plan.end}` : ""})` : "";
   const label = `Monthly — ${plan?.name || "Social media management"}${cycle}`;
 
-  await createInvoice({ clientId: c.id, clientSlug: c.slug, items: [{ label, amount: fee }], note: plan?.note?.en || "", source: "notion" });
+  const { number } = await createInvoice({ clientId: c.id, clientSlug: c.slug, items: [{ label, amount: fee }], note: plan?.note?.en || "", source: "notion" });
+  await notifyClientDevices(c.id, { title: "Marker Studio — new invoice", body: `${number} — ${fee} — is ready in your portal.`, url: `/portal/${slug}`, tag: `invoice-${number}` });
   revalidatePath(`/portal/${slug}`);
   redirect(`/admin/clients/${slug}/edit?ok=invoice-created`);
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import SwOffline from "@/components/SwOffline";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -87,6 +88,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }}
         />
         {children}
+        <SwOffline />
         <SpeedInsights />
       </body>
     </html>

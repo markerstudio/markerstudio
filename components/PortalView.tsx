@@ -215,16 +215,26 @@ export default function PortalView({
 
   return (
     <div className="lq-app" dir={lang === "ar" ? "rtl" : "ltr"}>
-      {/* ---------- Desktop rail (floating glass, inline-start — flips in RTL) ---------- */}
+      {/* ---------- Desktop rail (floating glass, inline-start — flips in RTL).
+          Same anatomy as the admin rail: brand header, grouped nav, compact
+          icon row + identity line at the bottom. ---------- */}
       <aside className="lq-rail lq-chrome" aria-label={ui("Portal sections", "أقسام البوابة")}>
         <button
           type="button"
           onClick={() => goTab("dashboard")}
           aria-label="Dashboard"
-          className="lq-press flex items-center px-2.5 pb-3 bg-transparent border-0 cursor-pointer rounded-2xl"
+          className="lq-press flex items-center gap-2.5 px-2.5 pb-3 bg-transparent border-0 cursor-pointer rounded-2xl text-start"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={MARKER_LOGO} alt="Marker Studio" className="h-8 w-auto" />
+          <span className="w-9 h-9 rounded-full overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,.5),0_6px_16px_-4px_rgba(255,145,0,.55)] flex items-center justify-center bg-gradient-to-br from-[#FFA226] to-[#F57F00] shrink-0">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/logo-favicon.png" alt="Marker Studio" className="w-full h-full object-cover" />
+          </span>
+          <span className="font-display font-extrabold tracking-tight text-[15px] text-ink leading-none">
+            Marker
+            <span className="block text-[9px] font-bold uppercase tracking-[0.18em] text-charcoal-40 mt-1">
+              {ui("Client portal", "بوابة العملاء")}
+            </span>
+          </span>
         </button>
 
         <nav className="lq-rail__nav">
@@ -243,40 +253,51 @@ export default function PortalView({
           ))}
         </nav>
 
-        {/* Bottom cluster — client, language, security, sign out */}
-        <div className="pt-3 mt-1 border-t border-charcoal/5 flex flex-col gap-2.5">
-          <div className="flex items-center justify-between gap-2 px-1">
-            <b className="font-display font-bold text-[13px] text-ink truncate" title={client.name}>{client.name}</b>
-            <span className={`lq-chip ${d.plan?.active ? "lq-chip--green" : ""} !px-2 !py-1 uppercase !text-[9.5px] shrink-0`}>
-              {d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-2 px-1">
+        {/* Bottom cluster — one compact icon row (updates, language, Face ID,
+            sign out) over the client identity line. */}
+        <div className="pt-2 mt-1 border-t border-charcoal/5 flex flex-col gap-0.5">
+          <div className="flex items-center justify-between px-2 py-1">
+            <EnablePushButton lang={lang} compact />
             {langSeg}
-            <EnablePushButton lang={lang} />
-          </div>
-          <div className="flex items-center gap-1.5 px-1 pb-1">
-            <a href="/account/security" className="lq-btn lq-btn--glass lq-btn--sm flex-1 no-underline">
-              {ui("Face ID / Touch ID", "بصمة الوجه / اللمس")}
+            <a
+              href="/account/security"
+              title={ui("Face ID / Touch ID", "بصمة الوجه / اللمس")}
+              className="w-8 h-8 rounded-full flex items-center justify-center text-charcoal-60 hover:text-ink hover:bg-charcoal/5 lq-press"
+            >
+              <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 11v4M8.5 9.5a4 4 0 0 1 7 2.7c0 2.5-.5 4.3-1.2 5.8M5.7 7.3A8 8 0 0 1 20 12c0 1.2-.1 2.4-.3 3.5M4 12a8 8 0 0 1 .6-3M7.9 20a17 17 0 0 0 .6-4" /></svg>
             </a>
-            <form action={logout} className="shrink-0">
-              <button className="lq-btn lq-btn--ghost lq-btn--sm text-rose-700">{ui("Sign out", "خروج")}</button>
+            <form action={logout}>
+              <button
+                type="submit"
+                title={ui("Sign out", "خروج")}
+                className="w-8 h-8 rounded-full flex items-center justify-center text-charcoal-60 hover:text-rose-700 hover:bg-rose-500/10 lq-press"
+              >
+                <svg viewBox="0 0 24 24" className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>
+              </button>
             </form>
           </div>
+          <p className="px-2.5 pb-1 flex items-center gap-2 min-w-0">
+            <b className="font-display font-bold text-[11.5px] text-charcoal-60 truncate" title={client.name}>{client.name}</b>
+            <span className={`lq-chip ${d.plan?.active ? "lq-chip--green" : ""} !px-2 !py-0.5 uppercase !text-[9px] shrink-0`}>
+              {d.plan?.active ? ui("Active", "نشطة") : ui("Paused", "متوقفة")}
+            </span>
+          </p>
         </div>
       </aside>
 
-      {/* ---------- Mobile floating pill cluster (top-end) ---------- */}
-      <div
-        className="fixed z-40 lq-chrome rounded-full p-1.5 flex items-center gap-1.5 min-[900px]:hidden"
-        style={{ insetInlineEnd: 12, top: 12 }}
-      >
-        <EnablePushButton lang={lang} />
-        {langSeg}
-        <form action={logout}>
-          <button className="lq-btn lq-btn--ghost lq-btn--sm">{ui("Sign out", "خروج")}</button>
-        </form>
-      </div>
+      {/* ---------- Mobile top bar — full width so it never floats over content;
+          the centre stays free for the admin "Back to settings" pill. ---------- */}
+      <header className="lq-topbar lq-chrome min-[900px]:hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={MARKER_LOGO} alt="Marker Studio" className="h-6 w-auto" />
+        <span className="flex items-center gap-1.5 ms-auto">
+          <EnablePushButton lang={lang} compact />
+          {langSeg}
+          <form action={logout}>
+            <button className="lq-btn lq-btn--ghost lq-btn--sm">{ui("Sign out", "خروج")}</button>
+          </form>
+        </span>
+      </header>
 
       {/* ---------- Main column ---------- */}
       <main className="lq-main">

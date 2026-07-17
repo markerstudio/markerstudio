@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { amountLabelToIls } from "@/lib/money";
 import { saveSection } from "@/app/admin/clients/section-actions";
 import { Toggle } from "@/components/ui/glass";
-import { input, lbl, fmtIls, splitAmount, joinAmount, Text, Rows, SaveButton } from "./fields";
+import { input, lbl, fmtIls, splitAmount, joinAmount, Text, Rows } from "./fields";
+import { useSectionAutosave, SyncPill } from "./useSectionAutosave";
 import type { ClientData, Invoice } from "@/lib/clients";
 
 // Client-safe mirror of computeClientFinance (lib/clients is server-only).
@@ -40,14 +41,22 @@ export default function FinanceTab({
   const patchFinance = (p: Partial<ClientData["finance"]>) =>
     patch({ finance: { ...data.finance, monthlyFee: data.finance?.monthlyFee ?? "", progress: data.finance?.progress ?? 0, ...p } });
 
-  function save() {
-    if (linkedToNotion) return saveSection(slug, { finance: data.finance, invoices: data.invoices });
-    return saveSection(slug, {
-      plan: { ...data.plan, balance: fmtIls(fin.moneyLeftIls) },
-      finance: { ...data.finance, progress: fin.paidPct },
-      invoices: data.invoices,
-    });
-  }
+  // Auto-save — the payload is exactly what the old Save button wrote: when
+  // Notion owns the money, only fees + payment history; otherwise the derived
+  // balance/paid% are recomputed and persisted with them.
+  const sync = useSectionAutosave({
+    slug,
+    section: "finance",
+    payload: linkedToNotion
+      ? { finance: data.finance, invoices: data.invoices }
+      : {
+          plan: { ...data.plan, balance: fmtIls(fin.moneyLeftIls) },
+          finance: { ...data.finance, progress: fin.paidPct },
+          invoices: data.invoices,
+        },
+    save: (p) => saveSection(slug, p),
+    onRestore: (d) => patch(d),
+  });
 
   return (
     <div className="space-y-6">
@@ -133,7 +142,7 @@ export default function FinanceTab({
               </div>
             );
           }} />
-        <SaveButton onSave={save} label="Save finance" />
+        <SyncPill {...sync} />
       </section>
 
       {invoicesSlot}
