@@ -63,12 +63,21 @@ export type Agenda = {
   /** Every item, flat, ordered by (urgency, date, time). */
   all: AgendaItem[];
   counts: { overdue: number; today: number; soon: number };
+  /** Studio-local yyyy-mm-dd the agenda was computed against — the views
+   *  render against this instead of re-deriving "today" in the browser. */
+  today: string;
 };
 
 const DAY = 24 * 3600 * 1000;
 
+// "Today" means today in Beit Sahour, not wherever the server happens to run.
+// Slicing toISOString() gave the UTC date, so every night between studio
+// midnight and UTC midnight the agenda lagged a day behind — due items sat in
+// "coming up" and yesterday's misses weren't overdue yet.
+const STUDIO_TZ = "Asia/Hebron";
+
 function iso(d: Date): string {
-  return d.toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: STUDIO_TZ }).format(d);
 }
 function addDays(base: string, n: number): string {
   return iso(new Date(new Date(`${base}T12:00:00Z`).getTime() + n * DAY));
@@ -117,49 +126,43 @@ function taskItems(list: Deliverable[], today: string, horizon: string, client?:
 function postItems(c: Client, today: string, horizon: string): AgendaItem[] {
   const out: AgendaItem[] = [];
   const posts = c.data?.social?.posts ?? [];
-  const now = Date.now();
   for (const p of posts) {
-    if (!p.date) continue;
-    // A post that isn't out yet and whose date has arrived (or is near).
+    if (!p.date || p.status === "posted") continue;
+    const u = urgencyOf(p.date, today, horizon);
+    if (!u) continue;
+    const base = {
+      href: `/admin/clients/${c.slug}/edit?tab=content`,
+      date: p.date,
+      urgency: u,
+      clientSlug: c.slug,
+      clientName: c.name || c.slug,
+    };
+    // A pending approval blocks the post — that's the one line to show, not a
+    // "goes live" promise (it won't) plus a separate nudge. It stays on the
+    // post's date so a blown date reads as overdue instead of disappearing.
+    if (p.approval === "pending") {
+      out.push({
+        kind: "approval",
+        title: `Awaiting approval — ${p.title || p.type || "post"}`,
+        sub: u === "overdue" ? "post date passed — chase the client" : "nudge the client",
+        ...base,
+      });
+      continue;
+    }
     // Posts still in production (idea / to-shoot / editing) surface as a
     // "Prepare" reminder INSTEAD of a vague "not scheduled" line — planning a
     // month (or laying one out with the scaffold) feeds the agenda by itself,
     // with no duplicate task rows to maintain.
-    if (p.status !== "posted") {
-      const u = urgencyOf(p.date, today, horizon);
-      if (u) {
-        const stage = p.stage ?? (p.status === "scheduled" ? "scheduled" : "idea");
-        const inProduction = stage === "idea" || stage === "shoot" || stage === "edit";
-        out.push({
-          kind: inProduction ? "prep" : "post",
-          title: inProduction
-            ? `Prepare — ${p.title || `${p.type || "post"}`}${stage === "shoot" ? " (needs shoot)" : stage === "edit" ? " (in edit)" : ""}`
-            : `Goes live — ${p.title}`,
-          sub: [p.platform, p.type].filter(Boolean).join(" · ") || undefined,
-          href: `/admin/clients/${c.slug}/edit?tab=content`,
-          date: p.date,
-          urgency: u,
-          clientSlug: c.slug,
-          clientName: c.name || c.slug,
-        });
-      }
-    }
-    // Approval sitting with the client for 48h+ — nudge them.
-    if (p.approval === "pending" && p.date >= today) {
-      const asked = new Date(`${p.date}T00:00:00`).getTime() - 7 * DAY; // rough proxy
-      if (now - asked > 2 * DAY) {
-        out.push({
-          kind: "approval",
-          title: `Waiting on approval — ${p.title}`,
-          sub: "nudge the client",
-          href: `/admin/clients/${c.slug}/edit?tab=content`,
-          date: today,
-          urgency: "today",
-          clientSlug: c.slug,
-          clientName: c.name || c.slug,
-        });
-      }
-    }
+    const stage = p.stage ?? (p.status === "scheduled" ? "scheduled" : "idea");
+    const inProduction = stage === "idea" || stage === "shoot" || stage === "edit";
+    out.push({
+      kind: inProduction ? "prep" : "post",
+      title: inProduction
+        ? `Prepare — ${p.title || `${p.type || "post"}`}${stage === "shoot" ? " (needs shoot)" : stage === "edit" ? " (in edit)" : ""}`
+        : `Goes live — ${p.title}`,
+      sub: [p.platform, p.type].filter(Boolean).join(" · ") || undefined,
+      ...base,
+    });
   }
   return out;
 }
@@ -346,10 +349,10 @@ function noteItems(notes: Note[], bySlug: Map<string, Client>, today: string): A
 const URGENCY_ORDER: Record<AgendaUrgency, number> = { overdue: 0, today: 1, soon: 2 };
 
 export async function getAgenda(daysAhead = 7): Promise<Agenda> {
-  const empty: Agenda = { clients: [], studio: [], all: [], counts: { overdue: 0, today: 0, soon: 0 } };
+  const today = iso(new Date());
+  const empty: Agenda = { clients: [], studio: [], all: [], counts: { overdue: 0, today: 0, soon: 0 }, today };
   if (!isDbEnabled()) return empty;
 
-  const today = iso(new Date());
   const horizon = addDays(today, daysAhead);
 
   const [clients, invoices, studioTasks, notes] = await Promise.all([
@@ -424,19 +427,6 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
       today: all.filter((i) => i.urgency === "today").length,
       soon: all.filter((i) => i.urgency === "soon").length,
     },
+    today,
   };
 }
-
-export const AGENDA_KIND_META: Record<AgendaKind, { icon: string; label: string }> = {
-  task: { icon: "✓", label: "Task" },
-  post: { icon: "▶", label: "Post" },
-  prep: { icon: "☐", label: "Prepare" },
-  approval: { icon: "◔", label: "Approval" },
-  invoice: { icon: "₪", label: "Invoice" },
-  shoot: { icon: "◉", label: "Shoot" },
-  checkin: { icon: "☰", label: "Check-in" },
-  wrap: { icon: "★", label: "Wrap-up" },
-  onboard: { icon: "＋", label: "Onboarding" },
-  stories: { icon: "◐", label: "Stories" },
-  note: { icon: "✎", label: "Note" },
-};
