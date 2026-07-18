@@ -13,6 +13,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 
 /* ---------------------------------------------------------------- cards */
 
@@ -255,6 +256,17 @@ function useEscape(onClose: () => void, active: boolean) {
   }, [onClose, active]);
 }
 
+/* Overlays render through a body portal (a rule of the road). Rendered inline,
+   their fixed scrim/panel gets trapped by any ancestor that creates a
+   containing block — page entrance animations (lq-rise) do exactly that — so
+   the scrim dimmed/blurred only the content column instead of the viewport. */
+function BodyPortal({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return createPortal(children, document.body);
+}
+
 /** Bottom sheet (mobile-first). Swipe-down or scrim tap to dismiss. */
 export function Sheet({
   open,
@@ -273,7 +285,7 @@ export function Sheet({
   const ref = useRef<HTMLDivElement>(null);
   if (!open) return null;
   return (
-    <>
+    <BodyPortal>
       <div className="lq-scrim" onClick={onClose} aria-hidden />
       <div
         ref={ref}
@@ -299,7 +311,7 @@ export function Sheet({
         <div className="lq-sheet__handle" />
         {children}
       </div>
-    </>
+    </BodyPortal>
   );
 }
 
@@ -319,12 +331,12 @@ export function Modal({
   useEscape(onClose, open);
   if (!open) return null;
   return (
-    <>
+    <BodyPortal>
       <div className="lq-scrim" onClick={onClose} aria-hidden />
       <div role="dialog" aria-modal="true" className={`lq-modal lq-chrome ${className}`}>
         {children}
       </div>
-    </>
+    </BodyPortal>
   );
 }
 

@@ -14,7 +14,7 @@
 // Nothing here writes anywhere. No schema changes.
 
 import { getClients, type Client, type Deliverable } from "@/lib/clients";
-import { getStudioDeliverables } from "@/lib/studio";
+import { getStudioDeliverables, getAgendaSnoozes } from "@/lib/studio";
 import { listInvoices, invoiceRemaining, invoiceCurrency, type Invoice } from "@/lib/invoices";
 import { listNotes, type Note } from "@/lib/notes";
 import { isDbEnabled } from "@/lib/db";
@@ -35,6 +35,10 @@ export type AgendaKind =
 export type AgendaUrgency = "overdue" | "today" | "soon";
 
 export type AgendaItem = {
+  /** Stable identity for the underlying signal — what a snooze attaches to.
+   *  Built from the source record (invoice id, post date+title, client slug…)
+   *  so it survives re-derivation but changes when the signal itself does. */
+  id: string;
   kind: AgendaKind;
   title: string;
   sub?: string;
@@ -63,6 +67,8 @@ export type Agenda = {
   /** Every item, flat, ordered by (urgency, date, time). */
   all: AgendaItem[];
   counts: { overdue: number; today: number; soon: number };
+  /** How many derived items are currently snoozed out of view. */
+  snoozed: number;
   /** Studio-local yyyy-mm-dd the agenda was computed against — the views
    *  render against this instead of re-deriving "today" in the browser. */
   today: string;
@@ -81,6 +87,15 @@ function iso(d: Date): string {
 }
 function addDays(base: string, n: number): string {
   return iso(new Date(new Date(`${base}T12:00:00Z`).getTime() + n * DAY));
+}
+
+/** Today in the studio's timezone — for callers (snooze action) that need to
+ *  agree with the engine about what day it is. */
+export function agendaToday(): string {
+  return iso(new Date());
+}
+export function agendaAddDays(base: string, n: number): string {
+  return addDays(base, n);
 }
 function fmtShort(dateIso: string, today: string): string {
   if (dateIso === today) return "today";
@@ -109,6 +124,7 @@ function taskItems(list: Deliverable[], today: string, horizon: string, client?:
     const u = urgencyOf(t.due, today, horizon);
     if (!u) continue;
     out.push({
+      id: `task:${client?.slug ?? "studio"}:${t.id ?? `${t.title}@${t.due}`}`,
       kind: "task",
       title: t.title,
       sub: t.priority === "urgent" || t.priority === "high" ? t.priority : undefined,
@@ -142,6 +158,7 @@ function postItems(c: Client, today: string, horizon: string): AgendaItem[] {
     // post's date so a blown date reads as overdue instead of disappearing.
     if (p.approval === "pending") {
       out.push({
+        id: `approval:${c.slug}:${p.date}:${p.title || p.type || "post"}`,
         kind: "approval",
         title: `Awaiting approval — ${p.title || p.type || "post"}`,
         sub: u === "overdue" ? "post date passed — chase the client" : "nudge the client",
@@ -156,6 +173,7 @@ function postItems(c: Client, today: string, horizon: string): AgendaItem[] {
     const stage = p.stage ?? (p.status === "scheduled" ? "scheduled" : "idea");
     const inProduction = stage === "idea" || stage === "shoot" || stage === "edit";
     out.push({
+      id: `${inProduction ? "prep" : "post"}:${c.slug}:${p.date}:${p.title || p.type || "post"}`,
       kind: inProduction ? "prep" : "post",
       title: inProduction
         ? `Prepare — ${p.title || `${p.type || "post"}`}${stage === "shoot" ? " (needs shoot)" : stage === "edit" ? " (in edit)" : ""}`
@@ -182,28 +200,36 @@ function invoiceItems(invoices: Invoice[], clientsBySlug: Map<string, Client>, t
     const daysLate = Math.floor((new Date(`${today}T12:00:00Z`).getTime() - new Date(`${due}T12:00:00Z`).getTime()) / DAY);
     let title: string;
     let urgency: AgendaUrgency;
+    let stage: string; // dunning rung — part of the id so an escalation resurfaces through a snooze
     let date = due;
     if (daysLate < 0) {
       if (daysLate < -3) continue; // not agenda-worthy yet
       title = `${inv.number} due ${fmtShort(due, today)} — ${money(remaining, cur)}`;
       urgency = daysLate === 0 ? "today" : "soon";
+      stage = "upcoming";
     } else if (daysLate === 0) {
       title = `${inv.number} due today — send a friendly reminder`;
       urgency = "today";
+      stage = "due";
     } else if (daysLate < 7) {
       title = `${inv.number} is ${daysLate}d late — ${money(remaining, cur)}`;
       urgency = "overdue";
+      stage = "late";
     } else if (daysLate < 14) {
       title = `${inv.number} — 2nd follow-up (${daysLate}d late)`;
       urgency = "overdue";
+      stage = "second";
     } else if (daysLate < 30) {
       title = `${inv.number} — escalate (${daysLate}d late)`;
       urgency = "overdue";
+      stage = "escalate";
     } else {
       title = `${inv.number} — final notice / pause work (${daysLate}d late)`;
       urgency = "overdue";
+      stage = "final";
     }
     out.push({
+      id: `invoice:${inv.id}:${stage}`,
       kind: "invoice",
       title,
       sub: money(remaining, cur) + " outstanding",
@@ -225,6 +251,7 @@ function shootItems(c: Client, today: string, horizon: string): AgendaItem[] {
     const u = urgencyOf(s.date, today, horizon);
     if (!u || u === "overdue") continue; // past shoots are the photographer's ledger, not agenda noise
     out.push({
+      id: `shoot:${c.slug}:${s.date}:${s.title}`,
       kind: "shoot",
       title: `Shoot — ${s.title}`,
       sub: [s.time, s.location].filter(Boolean).join(" · ") || undefined,
@@ -254,6 +281,7 @@ function checkinItem(c: Client, today: string): AgendaItem | null {
   const daysQuiet = last ? Math.floor((Date.now() - last) / DAY) : CHECKIN_DAYS + 1;
   if (daysQuiet <= CHECKIN_DAYS) return null;
   return {
+    id: `checkin:${c.slug}`,
     kind: "checkin",
     title: last ? `Quiet for ${daysQuiet} days — check in` : "No recent activity — check in",
     sub: "a message goes a long way",
@@ -274,6 +302,7 @@ function wrapItem(c: Client, today: string): AgendaItem | null {
   const daysLeft = Math.floor((new Date(`${end}T12:00:00Z`).getTime() - new Date(`${today}T12:00:00Z`).getTime()) / DAY);
   if (daysLeft > 7) return null;
   return {
+    id: `wrap:${c.slug}:${end}`,
     kind: "wrap",
     title:
       daysLeft < 0
@@ -293,6 +322,7 @@ function wrapItem(c: Client, today: string): AgendaItem | null {
 function onboardItem(c: Client, today: string): AgendaItem | null {
   if (c.data?.status !== "pending") return null;
   return {
+    id: `onboard:${c.slug}`,
     kind: "onboard",
     title: "New onboarding — review & activate",
     sub: c.data.onboarding?.brandName || undefined,
@@ -311,6 +341,7 @@ function storiesItems(c: Client, today: string, horizon: string): AgendaItem[] {
     const u = urgencyOf(t.due, today, horizon);
     if (!u) continue;
     out.push({
+      id: `stories:${c.slug}:${t.due}:${t.title}`,
       kind: "stories",
       title: `Stories — ${t.title}`,
       href: "/admin/partner",
@@ -331,6 +362,7 @@ function noteItems(notes: Note[], bySlug: Map<string, Client>, today: string): A
     const c = n.client_slug ? bySlug.get(n.client_slug) : undefined;
     const snippet = (n.title || n.body.split("\n")[0] || "Untitled note").slice(0, 80);
     out.push({
+      id: `note:${n.id}`,
       kind: "note",
       title: `Flagged — ${snippet}`,
       sub: n.context_label || "unpin it when it's handled",
@@ -350,23 +382,30 @@ const URGENCY_ORDER: Record<AgendaUrgency, number> = { overdue: 0, today: 1, soo
 
 export async function getAgenda(daysAhead = 7): Promise<Agenda> {
   const today = iso(new Date());
-  const empty: Agenda = { clients: [], studio: [], all: [], counts: { overdue: 0, today: 0, soon: 0 }, today };
+  const empty: Agenda = { clients: [], studio: [], all: [], counts: { overdue: 0, today: 0, soon: 0 }, snoozed: 0, today };
   if (!isDbEnabled()) return empty;
 
   const horizon = addDays(today, daysAhead);
 
-  const [clients, invoices, studioTasks, notes] = await Promise.all([
+  const [clients, invoices, studioTasks, notes, snoozes] = await Promise.all([
     getClients().catch(() => [] as Client[]),
     listInvoices().catch(() => [] as Invoice[]),
     getStudioDeliverables().catch(() => [] as Deliverable[]),
     listNotes().catch(() => [] as Note[]),
+    getAgendaSnoozes().catch(() => ({} as Record<string, string>)),
   ]);
   const live = clients.filter((c) => !c.data?.archived);
   const bySlug = new Map(live.map((c) => [c.slug, c]));
 
+  // A snoozed signal is quiet until its wake date, then derives as normal.
+  let snoozed = 0;
   const perClient = new Map<string, AgendaItem[]>();
   const push = (items: AgendaItem[]) => {
     for (const it of items) {
+      if ((snoozes[it.id] ?? "") > today) {
+        snoozed++;
+        continue;
+      }
       const key = it.clientSlug || "__studio__";
       if (!perClient.has(key)) perClient.set(key, []);
       perClient.get(key)!.push(it);
@@ -427,6 +466,7 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
       today: all.filter((i) => i.urgency === "today").length,
       soon: all.filter((i) => i.urgency === "soon").length,
     },
+    snoozed,
     today,
   };
 }
