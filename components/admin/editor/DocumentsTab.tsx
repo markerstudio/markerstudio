@@ -5,6 +5,7 @@ import { UploadCloud, GripVertical, FolderPlus, X, Check, Pencil } from "lucide-
 import FileUpload from "@/components/FileUpload";
 import { saveSection, addClientDocuments } from "@/app/admin/clients/section-actions";
 import { uploadFile } from "@/lib/uploadClient";
+import { useSectionAutosave, SyncPill } from "@/components/admin/editor/useSectionAutosave";
 import type { ClientData, DocItem } from "@/lib/clients";
 
 // Give an uploaded file a sensible Type chip from its name / MIME.
@@ -22,9 +23,9 @@ const lbl = "block text-[10px] font-display font-bold uppercase tracking-[0.1em]
 const inp = "lq-input w-full";
 
 // Mirrors the portal's Documents tab: client-facing files organised into
-// folders, drag-to-reorder within/across folders, and bulk upload. All changes
-// persist automatically (structural changes immediately; text on blur) so
-// nothing is lost by forgetting to hit save.
+// folders, drag-to-reorder within/across folders, and bulk upload. Persistence
+// rides the shared auto-save contract (useSectionAutosave) like every other
+// editor tab: journaled drafts, debounced saves, offline queue, ⌘S, SyncPill.
 export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: string; data: ClientData; patch: (p: Partial<ClientData>) => void; docsSlot?: ReactNode }) {
   // Existing clients (created before these keys existed) may have neither — default
   // both so the tab always renders and saves cleanly.
@@ -36,7 +37,6 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
   const [drag, setDrag] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [note, setNote] = useState<{ tone: "ok" | "err"; text: string } | null>(null);
-  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "err">("idle");
   const [uploadTarget, setUploadTarget] = useState<string>(""); // folder new uploads land in ("" = Ungrouped)
   const [newFolder, setNewFolder] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -44,14 +44,19 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropHint, setDropHint] = useState<string | null>(null); // folder currently hovered
 
-  // Persist the whole block (documents + folder list). Structural edits call this
-  // directly; text edits call it on blur.
-  async function persist(nextDocs: DocItem[], nextFolders: string[]) {
+  const sync = useSectionAutosave({
+    slug,
+    section: "documents",
+    payload: { documents: docs, docFolders: folders },
+    save: (p) => saveSection(slug, p),
+    onRestore: (draft) => patch(draft),
+  });
+
+  // Every edit — structural or text — just patches parent state; the shared
+  // store journals it and saves debounced. (Bulk uploads additionally persist
+  // append-only right away, see bulkUpload.)
+  function persist(nextDocs: DocItem[], nextFolders: string[]) {
     patch({ documents: nextDocs, docFolders: nextFolders });
-    setStatus("saving");
-    const res = await saveSection(slug, { documents: nextDocs, docFolders: nextFolders });
-    setStatus(res.ok ? "saved" : "err");
-    if (!res.ok) setNote({ tone: "err", text: res.error || "Save failed." });
   }
 
   // ---- bulk upload -------------------------------------------------------
@@ -126,7 +131,6 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
 
   // ---- per-doc ops (index into the flat array) ---------------------------
   const setDoc = (idx: number, p: Partial<DocItem>) => patch({ documents: docs.map((d, i) => (i === idx ? { ...d, ...p } : d)) });
-  const saveDoc = () => persist(docs, folders); // called on blur / discrete change
   const removeDoc = (idx: number) => persist(docs.filter((_, i) => i !== idx), folders);
   const moveToFolder = (idx: number, folder: string) => persist(docs.map((d, i) => (i === idx ? { ...d, folder: folder || undefined } : d)), folders);
 
@@ -172,9 +176,6 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
             <h2 className="font-display font-bold text-[16px] tracking-tight text-ink mb-1">Client files</h2>
             <p className="text-[12.5px] text-charcoal-60 mb-4">Drop in files — several at once — or paste a link. Sort them into folders and drag to reorder. Everything saves automatically.</p>
           </div>
-          <span className={`text-xs ${status === "err" ? "text-rose-600" : "text-charcoal-40"}`}>
-            {status === "saving" ? "Saving…" : status === "saved" ? "Saved ✓" : status === "err" ? "Save failed" : ""}
-          </span>
         </div>
 
         {/* Folders bar */}
@@ -269,9 +270,9 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
                           <span className="mt-6 cursor-grab active:cursor-grabbing text-charcoal-30 shrink-0" aria-label="Drag to reorder"><GripVertical size={16} /></span>
                           <div className="flex-1 min-w-0 pr-14">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              <div><label className={lbl}>Title</label><input className={inp} value={doc.title} placeholder="Proposal" onChange={(e) => setDoc(idx, { title: e.target.value })} onBlur={saveDoc} /></div>
-                              <div><label className={lbl}>Type</label><input className={inp} value={doc.type} placeholder="PDF" onChange={(e) => setDoc(idx, { type: e.target.value })} onBlur={saveDoc} /></div>
-                              <div><label className={lbl}>URL</label><input className={inp} value={doc.url} placeholder="https://…" onChange={(e) => setDoc(idx, { url: e.target.value })} onBlur={saveDoc} /></div>
+                              <div><label className={lbl}>Title</label><input className={inp} value={doc.title} placeholder="Proposal" onChange={(e) => setDoc(idx, { title: e.target.value })} /></div>
+                              <div><label className={lbl}>Type</label><input className={inp} value={doc.type} placeholder="PDF" onChange={(e) => setDoc(idx, { type: e.target.value })} /></div>
+                              <div><label className={lbl}>URL</label><input className={inp} value={doc.url} placeholder="https://…" onChange={(e) => setDoc(idx, { url: e.target.value })} /></div>
                             </div>
                             <div className="mt-2 flex items-center gap-3 flex-wrap">
                               <div className="inline-flex items-center gap-1.5">
@@ -281,7 +282,7 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
                                 </select>
                               </div>
                               <FileUpload accept="application/pdf,image/*" label="Replace file" compact
-                                onUploaded={({ url, name, contentType }) => { setDoc(idx, { url, title: doc.title || titleFor(name), type: contentType.includes("pdf") ? "PDF" : doc.type || "File" }); setTimeout(saveDoc, 0); }} />
+                                onUploaded={({ url, name, contentType }) => { setDoc(idx, { url, title: doc.title || titleFor(name), type: contentType.includes("pdf") ? "PDF" : doc.type || "File" }); }} />
                               {doc.url && <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">Open ↗</a>}
                             </div>
                           </div>
@@ -299,6 +300,8 @@ export default function DocumentsTab({ slug, data, patch, docsSlot }: { slug: st
             className="text-sm font-semibold text-orange hover:text-orange-deep">+ Add document{uploadTarget ? ` to “${uploadTarget}”` : ""}</button>
         </div>
       </section>
+
+      <SyncPill {...sync} />
     </div>
   );
 }
