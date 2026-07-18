@@ -8,6 +8,15 @@ import { SESSION_COOKIE } from "@/lib/auth";
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
+  // Desktop update feed alias: shipped 0.5.0 apps poll /api/desktop/latest.json,
+  // but a ".json" route segment 404s on Vercel's edge — the real route lives at
+  // the extension-less path. No auth: the updater carries no session cookie.
+  if (pathname === "/api/desktop/latest.json") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/api/desktop/latest";
+    return NextResponse.rewrite(url);
+  }
+
   // /admin/setup is the first-run onboarding page — allow it through.
   if (pathname.startsWith("/admin/setup")) return NextResponse.next();
 
@@ -102,4 +111,4 @@ async function verify(token: string): Promise<JWTPayload | null> {
   }
 }
 
-export const config = { matcher: ["/admin/:path*", "/portal/:path*"] };
+export const config = { matcher: ["/admin/:path*", "/portal/:path*", "/api/desktop/latest.json"] };

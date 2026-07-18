@@ -5,6 +5,11 @@ import { NextResponse } from "next/server";
 // latest.json (produced by tauri-action when updater signing is on) with a
 // server-side token and rewrites the artifact URLs to our download proxy.
 //
+// Lives at /api/desktop/latest (no extension): a ".json" route segment 404s
+// on Vercel's edge before reaching Next, even though it works locally. The
+// original /api/desktop/latest.json path — baked into shipped 0.5.0 apps —
+// is kept alive by a middleware rewrite onto this route.
+//
 // Intentionally unauthenticated: the Tauri updater calls it with no session
 // cookie. It exposes only version numbers and app binaries — never data.
 // Returns 404 while GITHUB_RELEASES_TOKEN is unset, which the app treats as

@@ -154,7 +154,7 @@ the workflow signs + notarizes automatically:
 ## Auto-updates (wired & dormant — three switches turn it on)
 
 Everything is already in place: the updater plugin is registered, the app
-checks `https://marker.ps/api/desktop/latest.json` on launch and offers
+checks `https://marker.ps/api/desktop/latest` on launch and offers
 **Install & Relaunch**, and the site proxies release artifacts out of the
 private repo (`app/api/desktop/…` — the repo being private means the app
 can't reach GitHub Releases itself). The whole path stays a silent no-op
@@ -186,7 +186,7 @@ To switch it on:
 4. **Give the site a GitHub token**: create a fine-grained PAT with
    **read-only Contents** access to this repo and set it as
    `GITHUB_RELEASES_TOKEN` in the site's deployment env (Vercel). Until it's
-   set, `/api/desktop/latest.json` returns 404 and the app treats that as
+   set, `/api/desktop/latest` returns 404 and the app treats that as
    "no update".
 
 Then cut a release as usual (tag `desktop-v0.6.0` or run the workflow). The
