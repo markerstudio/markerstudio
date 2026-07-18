@@ -10,6 +10,7 @@ import { subscribeToPush } from "@/lib/pushClient";
 
 type Notice = { id: string; kind: string; title: string; body?: string; href: string; at: string };
 
+// Mirrors lib/notifications ICONS — kinds the server may send today.
 const ICONS: Record<string, string> = {
   inquiry: "✉️",
   application: "👋",
@@ -17,6 +18,14 @@ const ICONS: Record<string, string> = {
   "task-due": "⏰",
   "invoice-overdue": "💸",
   shoot: "📸",
+  prep: "📝",
+  post: "📣",
+  approval: "🕒",
+  stories: "✨",
+  checkin: "💬",
+  wrap: "🏁",
+  onboard: "🆕",
+  note: "📌",
 };
 
 type NativeBridge = {
