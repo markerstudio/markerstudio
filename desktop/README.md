@@ -151,32 +151,46 @@ the workflow signs + notarizes automatically:
 | `APPLE_PASSWORD` | an app-specific password for that Apple ID |
 | `APPLE_TEAM_ID` | your 10-char Apple Team ID |
 
-## Auto-updates (not wired yet — the recipe)
+## Auto-updates (wired & dormant — three switches turn it on)
 
-Right now every release means re-downloading the DMG by hand. Tauri's updater
-can make the app update itself, but it needs a signing keypair only you should
-hold, so it isn't configured in this repo. When you want it:
+Everything is already in place: the updater plugin is registered, the app
+checks `https://marker.ps/api/desktop/latest.json` on launch and offers
+**Install & Relaunch**, and the site proxies release artifacts out of the
+private repo (`app/api/desktop/…` — the repo being private means the app
+can't reach GitHub Releases itself). The whole path stays a silent no-op
+until the pubkey is set, so nothing changes for current builds.
 
-1. **Generate the update keypair** (different from Apple code signing):
-   `npx tauri signer generate -w ~/.tauri/marker.key` — the private key stays
-   on your machine / in a repo secret (`TAURI_SIGNING_PRIVATE_KEY`), **never
-   in git**; the public key goes in the config below.
-2. **Add the plugin**: `tauri-plugin-updater = "2"` in `Cargo.toml`,
-   `.plugin(tauri_plugin_updater::Builder::new().build())` in `lib.rs`, and in
-   `tauri.conf.json`:
-   ```json
-   "plugins": {
-     "updater": {
-       "pubkey": "<the public key>",
-       "endpoints": ["https://marker.ps/api/desktop/latest.json"]
-     }
-   }
+To switch it on:
+
+1. **Generate the update keypair** (this is separate from Apple code
+   signing) on your Mac:
+
+   ```bash
+   cd desktop
+   npm run tauri signer generate -- -w ~/.tauri/marker-updater.key
    ```
-3. **Serve the manifest**: a tiny API route on the site returning the latest
-   version + the signed `.tar.gz` URL (tauri-action can produce
-   `latest.json` + signatures for you when the secret is set).
-4. **Check on launch** in `lib.rs` setup: fetch the update, and if there is
-   one, install + relaunch (or ask first).
 
-With that in place, cutting a release in CI is the whole story — every
-installed app offers the update on next launch.
+   It prints a **public key** and asks for an optional password. The private
+   key file must **never** enter git.
+
+2. **Paste the public key** into `src-tauri/tauri.conf.json` →
+   `plugins.updater.pubkey`, and in the same file flip
+   `bundle.createUpdaterArtifacts` to `true`.
+
+3. **Add the repo secrets & uncomment the workflow block**:
+   `TAURI_SIGNING_PRIVATE_KEY` (contents of the key file) and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (if you set one) in GitHub →
+   Settings → Secrets → Actions, then uncomment the matching env block in
+   `.github/workflows/desktop-release.yml`.
+
+4. **Give the site a GitHub token**: create a fine-grained PAT with
+   **read-only Contents** access to this repo and set it as
+   `GITHUB_RELEASES_TOKEN` in the site's deployment env (Vercel). Until it's
+   set, `/api/desktop/latest.json` returns 404 and the app treats that as
+   "no update".
+
+Then cut a release as usual (tag `desktop-v0.6.0` or run the workflow). The
+build attaches `*.app.tar.gz` + `.sig` + `latest.json`; the site serves
+them; every installed app ≥0.5.x offers the update on next launch. The
+update feed is deliberately unauthenticated (the updater has no session) —
+it exposes version numbers and app binaries, never data.

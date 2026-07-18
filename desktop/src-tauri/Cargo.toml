@@ -24,6 +24,9 @@ tauri-plugin-opener = "2"
 # that remember their size/position across launches.
 tauri-plugin-dialog = "2"
 tauri-plugin-window-state = "2"
+# Self-updating: checks marker.ps for a newer signed build on launch.
+# Dormant until the updater keypair is configured — see the README recipe.
+tauri-plugin-updater = "2"
 
 # macOS-only natives: the Touch ID / Face ID check that guards the saved
 # sign-in, and the Keychain entry it protects. Scoped to macOS so the crates'

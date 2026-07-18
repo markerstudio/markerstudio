@@ -16,6 +16,7 @@
   "bundle": {
     "active": true,
     "targets": ["dmg", "app"],
+    "createUpdaterArtifacts": false,
     "category": "Business",
     "shortDescription": "Marker Studio",
     "longDescription": "Native desktop app for Marker Studio — sign in to the studio admin or your client portal at https://marker.ps/login.",
@@ -28,6 +29,12 @@
     ],
     "macOS": {
       "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "",
+      "endpoints": ["https://marker.ps/api/desktop/latest.json"]
     }
   }
 }
