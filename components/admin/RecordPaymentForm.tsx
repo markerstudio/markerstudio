@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { recordPaymentAction } from "@/app/admin/invoice-actions";
 
-type Line = { label: string; amount: string; kind?: string; owner?: string };
+type Line = { label: string; amount: string; kind?: string; owner?: string; left: number };
 export type OpenInvoice = {
   id: number;
   number: string;
@@ -20,10 +20,10 @@ function num(s: string): number {
   const n = parseFloat((s || "").replace(/[^0-9.]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
-// Default each line to its share of what's still owed on the invoice.
+// Default each line to exactly what's still owed on it (server-computed from
+// the recorded allocations), so a full payment needs zero editing.
 function defaultAlloc(o: OpenInvoice): string[] {
-  const total = o.lines.reduce((s, l) => s + num(l.amount), 0);
-  return o.lines.map((l) => (total > 0 ? String(Math.round((num(l.amount) * o.remaining) / total)) : "0"));
+  return o.lines.map((l) => String(Math.round(l.left)));
 }
 const KIND_LABEL: Record<string, string> = { branding: "Branding", plan: "Marketing", stories: "Stories · Ramzi", extra: "Extra" };
 const isRamzi = (l: Line) => l.owner === "ramzi" || l.kind === "stories";
@@ -88,18 +88,30 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
       {inv && (
         <>
           <div>
-            <div className="grid grid-cols-[1fr_120px_120px] items-center gap-2 mb-1.5 px-0.5 text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
+            <div className="grid grid-cols-[1fr_104px_92px_110px] items-center gap-2 mb-1.5 px-0.5 text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">
               <span>Line</span>
               <span>Type</span>
+              <span className="text-right">Left</span>
               <span className="text-right">Apply</span>
             </div>
             <div className="space-y-2">
               {inv.lines.map((l, i) => (
-                <div key={i} className="grid grid-cols-[1fr_120px_120px] items-center gap-2">
+                <div key={i} className="grid grid-cols-[1fr_104px_92px_110px] items-center gap-2">
                   <span className="text-sm text-charcoal-80 truncate">{l.label || "—"}</span>
                   <span className={`text-xs ${isRamzi(l) ? "text-orange-deep font-semibold" : "text-charcoal-60"}`}>
                     {KIND_LABEL[l.kind || "plan"] || "Marketing"}
                   </span>
+                  {/* What this line still owes — click it to apply exactly that. */}
+                  <button
+                    type="button"
+                    title="Apply exactly this line's remainder"
+                    onClick={() => setAlloc((prev) => prev.map((a, idx) => (idx === i ? String(Math.round(l.left)) : a)))}
+                    className={`text-right text-sm tabular-nums lq-press rounded-md px-1 py-0.5 hover:bg-orange/10 ${
+                      l.left > 0.5 ? "font-semibold text-charcoal-80 hover:text-orange-deep" : "text-charcoal-40"
+                    }`}
+                  >
+                    {l.left > 0.5 ? Math.round(l.left).toLocaleString("en-US") : "✓ paid"}
+                  </button>
                   <input
                     value={alloc[i] ?? ""}
                     onChange={(e) => setAlloc((prev) => prev.map((a, idx) => (idx === i ? e.target.value : a)))}
@@ -109,6 +121,9 @@ export default function RecordPaymentForm({ invoices, initialId }: { invoices: O
                 </div>
               ))}
             </div>
+            <p className="mt-1.5 px-0.5 text-[11px] text-charcoal-40">
+              Left = what each line still owes (VAT included), from the recorded payments. Click a number to apply exactly that.
+            </p>
           </div>
 
           <div className="flex items-center justify-between border-t border-charcoal/5 pt-3 text-sm">

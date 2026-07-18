@@ -2,7 +2,7 @@
 // row here and gets a numbered receipt voucher (REC-YYYY-NNN) the client can
 // view/print. The invoice's cached paid_amount is still the running total; this
 // ledger is the itemised history behind it.
-import { getSql } from "@/lib/db";
+import { getSql, isDbEnabled } from "@/lib/db";
 
 export type PaymentMethod = "cash" | "bank" | "card" | "other";
 
@@ -149,6 +149,28 @@ export async function recordInvoicePayment(input: {
     RETURNING id
   `) as unknown as { id: number }[];
   return { id: rows[0].id, number };
+}
+
+// Slim rows for computing per-line remainders across many invoices at once
+// (the Record-payment picker) — one query instead of one per open invoice.
+export type AppliedPayment = {
+  invoice_id: number;
+  amount: number;
+  applied_amount: number | null;
+  allocation: AllocationLine[] | null;
+};
+export async function listPaymentsForInvoices(ids: number[]): Promise<AppliedPayment[]> {
+  if (!isDbEnabled() || ids.length === 0) return [];
+  try {
+    await ensurePaymentsTable();
+    const sql = getSql();
+    return (await sql`
+      SELECT invoice_id, amount, applied_amount, allocation
+      FROM invoice_payments WHERE invoice_id = ANY(${ids})
+    `) as unknown as AppliedPayment[];
+  } catch {
+    return [];
+  }
 }
 
 export async function listInvoicePayments(invoiceId: number): Promise<Payment[]> {
