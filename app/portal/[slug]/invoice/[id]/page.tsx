@@ -47,12 +47,13 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
             <a href={`/portal/${client.slug}`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">← Portal</a>
             <a href={`/portal/${client.slug}/invoices`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">Invoices</a>
           </div>
-          <PrintButton label="Download PDF" />
+          <PrintButton label="Download PDF" basename={inv.number || `invoice-${inv.id}`} />
         </div>
 
         {/* The document itself — a glass sheet on screen, a clean white page in print
-            (the print rules flatten any .rounded-2xl card inside main). */}
-        <div className="lq-card rounded-2xl overflow-hidden">
+            (the print rules flatten any .rounded-2xl card inside main). data-doc
+            marks it as the capture target for the PDF/image downloads. */}
+        <div data-doc className="lq-card rounded-2xl overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-charcoal/5 px-6 py-7 sm:px-9">
             <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}

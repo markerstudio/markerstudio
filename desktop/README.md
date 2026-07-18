@@ -46,8 +46,9 @@ The shell injects a small bridge (`window.__MARKER_NATIVE__`, see
 - **⌘1–⌘9 section jumps.** The Go menu mirrors the admin sidebar: Today,
   Agenda, Clients, Tasks, Notes, Invoices, Finance, Proposals, Inquiries.
   Jumps always drive the main window and bring it forward.
-- **Native file saves.** Text exports (`<a download>` is another WKWebView
-  no-op) go through the **macOS save panel** via the bridge's `saveText`.
+- **Native file saves.** Downloads (`<a download>` is another WKWebView
+  no-op) go through the **macOS save panel**: text via the bridge's
+  `saveText`, binary (invoice PDF / image exports) via `saveFile`.
 - **Windows that remember.** The main window's size & position persist
   across launches (`tauri-plugin-window-state`).
 - **No web tells.** Windows paint brand cream while loading instead of

@@ -563,6 +563,9 @@
 
 /* ---------- print ---------- */
 @media print {
+  /* Zero page margins: the .page elements are already exact A4 sheets, and
+     the margin is where browsers print their own headers/footers. */
+  @page { size: A4; margin: 0; }
   .mdoc-viewport { padding: 0; min-height: 0; background: #fff; }
   .mdoc-doc { width: auto; transform: none !important; gap: 0; display: block; }
   .mdoc .page { box-shadow: none; break-after: page; page-break-after: always; margin: 0; }

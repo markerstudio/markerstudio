@@ -118,7 +118,7 @@ const PRINT_CSS = `
   .box{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex:none;margin-top:3px;border:1.5px solid #b5b5b5;border-radius:4px;font-size:10px;line-height:1;color:#fff}
   .box.done{background:#F57F00;border-color:#F57F00}
   li.done .txt{color:#8a8a8a;text-decoration:line-through}
-  @media print{body{margin:0 auto}}
+  @media print{@page{margin:0}body{margin:0 auto;padding:16mm 18mm}}
 `;
 
 /** The print document's <body> content — style, heading, note HTML, and the
