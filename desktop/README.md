@@ -38,6 +38,18 @@ The shell injects a small bridge (`window.__MARKER_NATIVE__`, see
   The bridge reroutes `window.print()` to the **native macOS print panel**
   (with its Save as PDF destination), so every print/export button — invoices,
   proposals, statements, receipts, note exports — works in the app.
+- **A real menu bar.** File / Edit / View / Window with the shortcuts a Mac
+  user's hands expect: **⌘P** print, **⌘R** reload, **⌘[ / ⌘]** back &
+  forward, **⌘+ / ⌘− / ⌘0** zoom, **⌘W** close, working Edit roles
+  (undo/redo/cut/copy/paste), fullscreen. Menu actions target whichever
+  window is focused — main or a preview.
+- **Native file saves.** Text exports (`<a download>` is another WKWebView
+  no-op) go through the **macOS save panel** via the bridge's `saveText`.
+- **Windows that remember.** The main window's size & position persist
+  across launches (`tauri-plugin-window-state`).
+- **No web tells.** Windows paint brand cream while loading instead of
+  flashing white, images/links aren't draggable, and the browser context
+  menu only appears where it's useful (text fields and real selections).
 - **Remembered sign-in (Touch ID where it counts).** On the login page the app
   offers *Remember password in this Mac's Keychain*. Next time, one button —
   **Sign in with Touch ID** — asks macOS to confirm the owner, fills the saved

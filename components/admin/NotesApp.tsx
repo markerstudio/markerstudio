@@ -395,7 +395,10 @@ function LinkChip({ note, clients }: { note: Note; clients: SlimClient[] }) {
 // export goes through the /print/note/[id] route in a native preview there.
 type DesktopBridge = {
   __MARKER_DESKTOP__?: boolean;
-  __MARKER_NATIVE__?: { openPreview?: (url: string, title?: string) => Promise<void> };
+  __MARKER_NATIVE__?: {
+    openPreview?: (url: string, title?: string) => Promise<void>;
+    saveText?: (filename: string, content: string) => Promise<boolean>;
+  };
 };
 
 // "Export" in the editor footer: a small pop menu with two ways out —
@@ -427,11 +430,19 @@ function ExportMenu({
     setOpen(false);
     const title = note.title.trim();
     const content = `${title || firstLine(note.body) || "Note"}\n\n${note.body}`;
+    const filename = `${(title || "note").replace(/[\\/:*?"<>|]/g, "-").slice(0, 120)}.txt`;
+    const bridge = window as DesktopBridge;
+    if (bridge.__MARKER_DESKTOP__ && bridge.__MARKER_NATIVE__?.saveText) {
+      // DMG: WKWebView can't do <a download> blob downloads — hand the text
+      // to the native save panel instead.
+      bridge.__MARKER_NATIVE__.saveText(filename, content).catch(() => onError("Couldn’t save the file."));
+      return;
+    }
     const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${(title || "note").replace(/[\\/:*?"<>|]/g, "-").slice(0, 120)}.txt`;
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     a.remove();
