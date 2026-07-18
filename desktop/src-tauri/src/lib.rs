@@ -15,22 +15,40 @@
 
 use tauri::Manager;
 
+// The brand cream (--marker-cream #F5F2EC): windows paint this while loading
+// instead of flashing white — the single biggest "cheap web view" tell.
+const WINDOW_BG: tauri::webview::Color = tauri::webview::Color(245, 242, 236, 255);
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
+        // The main window remembers its size & position across launches.
+        // Preview windows are transient (fresh labels every session) — keeping
+        // them out stops the state file accumulating dead entries.
+        .plugin(
+            tauri_plugin_window_state::Builder::default()
+                .with_filter(|label| label == "main")
+                .build(),
+        )
         .invoke_handler(tauri::generate_handler![
             notify,
             set_badge,
             open_external,
             open_preview,
             print_page,
+            save_text_file,
             save_credentials,
             get_credentials,
             has_credentials,
             clear_credentials
         ])
+        // A real menu bar — File/Edit/View/Window with the shortcuts a Mac
+        // user's hands already know (⌘P, ⌘R, ⌘[ ⌘], ⌘+/−/0, ⌘W…).
+        .menu(build_menu)
+        .on_menu_event(|app, event| handle_menu(app, event))
         .setup(|app| {
             use tauri::{WebviewUrl, WebviewWindowBuilder};
 
@@ -44,6 +62,7 @@ pub fn run() {
                 .inner_size(1280.0, 832.0)
                 .min_inner_size(960.0, 600.0)
                 .center()
+                .background_color(WINDOW_BG)
                 // Keep the page content clear of the macOS traffic-light buttons,
                 // which sit over the top-left with the Overlay title bar.
                 .initialization_script(NATIVE_CHROME_CSS)
@@ -52,7 +71,10 @@ pub fn run() {
                 .initialization_script("window.__MARKER_DESKTOP__ = true;")
                 // The `__MARKER_NATIVE__` bridge + new-window/link handling.
                 .initialization_script(BRIDGE_JS)
-                .initialization_script(LINKS_JS);
+                .initialization_script(LINKS_JS)
+                // App-like behaviours: no image dragging, no browser context
+                // menu on chrome (kept where text is edited or selected).
+                .initialization_script(POLISH_JS);
 
             // Native, transparent macOS title bar so the page runs to the top
             // edge as one surface (traffic lights inset over the content).
@@ -68,6 +90,168 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Marker Studio");
+}
+
+// ---------------------------------------------------------------------------
+// Menu bar
+// ---------------------------------------------------------------------------
+
+fn build_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
+    use tauri::menu::{AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
+
+    #[cfg(target_os = "macos")]
+    let app_menu = {
+        let pkg = app.package_info();
+        let about = AboutMetadata {
+            name: Some(pkg.name.clone()),
+            version: Some(pkg.version.to_string()),
+            ..Default::default()
+        };
+        Submenu::with_items(
+            app,
+            pkg.name.clone(),
+            true,
+            &[
+                &PredefinedMenuItem::about(app, None, Some(about))?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::services(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::hide(app, None)?,
+                &PredefinedMenuItem::hide_others(app, None)?,
+                &PredefinedMenuItem::separator(app)?,
+                &PredefinedMenuItem::quit(app, None)?,
+            ],
+        )?
+    };
+
+    let file = Submenu::with_items(
+        app,
+        "File",
+        true,
+        &[
+            &MenuItemBuilder::with_id("print", "Print…")
+                .accelerator("CmdOrCtrl+P")
+                .build(app)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
+
+    let edit = Submenu::with_items(
+        app,
+        "Edit",
+        true,
+        &[
+            &PredefinedMenuItem::undo(app, None)?,
+            &PredefinedMenuItem::redo(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::cut(app, None)?,
+            &PredefinedMenuItem::copy(app, None)?,
+            &PredefinedMenuItem::paste(app, None)?,
+            &PredefinedMenuItem::select_all(app, None)?,
+        ],
+    )?;
+
+    let view = Submenu::with_items(
+        app,
+        "View",
+        true,
+        &[
+            &MenuItemBuilder::with_id("reload", "Reload")
+                .accelerator("CmdOrCtrl+R")
+                .build(app)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItemBuilder::with_id("back", "Back")
+                .accelerator("CmdOrCtrl+[")
+                .build(app)?,
+            &MenuItemBuilder::with_id("forward", "Forward")
+                .accelerator("CmdOrCtrl+]")
+                .build(app)?,
+            &PredefinedMenuItem::separator(app)?,
+            &MenuItemBuilder::with_id("zoom-in", "Zoom In")
+                .accelerator("CmdOrCtrl+=")
+                .build(app)?,
+            &MenuItemBuilder::with_id("zoom-out", "Zoom Out")
+                .accelerator("CmdOrCtrl+-")
+                .build(app)?,
+            &MenuItemBuilder::with_id("zoom-reset", "Actual Size")
+                .accelerator("CmdOrCtrl+0")
+                .build(app)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::fullscreen(app, None)?,
+        ],
+    )?;
+
+    let window = Submenu::with_items(
+        app,
+        "Window",
+        true,
+        &[
+            &PredefinedMenuItem::minimize(app, None)?,
+            &PredefinedMenuItem::maximize(app, None)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::close_window(app, None)?,
+        ],
+    )?;
+
+    Menu::with_items(
+        app,
+        &[
+            #[cfg(target_os = "macos")]
+            &app_menu,
+            &file,
+            &edit,
+            &view,
+            &window,
+        ],
+    )
+}
+
+// Custom menu items act on whichever window is focused — main or a preview.
+fn handle_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu::MenuEvent) {
+    let focused = app
+        .webview_windows()
+        .into_values()
+        .find(|w| w.is_focused().unwrap_or(false))
+        .or_else(|| app.get_webview_window("main"));
+    let Some(w) = focused else { return };
+    match event.id().as_ref() {
+        "print" => {
+            let _ = w.print();
+        }
+        "reload" => {
+            let _ = w.reload();
+        }
+        "back" => {
+            let _ = w.eval("history.back()");
+        }
+        "forward" => {
+            let _ = w.eval("history.forward()");
+        }
+        id @ ("zoom-in" | "zoom-out" | "zoom-reset") => {
+            let _ = w.set_zoom(zoom_step(w.label(), id));
+        }
+        _ => {}
+    }
+}
+
+// Per-window zoom factor, stepped by the View menu. WKWebView doesn't expose
+// its zoom level, so the shell keeps the ledger.
+fn zoom_step(label: &str, direction: &str) -> f64 {
+    use std::collections::HashMap;
+    use std::sync::{Mutex, OnceLock};
+    static ZOOM: OnceLock<Mutex<HashMap<String, f64>>> = OnceLock::new();
+    let mut map = ZOOM
+        .get_or_init(|| Mutex::new(HashMap::new()))
+        .lock()
+        .expect("zoom ledger poisoned");
+    let z = map.entry(label.to_string()).or_insert(1.0);
+    *z = match direction {
+        "zoom-in" => (*z * 1.1).min(3.0),
+        "zoom-out" => (*z / 1.1).max(0.5),
+        _ => 1.0,
+    };
+    *z
 }
 
 // ---------------------------------------------------------------------------
@@ -123,9 +307,11 @@ fn open_preview(app: tauri::AppHandle, url: String, title: Option<String>) -> Re
     WebviewWindowBuilder::new(&app, label, WebviewUrl::External(parsed))
         .title(title.unwrap_or_else(|| "Marker Studio".into()))
         .inner_size(1100.0, 800.0)
+        .background_color(WINDOW_BG)
         .initialization_script("window.__MARKER_DESKTOP__ = true;")
         .initialization_script(BRIDGE_JS)
         .initialization_script(LINKS_JS)
+        .initialization_script(POLISH_JS)
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -138,6 +324,26 @@ fn open_preview(app: tauri::AppHandle, url: String, title: Option<String>) -> Re
 #[tauri::command]
 fn print_page(webview_window: tauri::WebviewWindow) -> Result<(), String> {
     webview_window.print().map_err(|e| e.to_string())
+}
+
+// WKWebView also can't do `<a download>` blob downloads — the site's .txt
+// export hands the text here instead: a native save panel, then a plain write.
+// Returns false when the user cancels (not an error). Async so the blocking
+// dialog runs off the main thread (the plugin hops back internally).
+#[tauri::command]
+async fn save_text_file(app: tauri::AppHandle, filename: String, content: String) -> Result<bool, String> {
+    use tauri_plugin_dialog::DialogExt;
+    let name: String = filename
+        .chars()
+        .map(|c| if matches!(c, '/' | '\\' | ':') { '-' } else { c })
+        .collect();
+    let name = if name.trim().is_empty() { "note.txt".to_string() } else { name };
+    let Some(picked) = app.dialog().file().set_file_name(&name).blocking_save_file() else {
+        return Ok(false);
+    };
+    let path = picked.into_path().map_err(|e| e.to_string())?;
+    std::fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
+    Ok(true)
 }
 
 // ---------------------------------------------------------------------------
@@ -296,11 +502,39 @@ const BRIDGE_JS: &str = r#"
     openExternal: function (url) { return inv('open_external', { url: url }); },
     openPreview: function (url, title) { return inv('open_preview', { url: url, title: title }); },
     printPage: function () { return inv('print_page'); },
+    saveText: function (filename, content) { return inv('save_text_file', { filename: filename, content: content }); },
     saveCredentials: function (email, password) { return inv('save_credentials', { email: email, password: password }); },
     getCredentials: function () { return inv('get_credentials'); },
     hasCredentials: function () { return inv('has_credentials'); },
     clearCredentials: function () { return inv('clear_credentials'); }
   };
+})();
+"#;
+
+// The web tells that make a wrapped site feel like a wrapped site, removed:
+// draggable images and the browser context menu on plain chrome. The menu
+// stays wherever it's genuinely useful — text fields and real selections —
+// so copy/paste and spellcheck still behave.
+const POLISH_JS: &str = r#"
+(function () {
+  function addCss() {
+    if (document.getElementById('marker-native-polish')) return;
+    var s = document.createElement('style');
+    s.id = 'marker-native-polish';
+    s.textContent = 'img, a { -webkit-user-drag: none; }';
+    (document.head || document.documentElement).appendChild(s);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addCss);
+  } else {
+    addCss();
+  }
+  window.addEventListener('contextmenu', function (e) {
+    var el = e.target;
+    var editable = el && el.closest ? el.closest('input, textarea, [contenteditable], [contenteditable=""], [contenteditable="true"]') : null;
+    var sel = window.getSelection ? String(window.getSelection()) : '';
+    if (!editable && !sel.trim()) e.preventDefault();
+  });
 })();
 "#;
 
