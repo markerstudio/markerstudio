@@ -64,6 +64,15 @@ jobs:
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          #
+          # --- Auto-updater signing (see desktop/README.md → "Auto-updates").
+          # Requires the TAURI_SIGNING_PRIVATE_KEY repo secret — a release run
+          # without it fails with a clear "missing private key" error. The
+          # keypair has no password, so the PASSWORD line stays commented
+          # (an empty-but-present var would trip the same trap as the Apple
+          # block above).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          # TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           projectPath: desktop
           tagName: desktop-v__VERSION__

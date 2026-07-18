@@ -25,6 +25,7 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         // The main window remembers its size & position across launches.
         // Preview windows are transient (fresh labels every session) — keeping
         // them out stops the state file accumulating dead entries.
@@ -86,10 +87,67 @@ pub fn run() {
             }
 
             builder.build()?;
+
+            // Quietly look for a newer build once the window is up. Dormant
+            // until the updater pubkey is set in tauri.conf.json.
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                check_for_updates(handle).await;
+            });
+
             Ok(())
         })
         .run(tauri::generate_context!())
         .expect("error while running Marker Studio");
+}
+
+// ---------------------------------------------------------------------------
+// Auto-update
+// ---------------------------------------------------------------------------
+
+// Checks marker.ps for a newer signed build and offers to install it. The
+// whole path is a no-op while the updater pubkey in tauri.conf.json is empty,
+// so shipping this wired-but-dormant is safe. Every failure exits silently —
+// an update check must never get in the way of using the app.
+async fn check_for_updates(app: tauri::AppHandle) {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+    use tauri_plugin_updater::UpdaterExt;
+
+    let configured = app
+        .config()
+        .plugins
+        .0
+        .get("updater")
+        .and_then(|v| v.get("pubkey"))
+        .and_then(|v| v.as_str())
+        .is_some_and(|s| !s.is_empty());
+    if !configured {
+        return;
+    }
+
+    let Ok(updater) = app.updater() else { return };
+    let Ok(Some(update)) = updater.check().await else { return };
+
+    let install = app
+        .dialog()
+        .message(format!(
+            "Marker Studio {} is available (you have {}).\nInstall it now? The app restarts when it's done.",
+            update.version,
+            app.package_info().version
+        ))
+        .title("Update available")
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Install & Relaunch".to_string(),
+            "Later".to_string(),
+        ))
+        .blocking_show();
+    if !install {
+        return;
+    }
+
+    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
+        app.restart();
+    }
 }
 
 // ---------------------------------------------------------------------------
