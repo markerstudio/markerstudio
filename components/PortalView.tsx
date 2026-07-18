@@ -91,7 +91,11 @@ export default function PortalView({
   const ui = (en: string, ar: string) => (lang === "ar" ? ar : en);
 
   // Dashboard quick-view: derive a few highlights from the other sections.
-  const today = new Date().toISOString().slice(0, 10);
+  // "Today" is the studio's calendar day (Asia/Hebron), matching lib/agenda —
+  // slicing toISOString() gave UTC, a day behind every evening.
+  const studioDay = (t: number) => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Hebron" }).format(new Date(t));
+  const today = studioDay(Date.now());
+  const soonIso = studioDay(Date.now() + 2 * 86400000);
   const upcoming = (d.social?.posts ?? []).filter((p) => p.date && p.date >= today).sort((a, b) => (a.date < b.date ? -1 : 1));
   const nextPost = upcoming[0];
   // Time-ish facts feed the "Lately" zone; plan facts sit as a caption in the
@@ -362,7 +366,18 @@ export default function PortalView({
               {/* Your next step — one thing, computed from the data. */}
               {(() => {
                 const inv = (d.invoices ?? []).find((x) => x.status === "due" || x.status === "overdue");
-                const pendingPost = (d.social?.posts ?? []).find((p) => p.approval === "pending");
+                // Approvals block the studio's schedule, so they outrank invoice
+                // nudges (mirrors lib/agenda, where a pending approval is the
+                // blocking signal). Count them all; flag urgency when a waiting
+                // post's date is upon us.
+                const pendingPosts = (d.social?.posts ?? []).filter((p) => p.approval === "pending" && p.status !== "posted");
+                const pendingPost = pendingPosts[0];
+                const approvalUrgent = pendingPosts.some((p) => p.date && p.date <= soonIso);
+                const approvalText =
+                  pendingPosts.length > 1
+                    ? ui(`${pendingPosts.length} posts are waiting for your approval.`, `${pendingPosts.length} منشورات بانتظار موافقتك.`)
+                    : ui(`"${pendingPost?.title}" is waiting for your approval.`, `"${pendingPost?.title}" بانتظار موافقتك.`);
+                const approvalSuffix = approvalUrgent ? ui(" The schedule is on hold until then.", " الجدول متوقف حتى الموافقة.") : "";
                 const nextShoot = d.photo?.showToClient
                   ? (d.photo.sessions ?? []).find((s) => s.date >= today && s.status !== "delivered")
                   : undefined;
@@ -370,10 +385,10 @@ export default function PortalView({
                   ? { text: ui("Your proposal is ready — review and accept it.", "عرضنا جاهز — راجعه واعتمده."), cta: ui("Review proposal", "مراجعة العرض"), href: `/portal/${client.slug}/proposal` }
                   : d.agreement?.published && !d.agreement.acceptedAt
                   ? { text: ui("Your agreement is ready for your signature.", "الاتفاقية جاهزة لتوقيعك."), cta: ui("Sign agreement", "توقيع الاتفاقية"), href: `/portal/${client.slug}/agreement` }
+                  : pendingPost
+                  ? { text: approvalText + approvalSuffix, cta: ui(pendingPosts.length > 1 ? "Review posts" : "Review post", "مراجعة المنشورات"), tab: "social" }
                   : inv
                   ? { text: ui(`An invoice is ${inv.status === "overdue" ? "overdue" : "due"} — ${inv.amount}.`, `لديك فاتورة ${inv.status === "overdue" ? "متأخرة" : "مستحقة"} — ${inv.amount}.`), cta: ui("View & settle", "عرض وتسوية"), tab: "invoices" }
-                  : pendingPost
-                  ? { text: ui(`"${pendingPost.title}" is waiting for your approval.`, `"${pendingPost.title}" بانتظار موافقتك.`), cta: ui("Review post", "مراجعة المنشور"), tab: "social" }
                   : nextShoot
                   ? { text: ui(`Your shoot "${nextShoot.title}" is coming up — ${nextShoot.date}.`, `جلسة التصوير "${nextShoot.title}" قادمة — ${nextShoot.date}.`), cta: ui("See the plan", "عرض الخطة"), tab: "plan" }
                   : null;

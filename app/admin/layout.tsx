@@ -3,6 +3,7 @@ import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
 import AdminShell from "@/components/admin/AdminShell";
+import { ToastProvider } from "@/components/ui/glass";
 import { getClients } from "@/lib/clients";
 import { logout } from "./actions";
 
@@ -31,6 +32,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div dir="ltr" className="lq-app font-sans text-neutral-900">
+      {/* Toasts finally have a mount — useToast() was a silent no-op before. */}
+      <ToastProvider>
       <AdminShell
         email={user.email}
         unreadInquiries={unread}
@@ -45,6 +48,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       >
         {children}
       </AdminShell>
+      </ToastProvider>
     </div>
   );
 }
