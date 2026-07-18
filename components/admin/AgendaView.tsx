@@ -4,7 +4,9 @@
    · "By client" — every client that needs something, as a glass card with
      its chips (tasks, posts, invoice chasing, shoots, check-ins, wrap-ups).
    · "Timeline" — a two-week day strip; pick a day, see what lands on it.
-   Pure presentation over lib/agenda.ts. */
+   A lens row (Tasks / Content / Money / Clients) narrows both views to one
+   kind of work. Pure presentation over lib/agenda.ts — "today" comes from
+   the engine so the browser's clock can't disagree with the server's. */
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -23,7 +25,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import { Seg, EmptyState, SectionHead } from "@/components/ui/glass";
-import type { Agenda, AgendaItem, AgendaKind } from "@/lib/agenda";
+import type { Agenda, AgendaItem, AgendaKind, ClientAgenda } from "@/lib/agenda";
 
 const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>> = {
   task: CheckCircle2,
@@ -53,6 +55,28 @@ const KIND_TONE: Record<AgendaKind, string> = {
   note: "lq-chip--blue",
 };
 
+/* The lenses — every kind belongs to exactly one, "all" shows everything. */
+type Lens = "all" | "tasks" | "content" | "money" | "clients";
+const KIND_LENS: Record<AgendaKind, Exclude<Lens, "all">> = {
+  task: "tasks",
+  stories: "tasks",
+  post: "content",
+  prep: "content",
+  approval: "content",
+  shoot: "content",
+  invoice: "money",
+  checkin: "clients",
+  wrap: "clients",
+  onboard: "clients",
+  note: "clients",
+};
+const LENS_LABEL: Record<Exclude<Lens, "all">, string> = {
+  tasks: "Tasks",
+  content: "Content",
+  money: "Money",
+  clients: "Clients",
+};
+
 function dayLabel(dateIso: string, todayIso: string): { top: string; big: string } {
   if (dateIso === todayIso) return { top: "Today", big: dateIso.slice(8, 10) };
   const d = new Date(`${dateIso}T12:00:00Z`);
@@ -62,14 +86,19 @@ function dayLabel(dateIso: string, todayIso: string): { top: string; big: string
   };
 }
 
+function fmtDate(dateIso: string): string {
+  return new Date(`${dateIso}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 function UrgencyDot({ u }: { u: AgendaItem["urgency"] }) {
   const cls =
     u === "overdue" ? "bg-rose-500" : u === "today" ? "bg-orange" : "bg-charcoal-20";
   return <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${cls}`} />;
 }
 
-function ItemRow({ item }: { item: AgendaItem }) {
+function ItemRow({ item, showClient = true }: { item: AgendaItem; showClient?: boolean }) {
   const Icon = KIND_ICON[item.kind];
+  const sub = [showClient ? item.clientName : null, item.sub].filter(Boolean).join(" · ");
   return (
     <Link
       href={item.href}
@@ -86,43 +115,135 @@ function ItemRow({ item }: { item: AgendaItem }) {
         >
           {item.title}
         </span>
-        {(item.sub || item.clientName) && (
+        {sub && (
           <span className="block text-[11px] text-charcoal-60 truncate mt-0.5">
-            {[item.clientName, item.sub].filter(Boolean).join(" · ")}
+            {sub}
           </span>
         )}
       </span>
       <span className="flex items-center gap-2 shrink-0 text-[11px] font-semibold text-charcoal-60 tabular-nums">
         <UrgencyDot u={item.urgency} />
-        {item.time || (item.urgency === "overdue" ? "late" : item.urgency === "today" ? "today" : item.date.slice(5))}
+        {item.time || (item.urgency === "overdue" ? "late" : item.urgency === "today" ? "today" : fmtDate(item.date))}
       </span>
     </Link>
   );
 }
 
+/* One client's card (Studio rides on the same shape) — collapsed to six rows,
+   the "+ n more" line is a real button now instead of a dead caption. */
+function AgendaCard({
+  title,
+  titleHref,
+  swatch,
+  items,
+  dark = false,
+  index,
+}: {
+  title: string;
+  titleHref?: string;
+  swatch: React.ReactNode;
+  items: AgendaItem[];
+  dark?: boolean;
+  index: number;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const overdue = items.filter((i) => i.urgency === "overdue").length;
+  const today = items.filter((i) => i.urgency === "today").length;
+  const shown = expanded ? items : items.slice(0, 6);
+  return (
+    <section
+      className={`${dark ? "lq-dark" : "lq-card"} p-4 min-w-0`}
+      style={{ "--i": index } as React.CSSProperties}
+    >
+      <div className="flex items-center gap-2.5 px-1 pb-2">
+        {swatch}
+        {titleHref ? (
+          <Link
+            href={titleHref}
+            className="font-display font-bold text-[14.5px] text-ink no-underline hover:text-orange-deep truncate"
+          >
+            {title}
+          </Link>
+        ) : (
+          <span className="font-display font-bold text-[14.5px] truncate">{title}</span>
+        )}
+        <span className="ms-auto flex items-center gap-1.5">
+          {overdue > 0 && <span className="lq-chip lq-chip--red !px-2 !py-1">{overdue}</span>}
+          {today > 0 && <span className="lq-chip lq-chip--orange !px-2 !py-1">{today}</span>}
+        </span>
+      </div>
+      <div
+        className={`flex flex-col ${
+          dark ? "[&_a]:hover:bg-white/10 [&_.text-ink]:text-white [&_.text-charcoal-60]:text-white/60 [&_.text-rose-800]:text-rose-300" : ""
+        }`}
+      >
+        {shown.map((it, j) => (
+          <ItemRow key={j} item={it} showClient={false} />
+        ))}
+      </div>
+      {items.length > 6 && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className={`lq-press block w-full text-start text-[11px] font-semibold px-3 pt-1.5 pb-0.5 ${
+            dark ? "text-white/50 hover:text-white/80" : "text-charcoal-40 hover:text-orange-deep"
+          }`}
+        >
+          {expanded ? "Show less" : `+ ${items.length - 6} more this fortnight`}
+        </button>
+      )}
+    </section>
+  );
+}
+
 export default function AgendaView({ agenda }: { agenda: Agenda }) {
   const [mode, setMode] = useState<"clients" | "timeline">("clients");
-  const todayIso = new Date().toISOString().slice(0, 10);
+  const [lens, setLens] = useState<Lens>("all");
+  const todayIso = agenda.today;
   const [day, setDay] = useState(todayIso);
 
+  const lensCounts = useMemo(() => {
+    const counts: Record<Exclude<Lens, "all">, number> = { tasks: 0, content: 0, money: 0, clients: 0 };
+    for (const it of agenda.all) counts[KIND_LENS[it.kind]]++;
+    return counts;
+  }, [agenda.all]);
+
+  const inLens = useMemo(
+    () => (it: AgendaItem) => lens === "all" || KIND_LENS[it.kind] === lens,
+    [lens]
+  );
+
+  const filteredAll = useMemo(() => agenda.all.filter(inLens), [agenda.all, inLens]);
+  const filteredClients: ClientAgenda[] = useMemo(
+    () =>
+      agenda.clients
+        .map((c) => ({ ...c, items: c.items.filter(inLens) }))
+        .filter((c) => c.items.length > 0),
+    [agenda.clients, inLens]
+  );
+  const filteredStudio = useMemo(() => agenda.studio.filter(inLens), [agenda.studio, inLens]);
+
+  // Day strip: today plus the full two-week horizon the engine computed.
   const days = useMemo(() => {
     const out: string[] = [];
     const base = new Date(`${todayIso}T12:00:00Z`).getTime();
-    for (let i = 0; i < 14; i++) out.push(new Date(base + i * 86400000).toISOString().slice(0, 10));
+    for (let i = 0; i <= 14; i++) out.push(new Date(base + i * 86400000).toISOString().slice(0, 10));
     return out;
   }, [todayIso]);
 
   const byDay = useMemo(() => {
     const m = new Map<string, AgendaItem[]>();
-    for (const it of agenda.all) {
+    for (const it of filteredAll) {
       const key = it.date < todayIso ? todayIso : it.date; // overdue rides on today
       if (!m.has(key)) m.set(key, []);
       m.get(key)!.push(it);
     }
     return m;
-  }, [agenda.all, todayIso]);
+  }, [filteredAll, todayIso]);
 
   const dayItems = byDay.get(day) ?? [];
+  const dayOverdue = day === todayIso ? dayItems.filter((i) => i.urgency === "overdue").length : 0;
+  const hasAnything = agenda.all.length > 0;
 
   return (
     <div className="space-y-5">
@@ -146,72 +267,83 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
         </div>
       </header>
 
-      <Seg
-        value={mode}
-        onChange={setMode}
-        options={[
-          { value: "clients", label: "By client" },
-          { value: "timeline", label: "Timeline" },
-        ]}
-      />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Seg
+          value={mode}
+          onChange={setMode}
+          options={[
+            { value: "clients", label: "By client" },
+            { value: "timeline", label: "Timeline" },
+          ]}
+        />
+        {/* The lens row — narrow the whole page to one kind of work. */}
+        {hasAnything && (
+          <div className="flex flex-wrap items-center gap-1.5 ms-auto">
+            <button
+              type="button"
+              onClick={() => setLens("all")}
+              className={`lq-press lq-chip !px-2.5 !py-1 ${lens === "all" ? "lq-chip--orange" : ""}`}
+            >
+              All
+            </button>
+            {(Object.keys(LENS_LABEL) as Exclude<Lens, "all">[]).map(
+              (l) =>
+                lensCounts[l] > 0 && (
+                  <button
+                    key={l}
+                    type="button"
+                    onClick={() => setLens(l)}
+                    className={`lq-press lq-chip !px-2.5 !py-1 ${lens === l ? "lq-chip--orange" : ""}`}
+                  >
+                    {LENS_LABEL[l]} <span className="opacity-60 tabular-nums">{lensCounts[l]}</span>
+                  </button>
+                )
+            )}
+          </div>
+        )}
+      </div>
 
       {mode === "clients" ? (
-        agenda.clients.length === 0 && agenda.studio.length === 0 ? (
+        filteredClients.length === 0 && filteredStudio.length === 0 ? (
           <div className="lq-card">
-            <EmptyState
-              icon={<PartyPopper className="w-5 h-5" />}
-              title="Nothing owed to anyone"
-              sub="No tasks due, no invoices to chase, no posts waiting. Enjoy it — it won't last."
-            />
+            {hasAnything ? (
+              <EmptyState
+                title="Nothing under this lens"
+                sub="Switch back to All — the rest of the agenda is still there."
+              />
+            ) : (
+              <EmptyState
+                icon={<PartyPopper className="w-5 h-5" />}
+                title="Nothing owed to anyone"
+                sub="No tasks due, no invoices to chase, no posts waiting. Enjoy it — it won't last."
+              />
+            )}
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lq-stagger">
-            {agenda.clients.map((c, i) => (
-              <section
+            {filteredClients.map((c, i) => (
+              <AgendaCard
                 key={c.slug}
-                className="lq-card p-4"
-                style={{ "--i": i } as React.CSSProperties}
-              >
-                <div className="flex items-center gap-2.5 px-1 pb-2">
+                index={i}
+                title={c.name}
+                titleHref={`/admin/clients/${c.slug}/edit`}
+                items={c.items}
+                swatch={
                   <span
                     className="w-7 h-7 rounded-full shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,.4)]"
                     style={{ background: c.color }}
                   />
-                  <Link
-                    href={`/admin/clients/${c.slug}/edit`}
-                    className="font-display font-bold text-[14.5px] text-ink no-underline hover:text-orange-deep truncate"
-                  >
-                    {c.name}
-                  </Link>
-                  <span className="ms-auto flex items-center gap-1.5">
-                    {c.overdue > 0 && <span className="lq-chip lq-chip--red !px-2 !py-1">{c.overdue}</span>}
-                    {c.today > 0 && <span className="lq-chip lq-chip--orange !px-2 !py-1">{c.today}</span>}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  {c.items.slice(0, 6).map((it, j) => (
-                    <ItemRow key={j} item={it} />
-                  ))}
-                  {c.items.length > 6 && (
-                    <p className="text-[11px] text-charcoal-40 px-3 pt-1">
-                      + {c.items.length - 6} more this fortnight
-                    </p>
-                  )}
-                </div>
-              </section>
+                }
+              />
             ))}
-            {agenda.studio.length > 0 && (
-              <section className="lq-dark p-4" style={{ "--i": agenda.clients.length } as React.CSSProperties}>
-                <div className="flex items-center gap-2.5 px-1 pb-2">
-                  <span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00] shrink-0" />
-                  <span className="font-display font-bold text-[14.5px]">Studio</span>
-                </div>
-                <div className="flex flex-col [&_a]:hover:bg-white/10 [&_.text-ink]:text-white [&_.text-charcoal-60]:text-white/60">
-                  {agenda.studio.slice(0, 6).map((it, j) => (
-                    <ItemRow key={j} item={it} />
-                  ))}
-                </div>
-              </section>
+            {filteredStudio.length > 0 && (
+              <AgendaCard
+                index={filteredClients.length}
+                title="Studio"
+                items={filteredStudio}
+                dark
+                swatch={<span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00] shrink-0" />}
+              />
             )}
           </div>
         )
@@ -258,7 +390,7 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
             <SectionHead
               className="px-2 pt-1 pb-2"
               title={day === todayIso ? "Today" : new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
-              sub={`${dayItems.length} item${dayItems.length === 1 ? "" : "s"}${day === todayIso && agenda.counts.overdue ? ` · includes ${agenda.counts.overdue} overdue` : ""}`}
+              sub={`${dayItems.length} item${dayItems.length === 1 ? "" : "s"}${dayOverdue ? ` · includes ${dayOverdue} overdue` : ""}`}
             />
             {dayItems.length === 0 ? (
               <EmptyState title="Clear day" sub="Nothing lands here yet." />
