@@ -1524,9 +1524,13 @@ body.ar .ms-pcard__h { font-family: var(--font-arabic-display); }
    PRINT — clean PDF export for proposal & agreement pages
    =============================================================== */
 @media print {
+  /* The page margin is where browsers stamp their own headers/footers (URL,
+     date, page numbers). Zero it and own the whitespace ourselves, so the
+     exported PDF is just the document. */
+  @page { size: A4; margin: 0; }
   .print\:hidden { display: none !important; }
   body { background: #fff !important; }
-  main { background: #fff !important; padding: 0 !important; }
+  main { background: #fff !important; padding: 12mm !important; }
   /* Flatten the document card so it fills the page without a frame. */
   main .rounded-2xl { box-shadow: none !important; border: none !important; }
 }

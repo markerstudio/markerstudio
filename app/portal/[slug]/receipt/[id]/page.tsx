@@ -49,11 +49,12 @@ export default async function ReceiptPage({
       <div className="mx-auto max-w-3xl lq-rise">
         <div className="print:hidden mb-6 flex items-center justify-between gap-3">
           <a href={isAdmin ? searchParams.back || "/admin/invoices" : `/portal/${client.slug}/invoices`} className="lq-btn lq-btn--glass lq-btn--sm no-underline">← Back</a>
-          <PrintButton label="Download PDF" />
+          <PrintButton label="Download PDF" basename={pay.number || `receipt-${pay.id}`} />
         </div>
 
-        {/* Glass sheet on screen; the print rules flatten .rounded-2xl cards to a clean page. */}
-        <div className="lq-card rounded-2xl overflow-hidden">
+        {/* Glass sheet on screen; the print rules flatten .rounded-2xl cards to a
+            clean page. data-doc marks the PDF/image capture target. */}
+        <div data-doc className="lq-card rounded-2xl overflow-hidden">
           <div className="flex items-start justify-between gap-4 border-b border-charcoal/5 px-6 py-7 sm:px-9">
             <div>
               {/* eslint-disable-next-line @next/next/no-img-element */}

@@ -41,6 +41,7 @@ pub fn run() {
             open_preview,
             print_page,
             save_text_file,
+            save_file,
             save_credentials,
             get_credentials,
             has_credentials,
@@ -424,17 +425,32 @@ fn print_page(webview_window: tauri::WebviewWindow) -> Result<(), String> {
 // dialog runs off the main thread (the plugin hops back internally).
 #[tauri::command]
 async fn save_text_file(app: tauri::AppHandle, filename: String, content: String) -> Result<bool, String> {
+    write_via_save_panel(&app, &filename, content.into_bytes()).await
+}
+
+// Binary sibling of save_text_file: the site's PDF / image exports arrive as
+// base64 and go out through the same native save panel.
+#[tauri::command]
+async fn save_file(app: tauri::AppHandle, filename: String, data: String) -> Result<bool, String> {
+    use base64::Engine as _;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(data.as_bytes())
+        .map_err(|e| e.to_string())?;
+    write_via_save_panel(&app, &filename, bytes).await
+}
+
+async fn write_via_save_panel(app: &tauri::AppHandle, filename: &str, bytes: Vec<u8>) -> Result<bool, String> {
     use tauri_plugin_dialog::DialogExt;
     let name: String = filename
         .chars()
         .map(|c| if matches!(c, '/' | '\\' | ':') { '-' } else { c })
         .collect();
-    let name = if name.trim().is_empty() { "note.txt".to_string() } else { name };
+    let name = if name.trim().is_empty() { "download".to_string() } else { name };
     let Some(picked) = app.dialog().file().set_file_name(&name).blocking_save_file() else {
         return Ok(false);
     };
     let path = picked.into_path().map_err(|e| e.to_string())?;
-    std::fs::write(&path, content.as_bytes()).map_err(|e| e.to_string())?;
+    std::fs::write(&path, &bytes).map_err(|e| e.to_string())?;
     Ok(true)
 }
 
@@ -595,6 +611,7 @@ const BRIDGE_JS: &str = r#"
     openPreview: function (url, title) { return inv('open_preview', { url: url, title: title }); },
     printPage: function () { return inv('print_page'); },
     saveText: function (filename, content) { return inv('save_text_file', { filename: filename, content: content }); },
+    saveFile: function (filename, base64) { return inv('save_file', { filename: filename, data: base64 }); },
     saveCredentials: function (email, password) { return inv('save_credentials', { email: email, password: password }); },
     getCredentials: function () { return inv('get_credentials'); },
     hasCredentials: function () { return inv('has_credentials'); },

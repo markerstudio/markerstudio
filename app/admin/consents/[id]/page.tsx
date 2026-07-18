@@ -30,10 +30,11 @@ export default async function ConsentRecordPage({ params }: { params: { id: stri
         <Link href="/admin/consents" className="lq-btn lq-btn--glass lq-btn--sm no-underline">
           ← Consent forms
         </Link>
-        <PrintButton label="Print / save PDF" />
+        <PrintButton label="Save PDF" basename={`consent-${params.id}`} />
       </div>
 
       <div
+        data-doc
         dir={lang === "ar" ? "rtl" : "ltr"}
         className="rounded-2xl border border-neutral-200 bg-white p-8 sm:p-10 shadow-[0_24px_60px_-28px_rgba(31,31,31,.28)] print:shadow-none print:border-0 print:rounded-none"
       >
