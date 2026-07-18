@@ -7,7 +7,12 @@ import type { Deliverable } from "@/lib/clients";
 
 export const STUDIO_SLUG = "__studio__"; // sentinel used by actions to target this store
 
-type StudioState = { deliverables?: Deliverable[] };
+type StudioState = {
+  deliverables?: Deliverable[];
+  /** Agenda snoozes: stable item id → ISO yyyy-mm-dd the item reappears on.
+   *  The agenda stays fully derived — this only quiets a row for a while. */
+  agendaSnoozes?: Record<string, string>;
+};
 
 async function ensureStudioState() {
   const sql = getSql();
@@ -44,4 +49,35 @@ export async function updateStudioDeliverables(mutate: (items: Deliverable[]) =>
   const items = await getStudioDeliverables();
   mutate(items);
   return saveStudioDeliverables(items);
+}
+
+export async function getAgendaSnoozes(): Promise<Record<string, string>> {
+  if (!isDbEnabled()) return {};
+  const sql = getSql();
+  try {
+    const rows = (await sql`SELECT data FROM studio_state WHERE id = 1 LIMIT 1`) as unknown as { data: StudioState }[];
+    return rows[0]?.data?.agendaSnoozes ?? {};
+  } catch {
+    return {}; // table not created yet — first write will create it
+  }
+}
+
+/** Set (until > today) or clear (until <= today) one snooze. Expired entries
+ *  are pruned on every write so the map never accumulates. `today` comes from
+ *  the caller so the studio-timezone logic stays in lib/agenda. */
+export async function saveAgendaSnooze(id: string, until: string, today: string): Promise<boolean> {
+  if (!isDbEnabled()) return false;
+  await ensureStudioState();
+  const current = await getAgendaSnoozes();
+  const next: Record<string, string> = {};
+  for (const [k, v] of Object.entries(current)) if (v > today) next[k] = v;
+  if (until > today) next[id] = until;
+  else delete next[id];
+  const sql = getSql();
+  await sql`
+    UPDATE studio_state
+    SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{agendaSnoozes}', ${JSON.stringify(next)}::jsonb, true), updated_at = now()
+    WHERE id = 1
+  `;
+  return true;
 }

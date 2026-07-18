@@ -9,8 +9,10 @@
    the engine so the browser's clock can't disagree with the server's. */
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
+  BellOff,
   CalendarDays,
   CheckCircle2,
   Clock,
@@ -23,8 +25,10 @@ import {
   Flag,
   PartyPopper,
   NotebookPen,
+  X,
 } from "lucide-react";
 import { Seg, EmptyState, SectionHead } from "@/components/ui/glass";
+import { snoozeAgendaItem } from "@/app/admin/agenda/actions";
 import type { Agenda, AgendaItem, AgendaKind, ClientAgenda } from "@/lib/agenda";
 
 const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>> = {
@@ -96,9 +100,25 @@ function UrgencyDot({ u }: { u: AgendaItem["urgency"] }) {
   return <span className={`inline-block w-1.5 h-1.5 rounded-full shrink-0 ${cls}`} />;
 }
 
-function ItemRow({ item, showClient = true }: { item: AgendaItem; showClient?: boolean }) {
+function ItemRow({
+  item,
+  showClient = true,
+  onSnooze,
+}: {
+  item: AgendaItem;
+  showClient?: boolean;
+  onSnooze: (item: AgendaItem, days: 1 | 7) => void;
+}) {
+  const [asking, setAsking] = useState(false);
   const Icon = KIND_ICON[item.kind];
   const sub = [showClient ? item.clientName : null, item.sub].filter(Boolean).join(" · ");
+  // The whole row is a Link; the snooze controls live inside it, so they
+  // must swallow the click before it navigates.
+  const press = (fn: () => void) => (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    fn();
+  };
   return (
     <Link
       href={item.href}
@@ -121,10 +141,46 @@ function ItemRow({ item, showClient = true }: { item: AgendaItem; showClient?: b
           </span>
         )}
       </span>
-      <span className="flex items-center gap-2 shrink-0 text-[11px] font-semibold text-charcoal-60 tabular-nums">
-        <UrgencyDot u={item.urgency} />
-        {item.time || (item.urgency === "overdue" ? "late" : item.urgency === "today" ? "today" : fmtDate(item.date))}
-      </span>
+      {asking ? (
+        <span className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={press(() => onSnooze(item, 1))}
+            className="lq-press lq-chip lq-chip--orange !px-2 !py-1 !text-[10.5px]"
+          >
+            Tomorrow
+          </button>
+          <button
+            type="button"
+            onClick={press(() => onSnooze(item, 7))}
+            className="lq-press lq-chip lq-chip--orange !px-2 !py-1 !text-[10.5px]"
+          >
+            1 week
+          </button>
+          <button
+            type="button"
+            aria-label="Cancel snooze"
+            onClick={press(() => setAsking(false))}
+            className="lq-press p-1 text-charcoal-40 hover:text-ink"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </span>
+      ) : (
+        <span className="flex items-center gap-2 shrink-0 text-[11px] font-semibold text-charcoal-60 tabular-nums">
+          <UrgencyDot u={item.urgency} />
+          {item.time || (item.urgency === "overdue" ? "late" : item.urgency === "today" ? "today" : fmtDate(item.date))}
+          <button
+            type="button"
+            aria-label="Snooze this item"
+            title="Snooze — hide until it's due again"
+            onClick={press(() => setAsking(true))}
+            className="lq-press p-1 -my-1 text-charcoal-20 hover:text-orange-deep sm:opacity-0 sm:group-hover:opacity-100 transition-opacity"
+          >
+            <BellOff className="w-3.5 h-3.5" />
+          </button>
+        </span>
+      )}
     </Link>
   );
 }
@@ -138,6 +194,7 @@ function AgendaCard({
   items,
   dark = false,
   index,
+  onSnooze,
 }: {
   title: string;
   titleHref?: string;
@@ -145,6 +202,7 @@ function AgendaCard({
   items: AgendaItem[];
   dark?: boolean;
   index: number;
+  onSnooze: (item: AgendaItem, days: 1 | 7) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const overdue = items.filter((i) => i.urgency === "overdue").length;
@@ -174,11 +232,13 @@ function AgendaCard({
       </div>
       <div
         className={`flex flex-col ${
-          dark ? "[&_a]:hover:bg-white/10 [&_.text-ink]:text-white [&_.text-charcoal-60]:text-white/60 [&_.text-rose-800]:text-rose-300" : ""
+          dark
+            ? "[&_a]:hover:bg-white/10 [&_.text-ink]:text-white [&_.text-charcoal-60]:text-white/60 [&_.text-rose-800]:text-rose-300 [&_.text-charcoal-20]:text-white/30 [&_.text-charcoal-40]:text-white/50"
+            : ""
         }`}
       >
-        {shown.map((it, j) => (
-          <ItemRow key={j} item={it} showClient={false} />
+        {shown.map((it) => (
+          <ItemRow key={it.id} item={it} showClient={false} onSnooze={onSnooze} />
         ))}
       </div>
       {items.length > 6 && (
@@ -201,16 +261,36 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
   const [lens, setLens] = useState<Lens>("all");
   const todayIso = agenda.today;
   const [day, setDay] = useState(todayIso);
+  const router = useRouter();
+  const [, startTransition] = useTransition();
+  // Optimistic: a snoozed row vanishes immediately; the server refresh that
+  // follows makes it official (or brings it back if the save failed).
+  const [hidden, setHidden] = useState<Set<string>>(new Set());
+
+  const onSnooze = (item: AgendaItem, days: 1 | 7) => {
+    setHidden((prev) => new Set(prev).add(item.id));
+    startTransition(async () => {
+      const res = await snoozeAgendaItem(item.id, days);
+      if (!res.ok) {
+        setHidden((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      }
+      router.refresh();
+    });
+  };
 
   const lensCounts = useMemo(() => {
     const counts: Record<Exclude<Lens, "all">, number> = { tasks: 0, content: 0, money: 0, clients: 0 };
-    for (const it of agenda.all) counts[KIND_LENS[it.kind]]++;
+    for (const it of agenda.all) if (!hidden.has(it.id)) counts[KIND_LENS[it.kind]]++;
     return counts;
-  }, [agenda.all]);
+  }, [agenda.all, hidden]);
 
   const inLens = useMemo(
-    () => (it: AgendaItem) => lens === "all" || KIND_LENS[it.kind] === lens,
-    [lens]
+    () => (it: AgendaItem) => !hidden.has(it.id) && (lens === "all" || KIND_LENS[it.kind] === lens),
+    [lens, hidden]
   );
 
   const filteredAll = useMemo(() => agenda.all.filter(inLens), [agenda.all, inLens]);
@@ -264,6 +344,9 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
           )}
           <span className="px-3 first:ps-0 text-orange-deep">{agenda.counts.today} today</span>
           <span className="ps-3 text-charcoal-60">{agenda.counts.soon} coming up</span>
+          {agenda.snoozed > 0 && (
+            <span className="ps-3 text-charcoal-40">{agenda.snoozed} snoozed</span>
+          )}
         </div>
       </header>
 
@@ -328,6 +411,7 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
                 title={c.name}
                 titleHref={`/admin/clients/${c.slug}/edit`}
                 items={c.items}
+                onSnooze={onSnooze}
                 swatch={
                   <span
                     className="w-7 h-7 rounded-full shrink-0 shadow-[inset_0_1px_0_rgba(255,255,255,.4)]"
@@ -342,6 +426,7 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
                 title="Studio"
                 items={filteredStudio}
                 dark
+                onSnooze={onSnooze}
                 swatch={<span className="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00] shrink-0" />}
               />
             )}
@@ -396,8 +481,8 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
               <EmptyState title="Clear day" sub="Nothing lands here yet." />
             ) : (
               <div className="flex flex-col">
-                {dayItems.map((it, i) => (
-                  <ItemRow key={i} item={it} />
+                {dayItems.map((it) => (
+                  <ItemRow key={it.id} item={it} onSnooze={onSnooze} />
                 ))}
               </div>
             )}
