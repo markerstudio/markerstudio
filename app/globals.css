@@ -2297,6 +2297,17 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 /* landing: overshoot splat, then settle; an ink ripple spreads on the ground */
 .ms-pet.is-land { animation: none; }
 .ms-pet.is-land .ms-pet__body { animation: ms-splat 0.45s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.ms-pet.is-land .ms-pet__eye { animation: none; }
+.ms-pet.is-land .ms-pet__shadow { animation: none; }
+/* frozen: the hand-off pose — both windows strike EXACTLY this (static base
+   shape, no bob/morph/blink) while the shell swaps their visibility, so the
+   small clickable Marky and his flight-overlay twin are pixel-identical */
+.ms-pet.is-frozen, .ms-pet.is-frozen .ms-pet__body, .ms-pet.is-frozen .ms-pet__eye,
+.ms-pet.is-frozen .ms-pet__mouth, .ms-pet.is-frozen .ms-pet__shadow,
+.ms-pet.is-frozen .ms-pet__body::before, .ms-pet.is-frozen .ms-pet__body::after {
+  animation: none !important;
+  transition: none !important;
+}
 .ms-ripple {
   position: absolute; left: 50%; top: 82%; width: 64px; height: 20px;
   margin: -10px 0 0 -32px; border: 2px solid rgba(245, 127, 0, 0.55);
