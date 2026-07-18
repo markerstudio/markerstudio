@@ -16,7 +16,25 @@ export default async function PetPage() {
 
   return (
     <>
-      <style>{`html, body { background: transparent !important; }`}</style>
+      <style>{`
+        html, body { background: transparent !important; }
+        /* Transparent-window compositing: backdrop-filter has no page backdrop
+           to sample here (the "backdrop" is the real desktop) and layer
+           filters rasterize as rectangles — both paint boxes. Solid panel +
+           box-shadows on the rounded elements themselves instead. */
+        .lq-chrome {
+          -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+          background: #FCFAF6 !important;
+          box-shadow: 0 18px 44px -18px rgba(48, 48, 48, 0.5) !important;
+        }
+        .ms-pet { filter: none !important; }
+        .ms-pet__body {
+          box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55),
+            inset 0 -3px 6px rgba(48, 48, 48, 0.12),
+            0 10px 22px -6px rgba(245, 127, 0, 0.55) !important;
+        }
+      `}</style>
       <PetWindow />
     </>
   );

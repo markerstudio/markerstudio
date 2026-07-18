@@ -3,7 +3,7 @@
 // Marky's shared chat pieces — used by the in-app corner pet (Pet.tsx) and
 // the desktop floating pet window (PetWindow.tsx). Talks to /api/pet, which
 // answers deterministically from studio data (zero AI credits).
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 export type PetMsg = { role: "user" | "assistant"; content: string };
 
@@ -12,10 +12,43 @@ export const PET_HELLO: PetMsg = {
   content: "Hey! I'm Marky 🧡 Ask me things like “what's on fire today?”, “how much does everyone owe us?”, or “what's blocked on approvals?”",
 };
 
+export type PetMood = "idle" | "thinking" | "happy" | "alert" | "sleepy";
+
+// What a reply does to Marky's face: fire/overdue → alert shake, good news →
+// happy hop, otherwise back to idle. Momentary moods decay after ~4s.
+function moodOf(text: string): PetMood {
+  if (/🔥|overdue|late|متأخر/i.test(text)) return "alert";
+  if (/🎉|✨|🧡|nothing|no open|all caught|هادي|تمام/i.test(text)) return "happy";
+  return "idle";
+}
+
 export function usePetChat() {
   const [msgs, setMsgs] = useState<PetMsg[]>([PET_HELLO]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mood, setMood] = useState<PetMood>("idle");
+  const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Any interaction wakes him; 90s of nothing and he dozes off.
+  const poke = useCallback(() => {
+    setMood((m) => (m === "sleepy" ? "idle" : m));
+    if (sleepTimer.current) clearTimeout(sleepTimer.current);
+    sleepTimer.current = setTimeout(() => setMood((m) => (m === "idle" ? "sleepy" : m)), 90_000);
+  }, []);
+  useEffect(() => {
+    poke();
+    return () => {
+      if (sleepTimer.current) clearTimeout(sleepTimer.current);
+      if (moodTimer.current) clearTimeout(moodTimer.current);
+    };
+  }, [poke]);
+
+  const feel = useCallback((m: PetMood) => {
+    setMood(m);
+    if (moodTimer.current) clearTimeout(moodTimer.current);
+    if (m === "happy" || m === "alert") moodTimer.current = setTimeout(() => setMood("idle"), 4000);
+  }, []);
 
   async function send() {
     const q = input.trim();
@@ -24,6 +57,8 @@ export function usePetChat() {
     const next: PetMsg[] = [...msgs, { role: "user", content: q }];
     setMsgs(next);
     setBusy(true);
+    feel("thinking");
+    poke();
     try {
       const res = await fetch("/api/pet", {
         method: "POST",
@@ -36,16 +71,19 @@ export function usePetChat() {
         setMsgs((m) => [...m, { role: "assistant", content: "Hmm, my thought got lost — try me again in a moment." }]);
       } else {
         const data = (await res.json()) as { text?: string };
-        setMsgs((m) => [...m, { role: "assistant", content: data.text || "…" }]);
+        const text = data.text || "…";
+        setMsgs((m) => [...m, { role: "assistant", content: text }]);
+        feel(moodOf(text));
       }
     } catch {
       setMsgs((m) => [...m, { role: "assistant", content: "I couldn't reach the studio brain — are we offline?" }]);
     } finally {
       setBusy(false);
+      setMood((m) => (m === "thinking" ? "idle" : m));
     }
   }
 
-  return { msgs, input, setInput, busy, send };
+  return { msgs, input, setInput, busy, send, mood, poke };
 }
 
 export function PetChatBody({ chat }: { chat: ReturnType<typeof usePetChat> }) {
