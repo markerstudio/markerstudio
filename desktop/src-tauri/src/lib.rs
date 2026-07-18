@@ -42,6 +42,7 @@ pub fn run() {
             print_page,
             save_text_file,
             save_file,
+            install_update,
             save_credentials,
             get_credentials,
             has_credentials,
@@ -106,12 +107,20 @@ pub fn run() {
 // Auto-update
 // ---------------------------------------------------------------------------
 
-// Checks marker.ps for a newer signed build and offers to install it. The
-// whole path is a no-op while the updater pubkey in tauri.conf.json is empty,
-// so shipping this wired-but-dormant is safe. Every failure exits silently —
-// an update check must never get in the way of using the app.
+// The pending update, parked between "found one" and the user clicking
+// Install in the banner. Cleared by install_update.
+fn pending_update() -> &'static std::sync::Mutex<Option<tauri_plugin_updater::Update>> {
+    use std::sync::{Mutex, OnceLock};
+    static PENDING: OnceLock<Mutex<Option<tauri_plugin_updater::Update>>> = OnceLock::new();
+    PENDING.get_or_init(|| Mutex::new(None))
+}
+
+// Checks marker.ps for a newer signed build. When one exists, a branded glass
+// banner slides into the main window (injected DOM — no site deploy needed)
+// with an Install button and a live progress bar; the plain system dialog is
+// the fallback if the injection fails. The whole path is a no-op while the
+// updater pubkey in tauri.conf.json is empty.
 async fn check_for_updates(app: tauri::AppHandle) {
-    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
     use tauri_plugin_updater::UpdaterExt;
 
     let configured = app
@@ -128,41 +137,103 @@ async fn check_for_updates(app: tauri::AppHandle) {
 
     let Ok(updater) = app.updater() else { return };
     let Ok(Some(update)) = updater.check().await else { return };
+    let version = update.version.clone();
+    let current = app.package_info().version.to_string();
 
-    let install = app
-        .dialog()
-        .message(format!(
-            "Marker Studio {} is available (you have {}).\nInstall it now? The app restarts when it's done.",
-            update.version,
-            app.package_info().version
-        ))
-        .title("Update available")
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "Install & Relaunch".to_string(),
-            "Later".to_string(),
-        ))
-        .blocking_show();
-    if !install {
-        return;
+    if let Ok(mut slot) = pending_update().lock() {
+        *slot = Some(update.clone());
     }
 
-    // Re-check right before downloading: the feed serves short-lived signed
-    // artifact URLs, and the user may have sat on the dialog past expiry.
-    let fresh = match updater.check().await {
-        Ok(Some(u)) => u,
-        _ => update,
+    let injected = app
+        .get_webview_window("main")
+        .map(|w| {
+            w.eval(
+                UPDATE_BANNER_JS
+                    .replace("__NEW_VERSION__", &version)
+                    .replace("__OLD_VERSION__", &current),
+            )
+            .is_ok()
+        })
+        .unwrap_or(false);
+
+    if !injected {
+        // Fallback: the plain dialog + immediate install.
+        use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
+        let install = app
+            .dialog()
+            .message(format!(
+                "Marker Studio {version} is available (you have {current}).\nInstall it now? The app restarts when it's done."
+            ))
+            .title("Update available")
+            .buttons(MessageDialogButtons::OkCancelCustom(
+                "Install & Relaunch".to_string(),
+                "Later".to_string(),
+            ))
+            .blocking_show();
+        if !install {
+            return;
+        }
+        match update.download_and_install(|_, _| {}, || {}).await {
+            Ok(()) => app.restart(),
+            Err(e) => {
+                app.dialog()
+                    .message(format!("The update couldn't be installed:\n\n{e}"))
+                    .title("Update failed")
+                    .blocking_show();
+            }
+        }
+    }
+}
+
+// The banner's Install button lands here. Re-checks for a fresh manifest
+// (the feed's signed artifact URLs are short-lived and the user may have sat
+// on the banner), streams progress back into the page, restarts on success,
+// and reports the REAL error text on failure — never silence.
+#[tauri::command]
+async fn install_update(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_updater::UpdaterExt;
+
+    let parked = pending_update().lock().map_err(|_| "update state poisoned")?.take();
+    let Some(parked) = parked else { return Err("no update pending".to_string()) };
+
+    let update = match app.updater().ok() {
+        Some(u) => match u.check().await {
+            Ok(Some(fresh)) => fresh,
+            _ => parked,
+        },
+        None => parked,
     };
-    // A failed install must SAY so — a silent "nothing happened" after
-    // "Install & Relaunch" is worse than any error text.
-    match fresh.download_and_install(|_, _| {}, || {}).await {
+
+    let progress_window = app.get_webview_window("main");
+    let mut downloaded: usize = 0;
+    let result = update
+        .download_and_install(
+            move |chunk, total| {
+                downloaded += chunk;
+                if let (Some(w), Some(t)) = (&progress_window, total) {
+                    if t > 0 {
+                        let pct = ((downloaded as f64 / t as f64) * 100.0).min(100.0);
+                        let _ = w.eval(format!(
+                            "window.__MARKER_UPDATE_PROGRESS__&&window.__MARKER_UPDATE_PROGRESS__({pct:.0})"
+                        ));
+                    }
+                }
+            },
+            || {},
+        )
+        .await;
+
+    match result {
         Ok(()) => app.restart(),
         Err(e) => {
-            app.dialog()
-                .message(format!(
-                    "The update couldn't be installed:\n\n{e}\n\nYou can try again on the next launch, or download the latest version from the releases page."
-                ))
-                .title("Update failed")
-                .blocking_show();
+            let msg = e.to_string();
+            if let Some(w) = app.get_webview_window("main") {
+                let json = serde_json::to_string(&msg).unwrap_or_else(|_| "\"update failed\"".into());
+                let _ = w.eval(format!(
+                    "window.__MARKER_UPDATE_FAILED__&&window.__MARKER_UPDATE_FAILED__({json})"
+                ));
+            }
+            Err(msg)
         }
     }
 }
@@ -633,6 +704,91 @@ const BRIDGE_JS: &str = r#"
     hasCredentials: function () { return inv('has_credentials'); },
     clearCredentials: function () { return inv('clear_credentials'); }
   };
+})();
+"#;
+
+// The update banner — brand-styled, injected straight into the main window so
+// it needs no site deploy. Self-contained: styles inline, buttons talk to the
+// install_update command through the global Tauri IPC (withGlobalTauri).
+// __NEW_VERSION__ / __OLD_VERSION__ are replaced before eval with values the
+// shell controls (release version strings), never user input.
+const UPDATE_BANNER_JS: &str = r#"
+(function () {
+  if (document.getElementById('marker-update-banner')) return;
+  var css = document.createElement('style');
+  css.textContent =
+    '#marker-update-banner{position:fixed;z-index:2147483000;right:18px;bottom:18px;width:330px;padding:18px 18px 16px;border-radius:22px;' +
+    'background:linear-gradient(180deg,rgba(255,255,255,.96),rgba(250,248,244,.92));-webkit-backdrop-filter:blur(18px) saturate(1.6);backdrop-filter:blur(18px) saturate(1.6);' +
+    'border:1px solid rgba(255,255,255,.7);box-shadow:inset 0 1px 0 rgba(255,255,255,.95),0 24px 60px -18px rgba(48,48,48,.35);' +
+    'font-family:Poppins,-apple-system,system-ui,sans-serif;color:#303030;animation:mub-in .5s cubic-bezier(.2,.9,.25,1.2) both}' +
+    '@keyframes mub-in{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}' +
+    '#marker-update-banner .mub-k{display:flex;align-items:center;gap:8px;font-size:10.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8a8a8a}' +
+    '#marker-update-banner .mub-dot{width:8px;height:8px;border-radius:99px;background:linear-gradient(135deg,#FFA226,#F57F00);box-shadow:0 0 0 3px rgba(255,145,0,.18)}' +
+    '#marker-update-banner h3{margin:10px 0 2px;font-size:16.5px;font-weight:800;letter-spacing:-.01em}' +
+    '#marker-update-banner p{margin:0 0 14px;font-size:12.5px;line-height:1.5;color:#6f6f6f}' +
+    '#marker-update-banner .mub-row{display:flex;gap:8px;align-items:center}' +
+    '#marker-update-banner .mub-go{flex:1;border:0;cursor:pointer;padding:10px 14px;border-radius:999px;font:700 13px Poppins,sans-serif;color:#fff;' +
+    'background:linear-gradient(135deg,#FFA226,#F57F00);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),0 10px 22px -8px rgba(255,145,0,.65)}' +
+    '#marker-update-banner .mub-go:active{transform:scale(.97)}' +
+    '#marker-update-banner .mub-later{border:0;cursor:pointer;background:none;padding:10px 12px;border-radius:999px;font:600 12.5px Poppins,sans-serif;color:#8a8a8a}' +
+    '#marker-update-banner .mub-later:hover{color:#303030}' +
+    '#marker-update-banner .mub-bar{display:none;height:8px;border-radius:99px;background:rgba(48,48,48,.08);overflow:hidden;margin:4px 0 6px}' +
+    '#marker-update-banner .mub-fill{height:100%;width:0%;border-radius:99px;background:linear-gradient(90deg,#FFA226,#F57F00);transition:width .25s ease}' +
+    '#marker-update-banner .mub-note{display:none;font-size:11.5px;color:#8a8a8a;margin:0}' +
+    '#marker-update-banner .mub-err{display:none;font-size:11.5px;line-height:1.45;color:#b01d31;margin:6px 0 0}';
+  document.documentElement.appendChild(css);
+
+  var el = document.createElement('div');
+  el.id = 'marker-update-banner';
+  el.innerHTML =
+    '<div class="mub-k"><span class="mub-dot"></span>Update ready</div>' +
+    '<h3>Marker Studio __NEW_VERSION__</h3>' +
+    '<p>You have __OLD_VERSION__. Installing takes seconds — the app relaunches by itself. ✨</p>' +
+    '<div class="mub-bar"><div class="mub-fill"></div></div>' +
+    '<p class="mub-note">Downloading…</p>' +
+    '<div class="mub-row"><button type="button" class="mub-go">Install &amp; relaunch</button>' +
+    '<button type="button" class="mub-later">Later</button></div>' +
+    '<p class="mub-err"></p>';
+  document.documentElement.appendChild(el);
+
+  var bar = el.querySelector('.mub-bar');
+  var fill = el.querySelector('.mub-fill');
+  var note = el.querySelector('.mub-note');
+  var row = el.querySelector('.mub-row');
+  var err = el.querySelector('.mub-err');
+  var go = el.querySelector('.mub-go');
+
+  window.__MARKER_UPDATE_PROGRESS__ = function (pct) {
+    bar.style.display = 'block';
+    note.style.display = 'block';
+    fill.style.width = pct + '%';
+    note.textContent = pct >= 100 ? 'Installing… the app will relaunch.' : 'Downloading… ' + pct + '%';
+  };
+  window.__MARKER_UPDATE_FAILED__ = function (message) {
+    row.style.display = 'flex';
+    go.disabled = false;
+    go.textContent = 'Try again';
+    bar.style.display = 'none';
+    note.style.display = 'none';
+    err.style.display = 'block';
+    err.textContent = 'The update couldn’t be installed: ' + message;
+  };
+
+  el.querySelector('.mub-later').addEventListener('click', function () { el.remove(); });
+  go.addEventListener('click', function () {
+    var invFn = (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) ||
+                (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke);
+    if (!invFn) { window.__MARKER_UPDATE_FAILED__('the app bridge is unavailable'); return; }
+    go.disabled = true;
+    err.style.display = 'none';
+    row.style.display = 'none';
+    bar.style.display = 'block';
+    note.style.display = 'block';
+    note.textContent = 'Starting download…';
+    Promise.resolve(invFn('install_update')).catch(function (e) {
+      window.__MARKER_UPDATE_FAILED__(String(e));
+    });
+  });
 })();
 "#;
 

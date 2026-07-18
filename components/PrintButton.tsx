@@ -21,22 +21,31 @@ export default function PrintButton({
   basename?: string;
 }) {
   const [busy, setBusy] = useState<"pdf" | "png" | null>(null);
+  const [err, setErr] = useState<string | null>(null);
 
   const run = (kind: "pdf" | "png") => async () => {
     if (busy) return;
     setBusy(kind);
+    setErr(null);
     try {
       const handled = await (kind === "pdf" ? downloadDocPdf : downloadDocImage)(basename);
       if (!handled) window.print(); // desktop app predating the saveFile bridge
-    } catch {
-      window.print(); // capture failed — the print dialog still gets a clean page
+    } catch (e) {
+      // Say WHAT failed — a silent fallback taught us (twice) that "nothing
+      // happened" is the worst possible error message.
+      setErr(`Export failed: ${e instanceof Error ? e.message : String(e)}`);
     } finally {
       setBusy(null);
     }
   };
 
   return (
-    <div className="print:hidden flex flex-wrap items-center gap-2">
+    <div className="print:hidden flex flex-wrap items-center justify-end gap-2">
+      {err && (
+        <p role="alert" className="w-full text-right text-xs font-medium text-rose-700">
+          {err} — the Print button still works as a fallback.
+        </p>
+      )}
       <button type="button" onClick={() => window.print()} className={BTN} title="System print dialog">
         <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
           <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />

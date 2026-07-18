@@ -57,7 +57,13 @@ async function deliver(filename: string, blob: Blob): Promise<boolean> {
   const w = window as Bridge;
   if (w.__MARKER_DESKTOP__) {
     if (!w.__MARKER_NATIVE__?.saveFile) return false;
-    await w.__MARKER_NATIVE__.saveFile(filename, await blobToBase64(blob));
+    try {
+      await w.__MARKER_NATIVE__.saveFile(filename, await blobToBase64(blob));
+    } catch (e) {
+      // Surface the bridge's own failure text — a swallowed IPC error here
+      // reads as "the button does nothing" in the app.
+      throw new Error(`native save failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
     return true;
   }
   const url = URL.createObjectURL(blob);
