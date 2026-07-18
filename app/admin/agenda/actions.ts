@@ -12,6 +12,23 @@ import { agendaToday, agendaAddDays } from "@/lib/agenda";
 
 type Result = { ok: boolean; error?: string };
 
+// Undo for a fresh snooze (the toast's Undo button): writing a wake date of
+// today clears the entry — saveAgendaSnooze deletes non-future snoozes.
+export async function unsnoozeAgendaItem(id: string): Promise<Result> {
+  const user = await getSession();
+  if (!user || isPartnerOnly(user)) return { ok: false, error: "No access." };
+  if (typeof id !== "string" || !id || id.length > 300) return { ok: false, error: "Bad item." };
+  const today = agendaToday();
+  try {
+    const ok = await saveAgendaSnooze(id, today, today);
+    revalidatePath("/admin/agenda");
+    revalidatePath("/admin");
+    return { ok };
+  } catch {
+    return { ok: false, error: "Couldn’t undo the snooze." };
+  }
+}
+
 export async function snoozeAgendaItem(id: string, days: number): Promise<Result> {
   const user = await getSession();
   if (!user || isPartnerOnly(user)) return { ok: false, error: "No access." };

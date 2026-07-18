@@ -27,8 +27,8 @@ import {
   NotebookPen,
   X,
 } from "lucide-react";
-import { Seg, EmptyState, SectionHead } from "@/components/ui/glass";
-import { snoozeAgendaItem } from "@/app/admin/agenda/actions";
+import { Seg, EmptyState, SectionHead, useToast } from "@/components/ui/glass";
+import { snoozeAgendaItem, unsnoozeAgendaItem } from "@/app/admin/agenda/actions";
 import type { Agenda, AgendaItem, AgendaKind, ClientAgenda } from "@/lib/agenda";
 
 const KIND_ICON: Record<AgendaKind, React.ComponentType<{ className?: string }>> = {
@@ -267,17 +267,34 @@ export default function AgendaView({ agenda }: { agenda: Agenda }) {
   // follows makes it official (or brings it back if the save failed).
   const [hidden, setHidden] = useState<Set<string>>(new Set());
 
+  const { toast } = useToast();
+  const unhide = (id: string) =>
+    setHidden((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+
   const onSnooze = (item: AgendaItem, days: 1 | 7) => {
     setHidden((prev) => new Set(prev).add(item.id));
     startTransition(async () => {
       const res = await snoozeAgendaItem(item.id, days);
       if (!res.ok) {
-        setHidden((prev) => {
-          const next = new Set(prev);
-          next.delete(item.id);
-          return next;
-        });
+        unhide(item.id);
+        toast({ text: res.error || "Couldn’t snooze that." });
+        router.refresh();
+        return;
       }
+      toast({
+        text: days === 7 ? "Snoozed for a week" : "Snoozed until tomorrow",
+        action: {
+          label: "Undo",
+          run: () => {
+            unhide(item.id);
+            void unsnoozeAgendaItem(item.id).then(() => router.refresh());
+          },
+        },
+      });
       router.refresh();
     });
   };
