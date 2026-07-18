@@ -45,10 +45,11 @@ export default function PetWindow() {
       <div data-tauri-drag-region className="w-14 h-4 mb-0.5 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing" title="Drag Marky around">
         <span data-tauri-drag-region className="text-[10px] leading-none tracking-[0.2em] text-charcoal-40 select-none">⋯</span>
       </div>
-      <button type="button" aria-label={open ? "Close Marky" : "Talk to Marky"} onClick={toggle} className="ms-pet lq-press relative w-[72px] h-[72px] rounded-full">
+      <button type="button" aria-label={open ? "Close Marky" : "Talk to Marky"} onClick={toggle} className={`ms-pet lq-press relative w-[72px] h-[72px] rounded-full ${chat.mood !== "idle" ? `is-${chat.mood}` : ""}`}>
         <span className="ms-pet__body">
           <span className="ms-pet__eye" />
           <span className="ms-pet__eye" />
+          <span className="ms-pet__mouth" />
         </span>
       </button>
     </div>

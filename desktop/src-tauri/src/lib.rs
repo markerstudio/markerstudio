@@ -151,9 +151,10 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
             }
         });
     if let Some(icon) = app.default_window_icon().cloned() {
-        // Template mode renders the icon as a monochrome menu-bar glyph on
-        // macOS — the native look next to Siri & friends.
-        tray = tray.icon(icon).icon_as_template(true);
+        // NOT template mode: template rendering derives a monochrome glyph
+        // from the icon's alpha shape, and our icon is an opaque tile — macOS
+        // showed it as a solid white block. The colored mark it is.
+        tray = tray.icon(icon).icon_as_template(false);
     }
     tray.build(app)?;
     Ok(())
