@@ -38,11 +38,14 @@ The shell injects a small bridge (`window.__MARKER_NATIVE__`, see
   The bridge reroutes `window.print()` to the **native macOS print panel**
   (with its Save as PDF destination), so every print/export button — invoices,
   proposals, statements, receipts, note exports — works in the app.
-- **A real menu bar.** File / Edit / View / Window with the shortcuts a Mac
-  user's hands expect: **⌘P** print, **⌘R** reload, **⌘[ / ⌘]** back &
+- **A real menu bar.** File / Edit / View / Go / Window with the shortcuts a
+  Mac user's hands expect: **⌘P** print, **⌘R** reload, **⌘[ / ⌘]** back &
   forward, **⌘+ / ⌘− / ⌘0** zoom, **⌘W** close, working Edit roles
   (undo/redo/cut/copy/paste), fullscreen. Menu actions target whichever
   window is focused — main or a preview.
+- **⌘1–⌘9 section jumps.** The Go menu mirrors the admin sidebar: Today,
+  Agenda, Clients, Tasks, Notes, Invoices, Finance, Proposals, Inquiries.
+  Jumps always drive the main window and bring it forward.
 - **Native file saves.** Text exports (`<a download>` is another WKWebView
   no-op) go through the **macOS save panel** via the bridge's `saveText`.
 - **Windows that remember.** The main window's size & position persist
@@ -147,3 +150,33 @@ the workflow signs + notarizes automatically:
 | `APPLE_ID` | your Apple ID email |
 | `APPLE_PASSWORD` | an app-specific password for that Apple ID |
 | `APPLE_TEAM_ID` | your 10-char Apple Team ID |
+
+## Auto-updates (not wired yet — the recipe)
+
+Right now every release means re-downloading the DMG by hand. Tauri's updater
+can make the app update itself, but it needs a signing keypair only you should
+hold, so it isn't configured in this repo. When you want it:
+
+1. **Generate the update keypair** (different from Apple code signing):
+   `npx tauri signer generate -w ~/.tauri/marker.key` — the private key stays
+   on your machine / in a repo secret (`TAURI_SIGNING_PRIVATE_KEY`), **never
+   in git**; the public key goes in the config below.
+2. **Add the plugin**: `tauri-plugin-updater = "2"` in `Cargo.toml`,
+   `.plugin(tauri_plugin_updater::Builder::new().build())` in `lib.rs`, and in
+   `tauri.conf.json`:
+   ```json
+   "plugins": {
+     "updater": {
+       "pubkey": "<the public key>",
+       "endpoints": ["https://marker.ps/api/desktop/latest.json"]
+     }
+   }
+   ```
+3. **Serve the manifest**: a tiny API route on the site returning the latest
+   version + the signed `.tar.gz` URL (tauri-action can produce
+   `latest.json` + signatures for you when the secret is set).
+4. **Check on launch** in `lib.rs` setup: fetch the update, and if there is
+   one, install + relaunch (or ask first).
+
+With that in place, cutting a release in CI is the whole story — every
+installed app offers the update on next launch.

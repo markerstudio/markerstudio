@@ -96,8 +96,22 @@ pub fn run() {
 // Menu bar
 // ---------------------------------------------------------------------------
 
+// ⌘1–⌘9 jumps — mirrors the admin sidebar's order. Paths are static strings
+// the shell owns; the handler interpolates them into a location.assign().
+const GO_SECTIONS: [(&str, &str); 9] = [
+    ("Today", "/admin"),
+    ("Agenda", "/admin/agenda"),
+    ("Clients", "/admin/clients"),
+    ("Tasks", "/admin/deliverables"),
+    ("Notes", "/admin/notes"),
+    ("Invoices", "/admin/invoices"),
+    ("Finance", "/admin/finance"),
+    ("Proposals", "/admin/proposals"),
+    ("Inquiries", "/admin/inquiries"),
+];
+
 fn build_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
-    use tauri::menu::{AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu};
+    use tauri::menu::{AboutMetadata, Menu, MenuItemBuilder, PredefinedMenuItem, Submenu, SubmenuBuilder};
 
     #[cfg(target_os = "macos")]
     let app_menu = {
@@ -182,6 +196,16 @@ fn build_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tau
         ],
     )?;
 
+    let mut go_builder = SubmenuBuilder::new(app, "Go");
+    for (i, (label, path)) in GO_SECTIONS.iter().enumerate() {
+        go_builder = go_builder.item(
+            &MenuItemBuilder::with_id(format!("go:{path}"), *label)
+                .accelerator(format!("CmdOrCtrl+{}", i + 1))
+                .build(app)?,
+        );
+    }
+    let go = go_builder.build()?;
+
     let window = Submenu::with_items(
         app,
         "Window",
@@ -202,6 +226,7 @@ fn build_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tau
             &file,
             &edit,
             &view,
+            &go,
             &window,
         ],
     )
@@ -230,6 +255,15 @@ fn handle_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>, event: tauri::menu:
         }
         id @ ("zoom-in" | "zoom-out" | "zoom-reset") => {
             let _ = w.set_zoom(zoom_step(w.label(), id));
+        }
+        // Section jumps always drive the MAIN window — navigating a preview
+        // window (an invoice, a print doc) to /admin would be surprising.
+        id if id.starts_with("go:") => {
+            if let Some(main) = app.get_webview_window("main") {
+                let path = &id[3..];
+                let _ = main.eval(format!("location.assign('{path}')"));
+                let _ = main.set_focus();
+            }
         }
         _ => {}
     }
