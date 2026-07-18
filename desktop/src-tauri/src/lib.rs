@@ -146,8 +146,24 @@ async fn check_for_updates(app: tauri::AppHandle) {
         return;
     }
 
-    if update.download_and_install(|_, _| {}, || {}).await.is_ok() {
-        app.restart();
+    // Re-check right before downloading: the feed serves short-lived signed
+    // artifact URLs, and the user may have sat on the dialog past expiry.
+    let fresh = match updater.check().await {
+        Ok(Some(u)) => u,
+        _ => update,
+    };
+    // A failed install must SAY so — a silent "nothing happened" after
+    // "Install & Relaunch" is worse than any error text.
+    match fresh.download_and_install(|_, _| {}, || {}).await {
+        Ok(()) => app.restart(),
+        Err(e) => {
+            app.dialog()
+                .message(format!(
+                    "The update couldn't be installed:\n\n{e}\n\nYou can try again on the next launch, or download the latest version from the releases page."
+                ))
+                .title("Update failed")
+                .blocking_show();
+        }
     }
 }
 
