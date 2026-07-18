@@ -29,9 +29,9 @@ function makeHello(page?: PetPageInfo | null): PetMsg {
 }
 
 export type PetMood = "idle" | "thinking" | "happy" | "alert" | "sleepy";
-// Marky stays still by design — the only quirk left is a deliberate
-// look-around (react(), fired when the admin navigates to a new section).
-export type PetQuirk = "look";
+export type PetQuirk = "wiggle" | "spin" | "stretch" | "look";
+
+const QUIRKS: PetQuirk[] = ["wiggle", "spin", "stretch", "look"];
 
 // What a reply does to Marky's face: fire/overdue → alert shake, good news
 // (including a successful capture) → happy hop, otherwise back to idle.
@@ -52,7 +52,8 @@ export function usePetChat(page?: PetPageInfo | null) {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [mood, setMood] = useState<PetMood>("idle");
-  // `quirk` holds the momentary look-around; `celebrating` turns on for a
+  // A random little bit of personality (wiggle / spin / stretch / look-around)
+  // that fires every so often while he's idle; `celebrating` turns on for a
   // moment when good news lands and drives the confetti burst.
   const [quirk, setQuirk] = useState<PetQuirk | null>(null);
   const [celebrating, setCelebrating] = useState(false);
@@ -80,6 +81,29 @@ export function usePetChat(page?: PetPageInfo | null) {
       if (partyTimer.current) clearTimeout(partyTimer.current);
     };
   }, [poke]);
+
+  // Quirk clock: every 14–40s, if he's just idling, do something silly.
+  const idleRef = useRef(true);
+  idleRef.current = mood === "idle" && !busy;
+  useEffect(() => {
+    let alive = true;
+    let t: ReturnType<typeof setTimeout>;
+    const loop = () => {
+      t = setTimeout(() => {
+        if (!alive) return;
+        if (idleRef.current) {
+          setQuirk(QUIRKS[Math.floor(Math.random() * QUIRKS.length)]);
+          setTimeout(() => alive && setQuirk(null), 1700);
+        }
+        loop();
+      }, 14_000 + Math.random() * 26_000);
+    };
+    loop();
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, []);
 
   const feel = useCallback((m: PetMood) => {
     setMood(m);
