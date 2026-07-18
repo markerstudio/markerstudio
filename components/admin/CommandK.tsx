@@ -28,6 +28,7 @@ import {
   ExternalLink,
   ArrowRight,
   NotebookPen,
+  Sparkles,
 } from "lucide-react";
 
 export type PaletteClient = { slug: string; name: string; color: string };
@@ -64,6 +65,8 @@ const NAV: Omit<Cmd, "group">[] = [
 ];
 
 const ACTIONS: Omit<Cmd, "group">[] = [
+  // "#marky" is handled in run() — it opens the pet chat instead of navigating.
+  { id: "ask-marky", label: "Ask Marky", hint: "M", icon: Sparkles, href: "#marky", keywords: "pet chat assistant question task note capture" },
   { id: "new-invoice", label: "New invoice", hint: "I", icon: Plus, href: "/admin/invoices", keywords: "bill create" },
   { id: "new-payment", label: "Record payment", hint: "P", icon: Plus, href: "/admin/payments/new", keywords: "paid money in" },
   { id: "new-client", label: "New client", hint: "C", icon: Plus, href: "/admin/clients/new", keywords: "portal add" },
@@ -139,7 +142,8 @@ export default function CommandK({ clients }: { clients: PaletteClient[] }) {
   const run = useCallback(
     (cmd: Cmd) => {
       setOpen(false);
-      if (cmd.newTab) window.open(cmd.href, "_blank");
+      if (cmd.href === "#marky") window.dispatchEvent(new Event("marky:open"));
+      else if (cmd.newTab) window.open(cmd.href, "_blank");
       else router.push(cmd.href);
     },
     [router]
