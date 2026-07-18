@@ -12,9 +12,9 @@ export async function GET() {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   try {
-    const notices = await getNotices(user);
-    return NextResponse.json({ notices, at: new Date().toISOString() });
+    const { notices, badge } = await getNotices(user);
+    return NextResponse.json({ notices, badge, at: new Date().toISOString() });
   } catch {
-    return NextResponse.json({ notices: [], at: new Date().toISOString() });
+    return NextResponse.json({ notices: [], badge: 0, at: new Date().toISOString() });
   }
 }
