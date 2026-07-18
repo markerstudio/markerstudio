@@ -34,6 +34,13 @@ import {
 } from "lucide-react";
 import { EmptyState, Modal, Seg } from "@/components/ui/glass";
 import NoteMarkdown, { escapeHtml, noteBodyToHtml } from "@/components/admin/NoteMarkdown";
+import {
+  checklistProgress,
+  continueListOnEnter,
+  toggleInline,
+  toggleLinePrefix,
+  type EditResult,
+} from "@/components/admin/noteEditing";
 import type { Note } from "@/lib/notes";
 import {
   archiveNoteAction,
@@ -77,6 +84,106 @@ function autoGrow(el: HTMLTextAreaElement | null) {
   if (!el) return;
   el.style.height = "0px";
   el.style.height = `${el.scrollHeight}px`;
+}
+
+// Commit a text edit and put the caret where the helper said. The DOM value
+// and selection are set synchronously BEFORE the React commit — waiting for a
+// re-render (or a rAF) leaves a window where fast typing lands on the old
+// text and clobbers the edit; with the DOM already matching, React skips the
+// value assignment on re-render and the caret stays put.
+function applyEdit(
+  ta: HTMLTextAreaElement | null,
+  result: EditResult | null,
+  commit: (body: string) => void,
+  after?: () => void
+) {
+  if (!ta || !result) return;
+  ta.focus();
+  ta.value = result.value;
+  ta.setSelectionRange(result.selStart, result.selEnd);
+  commit(result.value);
+  after?.();
+}
+
+// One keydown contract for every note-writing textarea: ⌘/Ctrl+B and +I toggle
+// inline marks, Enter inside a list continues it (numbered lists count up,
+// an empty item ends the list). Modifier-Enter is left for the caller.
+function formatKeydown(
+  e: React.KeyboardEvent<HTMLTextAreaElement>,
+  commit: (body: string) => void,
+  after?: () => void
+) {
+  const ta = e.currentTarget;
+  if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+    const k = e.key.toLowerCase();
+    if (k === "b" || k === "i") {
+      e.preventDefault();
+      applyEdit(ta, toggleInline(ta.value, ta.selectionStart, ta.selectionEnd, k === "b" ? "**" : "*"), commit, after);
+    }
+    return;
+  }
+  if (e.key === "Enter" && !e.shiftKey) {
+    const r = continueListOnEnter(ta.value, ta.selectionStart, ta.selectionEnd);
+    if (r) {
+      e.preventDefault();
+      applyEdit(ta, r, commit, after);
+    }
+  }
+}
+
+// The formatting buttons — shared by the editor modal and the capture bar.
+function FormatToolbar({
+  onInline,
+  onPrefix,
+  compact = false,
+}: {
+  onInline: (marker: "**" | "*") => void;
+  onPrefix: (kind: "h2" | "ul" | "ol" | "check") => void;
+  compact?: boolean;
+}) {
+  const buttons: { icon: ReactNode; label: string; run: () => void }[] = [
+    { icon: <Bold className="w-4 h-4" />, label: "Bold (⌘/Ctrl+B)", run: () => onInline("**") },
+    { icon: <Italic className="w-4 h-4" />, label: "Italic (⌘/Ctrl+I)", run: () => onInline("*") },
+    { icon: <Heading2 className="w-4 h-4" />, label: "Heading", run: () => onPrefix("h2") },
+    { icon: <List className="w-4 h-4" />, label: "Bullet list", run: () => onPrefix("ul") },
+    { icon: <ListOrdered className="w-4 h-4" />, label: "Numbered list", run: () => onPrefix("ol") },
+    { icon: <CheckSquare className="w-4 h-4" />, label: "Checklist", run: () => onPrefix("check") },
+  ];
+  return (
+    <div role="toolbar" aria-label="Formatting" className="flex items-center gap-0.5">
+      {buttons.map((b) => (
+        <button
+          key={b.label}
+          type="button"
+          title={b.label}
+          aria-label={b.label}
+          onMouseDown={(e) => e.preventDefault()} // keep the textarea selection alive
+          onClick={b.run}
+          className={`lq-press w-7 h-7 rounded-lg flex items-center justify-center hover:text-ink hover:bg-charcoal/5 ${
+            compact ? "text-charcoal-40" : "text-charcoal-60"
+          }`}
+        >
+          {b.icon}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// "2/5 done" for notes that carry a checklist — the wall shows progress at a
+// glance instead of making you open the note to count.
+function ChecklistChip({ body }: { body: string }) {
+  const p = checklistProgress(body);
+  if (!p) return null;
+  return (
+    <span
+      className={`lq-chip !px-2 !py-0.5 !text-[10.5px] tabular-nums ${p.done === p.total ? "lq-chip--green" : ""}`}
+      title={`${p.done} of ${p.total} checklist items done`}
+    >
+      <CheckSquare className="w-3 h-3" />
+      {p.done}/{p.total}
+    </span>
+  );
 }
 
 /* --------------------------------------------------------- link picker */
@@ -460,6 +567,26 @@ export default function NotesApp({
 
   const composerExpanded = cFocused || !!cTitle.trim() || !!cBody.trim();
 
+  // The capture bar writes with the same tools as the editor: toolbar,
+  // ⌘/Ctrl+B/I, and lists that continue themselves on Enter.
+  const composerAfter = useCallback(() => autoGrow(cBodyRef.current), []);
+  const composerInline = useCallback(
+    (marker: "**" | "*") => {
+      const ta = cBodyRef.current;
+      if (!ta) return;
+      applyEdit(ta, toggleInline(ta.value, ta.selectionStart, ta.selectionEnd, marker), setCBody, composerAfter);
+    },
+    [composerAfter]
+  );
+  const composerPrefix = useCallback(
+    (kind: "h2" | "ul" | "ol" | "check") => {
+      const ta = cBodyRef.current;
+      if (!ta) return;
+      applyEdit(ta, toggleLinePrefix(ta.value, ta.selectionStart, ta.selectionEnd, kind), setCBody, composerAfter);
+    },
+    [composerAfter]
+  );
+
   const submitNote = useCallback(async () => {
     const title = cTitle.trim();
     const body = cBody.trim();
@@ -611,86 +738,27 @@ export default function NotesApp({
 
   /* ---- formatting (editor toolbar + shortcuts) ---- */
 
-  // Wrap / unwrap the textarea selection with an inline marker (** or *),
-  // keeping the caret on the same text afterwards.
+  const editorCommit = useCallback((body: string) => editPatch({ body }), [editPatch]);
+  const editorAfter = useCallback(() => {
+    if (!fullscreen) autoGrow(editorBodyRef.current);
+  }, [fullscreen]);
+
   const applyInline = useCallback(
     (marker: "**" | "*") => {
       const ta = editorBodyRef.current;
       if (!ta) return;
-      const value = ta.value;
-      const s = ta.selectionStart;
-      const e = ta.selectionEnd;
-      const sel = value.slice(s, e);
-      const before = value.slice(0, s);
-      const after = value.slice(e);
-      let next: string;
-      let ns: number;
-      let ne: number;
-      if (sel && before.endsWith(marker) && after.startsWith(marker)) {
-        // already wrapped just outside the selection — unwrap
-        next = before.slice(0, before.length - marker.length) + sel + after.slice(marker.length);
-        ns = s - marker.length;
-        ne = e - marker.length;
-      } else if (sel.length >= marker.length * 2 && sel.startsWith(marker) && sel.endsWith(marker)) {
-        // markers inside the selection — unwrap
-        next = before + sel.slice(marker.length, sel.length - marker.length) + after;
-        ns = s;
-        ne = e - marker.length * 2;
-      } else {
-        next = before + marker + sel + marker + after;
-        ns = s + marker.length;
-        ne = e + marker.length;
-      }
-      editPatch({ body: next });
-      requestAnimationFrame(() => {
-        ta.focus();
-        ta.setSelectionRange(ns, ne);
-        if (!fullscreen) autoGrow(ta);
-      });
+      applyEdit(ta, toggleInline(ta.value, ta.selectionStart, ta.selectionEnd, marker), editorCommit, editorAfter);
     },
-    [editPatch, fullscreen]
+    [editorCommit, editorAfter]
   );
 
-  // Prefix (or un-prefix) every line touched by the selection: heading,
-  // bullet, numbered list, or checklist.
   const applyLinePrefix = useCallback(
     (kind: "h2" | "ul" | "ol" | "check") => {
       const ta = editorBodyRef.current;
       if (!ta) return;
-      const value = ta.value;
-      const s = ta.selectionStart;
-      const e = ta.selectionEnd;
-      const lineStart = value.lastIndexOf("\n", s - 1) + 1;
-      let lineEnd = value.indexOf("\n", e);
-      if (lineEnd === -1) lineEnd = value.length;
-      const segment = value.slice(lineStart, lineEnd);
-      const lines = segment.split("\n");
-      const strip = (l: string) => l.replace(/^(#{1,2} |- \[[ xX]\] ?|- |\d+\. )/, "");
-      const has = (l: string) =>
-        kind === "h2"
-          ? /^## /.test(l)
-          : kind === "check"
-          ? /^- \[[ xX]\]/.test(l)
-          : kind === "ul"
-          ? /^- (?!\[)/.test(l)
-          : /^\d+\. /.test(l);
-      const prefixFor = (i: number) =>
-        kind === "h2" ? "## " : kind === "ul" ? "- " : kind === "check" ? "- [ ] " : `${i + 1}. `;
-      const allHave = lines.every((l) => !l.trim() || has(l));
-      const nextSegment = lines
-        .map((l, i) => (!l.trim() && lines.length > 1 ? l : allHave ? strip(l) : prefixFor(i) + strip(l)))
-        .join("\n");
-      const next = value.slice(0, lineStart) + nextSegment + value.slice(lineEnd);
-      editPatch({ body: next });
-      const delta = nextSegment.length - segment.length;
-      requestAnimationFrame(() => {
-        ta.focus();
-        const pos = Math.max(lineStart, Math.min(next.length, e + delta));
-        ta.setSelectionRange(pos, pos);
-        if (!fullscreen) autoGrow(ta);
-      });
+      applyEdit(ta, toggleLinePrefix(ta.value, ta.selectionStart, ta.selectionEnd, kind), editorCommit, editorAfter);
     },
-    [editPatch, fullscreen]
+    [editorCommit, editorAfter]
   );
 
   // Preview checkboxes flip `- [ ]` ↔ `- [x]` on the exact source line and
@@ -910,14 +978,17 @@ export default function NotesApp({
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
                   e.preventDefault();
                   void submitNote();
+                  return;
                 }
+                formatKeydown(e, setCBody, composerAfter);
               }}
               rows={2}
               placeholder="Add the details — paste anything, it keeps your line breaks…"
               className="w-full resize-none bg-transparent focus:outline-none text-[15px] leading-relaxed text-charcoal-80 placeholder:text-charcoal-40/70 min-h-[52px]"
             />
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] text-charcoal-40">Enter on the title saves · ⌘/Ctrl+Enter saves from here</span>
+            <div className="flex flex-wrap items-center gap-2">
+              <FormatToolbar onInline={composerInline} onPrefix={composerPrefix} compact />
+              <span className="hidden sm:inline text-[11px] text-charcoal-40">Enter on the title saves · ⌘/Ctrl+Enter saves from here</span>
               <span className="flex-1" />
               <button
                 type="button"
@@ -1046,6 +1117,9 @@ export default function NotesApp({
                         <span className="block text-[12px] text-charcoal-60 truncate mt-0.5">{firstLine(n.body)}</span>
                       )}
                     </span>
+                    <span className="shrink-0">
+                      <ChecklistChip body={n.body} />
+                    </span>
                     <span className="hidden sm:inline-flex shrink-0">
                       <LinkChip note={n} clients={clients} />
                     </span>
@@ -1077,6 +1151,7 @@ export default function NotesApp({
                   )}
                   <footer className="mt-3 flex items-center gap-2">
                     <LinkChip note={n} clients={clients} />
+                    <ChecklistChip body={n.body} />
                     <span className="flex-1" />
                     <span className="text-[11px] text-charcoal-40 tabular-nums shrink-0">{timeAgo(n.updated_at)}</span>
                     {pinButton(n)}
@@ -1126,32 +1201,7 @@ export default function NotesApp({
                 ]}
               />
               <span className="flex-1" />
-              {editorTab === "write" && (
-                <div role="toolbar" aria-label="Formatting" className="flex items-center gap-0.5">
-                  {(
-                    [
-                      { icon: <Bold className="w-4 h-4" />, label: "Bold (⌘/Ctrl+B)", run: () => applyInline("**") },
-                      { icon: <Italic className="w-4 h-4" />, label: "Italic (⌘/Ctrl+I)", run: () => applyInline("*") },
-                      { icon: <Heading2 className="w-4 h-4" />, label: "Heading", run: () => applyLinePrefix("h2") },
-                      { icon: <List className="w-4 h-4" />, label: "Bullet list", run: () => applyLinePrefix("ul") },
-                      { icon: <ListOrdered className="w-4 h-4" />, label: "Numbered list", run: () => applyLinePrefix("ol") },
-                      { icon: <CheckSquare className="w-4 h-4" />, label: "Checklist", run: () => applyLinePrefix("check") },
-                    ] as { icon: ReactNode; label: string; run: () => void }[]
-                  ).map((b) => (
-                    <button
-                      key={b.label}
-                      type="button"
-                      title={b.label}
-                      aria-label={b.label}
-                      onMouseDown={(e) => e.preventDefault()} // keep the textarea selection alive
-                      onClick={b.run}
-                      className="lq-press w-7 h-7 rounded-lg flex items-center justify-center text-charcoal-60 hover:text-ink hover:bg-charcoal/5"
-                    >
-                      {b.icon}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {editorTab === "write" && <FormatToolbar onInline={applyInline} onPrefix={applyLinePrefix} />}
             </div>
             {editorTab === "write" ? (
               <div className={`relative ${fullscreen ? "flex-1 min-h-0 overflow-y-auto" : ""}`}>
@@ -1173,18 +1223,7 @@ export default function NotesApp({
                     editPatch({ body: e.target.value });
                     autoGrow(e.currentTarget);
                   }}
-                  onKeyDown={(e) => {
-                    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
-                      const k = e.key.toLowerCase();
-                      if (k === "b") {
-                        e.preventDefault();
-                        applyInline("**");
-                      } else if (k === "i") {
-                        e.preventDefault();
-                        applyInline("*");
-                      }
-                    }
-                  }}
+                  onKeyDown={(e) => formatKeydown(e, editorCommit, editorAfter)}
                   placeholder="Write it down…"
                   rows={4}
                   className={`relative w-full resize-none bg-transparent focus:outline-none leading-relaxed text-transparent caret-charcoal placeholder:text-charcoal-40/70 ${
