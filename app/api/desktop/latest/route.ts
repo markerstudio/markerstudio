@@ -54,15 +54,35 @@ export async function GET(req: Request) {
     platforms?: Record<string, { url?: string; signature?: string }>;
   };
 
-  // Point each platform at our proxy — the GitHub asset URLs need auth.
+  // Resolve each platform's artifact to GitHub's short-lived signed storage
+  // URL, freshly minted per manifest fetch — the updater then downloads in a
+  // single hop with no redirect leg to trip on. Falls back to our download
+  // proxy if resolution fails. (The signed URLs expire in minutes; the app
+  // re-checks right before installing, so it always downloads a fresh one.)
   const idByName = new Map((release.assets || []).map((a) => [a.name, a.id]));
   const origin = new URL(req.url).origin;
-  for (const p of Object.values(manifest.platforms ?? {})) {
-    if (!p.url) continue;
-    const name = decodeURIComponent(p.url.split("/").pop() || "");
-    const id = idByName.get(name);
-    if (id) p.url = `${origin}/api/desktop/download/${id}`;
-  }
+  const resolveDirect = async (id: number): Promise<string | null> => {
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/assets/${id}`, {
+        headers: { ...gh, Accept: "application/octet-stream" },
+        redirect: "manual",
+        cache: "no-store",
+      });
+      const loc = res.headers.get("location");
+      return res.status >= 300 && res.status < 400 && loc ? loc : null;
+    } catch {
+      return null;
+    }
+  };
+  await Promise.all(
+    Object.values(manifest.platforms ?? {}).map(async (p) => {
+      if (!p.url) return;
+      const name = decodeURIComponent(p.url.split("/").pop() || "");
+      const id = idByName.get(name);
+      if (!id) return;
+      p.url = (await resolveDirect(id)) || `${origin}/api/desktop/download/${id}`;
+    })
+  );
 
-  return NextResponse.json(manifest);
+  return NextResponse.json(manifest, { headers: { "cache-control": "no-store" } });
 }
