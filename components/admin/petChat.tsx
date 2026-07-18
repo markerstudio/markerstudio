@@ -6,19 +6,25 @@
 // capture commands ("task …" / "note …"). Marky is a shortcut both ways:
 // quick-ask chips + linkified answers for output, quick capture for input.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { petCharacter } from "@/lib/petBrain";
+import { petCharacter, type PetPageInfo } from "@/lib/petBrain";
 
 export type PetMsg = { role: "user" | "assistant"; content: string };
 
 // The hello is generated at mount (client-only — the chat never renders
-// during SSR) so it can know the time of day and today's character.
-function makeHello(): PetMsg {
+// during SSR) so it can know the time of day, today's character, and the
+// admin section it opened on.
+function makeHello(page?: PetPageInfo | null): PetMsg {
   const ch = petCharacter();
   const h = new Date().getHours();
   const tod = h < 5 ? "Up late?" : h < 12 ? "Good morning!" : h < 17 ? "Good afternoon!" : "Good evening!";
+  const pitch = page
+    ? page.fill
+      ? `You're on ${page.name} — type “${page.fill.trim()} …” and I'll file it for you.`
+      : `You're on ${page.name} — try “${page.ask}”`
+    : "Ask about money, approvals, shoots or tasks — or capture something with “task …” / “note …”";
   return {
     role: "assistant",
-    content: `${tod} ${ch.emoji} ${ch.name} here — ${ch.vibe}\nAsk about money, approvals, shoots or tasks — or capture something with “task …” / “note …”`,
+    content: `${tod} ${ch.emoji} ${ch.name} here — ${ch.vibe}\n${pitch}`,
   };
 }
 
@@ -36,8 +42,13 @@ function moodOf(text: string): PetMood {
   return "idle";
 }
 
-export function usePetChat() {
-  const [msgs, setMsgs] = useState<PetMsg[]>(() => [makeHello()]);
+// `page` (from pagePersona) makes Marky situational: the hello and chips
+// match the section, and the server gets the page key so vague questions
+// resolve against it. The desktop pet window passes nothing — no route there.
+export function usePetChat(page?: PetPageInfo | null) {
+  const [msgs, setMsgs] = useState<PetMsg[]>(() => [makeHello(page)]);
+  const pageRef = useRef(page);
+  pageRef.current = page;
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [mood, setMood] = useState<PetMood>("idle");
@@ -49,6 +60,12 @@ export function usePetChat() {
   const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const partyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Until the conversation starts, the hello keeps up with navigation —
+  // land on Invoices and Marky's opener is already about invoices.
+  useEffect(() => {
+    setMsgs((m) => (m.length === 1 ? [makeHello(page)] : m));
+  }, [page]);
 
   // Any interaction wakes him; 90s of nothing and he dozes off.
   const poke = useCallback(() => {
@@ -114,7 +131,7 @@ export function usePetChat() {
         method: "POST",
         headers: { "content-type": "application/json" },
         // msgs[0] is always the local hello — the server never needs it.
-        body: JSON.stringify({ messages: next.slice(1) }),
+        body: JSON.stringify({ messages: next.slice(1), page: pageRef.current?.key }),
       });
       if (res.status === 401) {
         setMsgs((m) => [...m, { role: "assistant", content: "I don't recognise you — open Marker Studio and sign in first, then talk to me again 🧡" }]);
@@ -134,7 +151,15 @@ export function usePetChat() {
     }
   }
 
-  return { msgs, input, setInput, busy, send, mood, quirk, celebrating, poke };
+  // A visible reaction with no words — the corner pet uses it when the admin
+  // navigates to a new section (a quick look-around, and he wakes up).
+  const react = useCallback(() => {
+    poke();
+    setQuirk("look");
+    setTimeout(() => setQuirk(null), 1700);
+  }, [poke]);
+
+  return { msgs, input, setInput, busy, send, mood, quirk, celebrating, poke, react, page };
 }
 
 // The blob's mood + quirk classes in one place, so the in-app corner pet and
@@ -224,6 +249,16 @@ export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetC
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const ch = petCharacter();
+  // The current section's chip leads the row (moved if it's already one of
+  // the defaults, prepended otherwise).
+  const chips = useMemo(() => {
+    const base = [...SUGGESTIONS];
+    const page = chat.page;
+    if (!page) return base;
+    const i = base.findIndex((s) => (page.ask && s.q === page.ask) || (page.fill && s.fill === page.fill));
+    const lead = i >= 0 ? base.splice(i, 1)[0] : { label: page.chip, q: page.ask, fill: page.fill };
+    return [lead, ...base];
+  }, [chat.page]);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chat.msgs, chat.busy]);
@@ -269,7 +304,7 @@ export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetC
       </div>
       {chat.msgs.length <= 1 && (
         <div className="px-2 pb-1.5 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((s) => (
+          {chips.map((s) => (
             <button
               key={s.label}
               type="button"

@@ -36,6 +36,9 @@ export type PetData = {
   /** Studio-local yyyy-mm-dd / hour — greetings match Beit Sahour, not UTC. */
   today?: string;
   hour?: number;
+  /** Admin section the asker is looking at (pagePersona key) — lets vague
+   *  questions ("what's up here?") resolve against the page's domain. */
+  page?: string;
 };
 
 export const isArabic = (q: string) => /[؀-ۿ]/.test(q);
@@ -107,6 +110,81 @@ export function petCharacter(dayIso?: string): PetCharacter {
   return CHARACTERS[hash(day) % CHARACTERS.length];
 }
 
+/* ---- page awareness ------------------------------------------------------ */
+
+// Marky knows which admin section he's sitting on. Each section carries a
+// display name, a tailored quick-ask chip for the chat, a keyword hint that
+// grounds vague "what's up here?" questions, and a few landing quips the
+// corner pet says in a speech bubble when you navigate there. Pure data —
+// shared by the browser (bubble, hello, chips) and the API route (answers).
+export type PetPageInfo = {
+  key: string;
+  name: string;
+  chip: string; // label for the tailored quick-ask chip
+  ask?: string; // question the chip sends…
+  fill?: string; // …or capture text it pre-types instead
+  hint?: string; // keywords injected when a question points at "this page"
+  quips: string[];
+};
+
+const PAGE_INFOS: PetPageInfo[] = [
+  { key: "home", name: "Today", chip: "🔥 Today", ask: "what's on fire today?", hint: "today",
+    quips: ["Home sweet dashboard.", "Back to base — want the day's headlines?"] },
+  { key: "agenda", name: "Agenda", chip: "🔥 Today", ask: "what's on fire today?", hint: "today",
+    quips: ["The rituals page — my natural habitat.", "Let's see what today wants from us."] },
+  { key: "clients", name: "Clients", chip: "👥 Clients", ask: "how many clients do we have?", hint: "clients",
+    quips: ["All our favorite people in one grid.", "Ask me about any of them — by name."] },
+  { key: "tasks", name: "Tasks", chip: "🗒️ Board", ask: "what's on the board?", hint: "task board",
+    quips: ["The big board! Want a headcount?", "Say “task …” and I'll add one for you."] },
+  { key: "notes", name: "Notes", chip: "🗒️ Note", fill: "note ",
+    quips: ["Thoughts go here before they escape — “note …” works on me too.", "Say “note …” and I'll jot it for you."] },
+  { key: "invoices", name: "Invoices", chip: "💸 Owed", ask: "how much does everyone owe?", hint: "owe invoices",
+    quips: ["Ah, the money page 💸 Want the damage?", "Following the money, are we?", "I can total these faster than you can scroll."] },
+  { key: "finance", name: "Finance", chip: "💰 Income", ask: "what did we collect this month?", hint: "collected income",
+    quips: ["The books! Ask me what we collected.", "Counting shekels and dollars — my kind of page."] },
+  { key: "photo", name: "Photography", chip: "📷 Shoots", ask: "when's the next shoot?", hint: "shoot",
+    quips: ["Lights, camera… want the shoot schedule?", "I know when the next shoot is — just ask 📷"] },
+  { key: "proposals", name: "Proposals", chip: "🔥 Today", ask: "what's on fire today?", hint: "today",
+    quips: ["Closing time. Go get 'em.", "May every proposal come back signed ✍️"] },
+  { key: "inquiries", name: "Inquiries", chip: "🔥 Today", ask: "what's on fire today?", hint: "today",
+    quips: ["New people knocking on the door 👀", "Fresh leads! Be quick, be charming."] },
+];
+
+// Route prefix → section. Longest-prefix entries first; the bare /admin root
+// maps to "home". Unlisted admin corners get no page persona (generic Marky).
+const PAGE_ROUTES: { prefix: string; key: string }[] = [
+  { prefix: "/admin/agenda", key: "agenda" },
+  { prefix: "/admin/clients", key: "clients" },
+  { prefix: "/admin/deliverables", key: "tasks" },
+  { prefix: "/admin/notes", key: "notes" },
+  { prefix: "/admin/invoices", key: "invoices" },
+  { prefix: "/admin/finance", key: "finance" },
+  { prefix: "/admin/payments", key: "finance" },
+  { prefix: "/admin/photographer", key: "photo" },
+  { prefix: "/admin/proposals", key: "proposals" },
+  { prefix: "/admin/inquiries", key: "inquiries" },
+];
+
+export function petPageByKey(key: string | undefined): PetPageInfo | null {
+  return PAGE_INFOS.find((p) => p.key === key) || null;
+}
+
+export function pagePersona(path: string): PetPageInfo | null {
+  const p = (path || "").split(/[?#]/)[0];
+  if (p === "/admin" || p === "/admin/") return petPageByKey("home");
+  for (const { prefix, key } of PAGE_ROUTES) {
+    if (p === prefix || p.startsWith(prefix + "/")) return petPageByKey(key);
+  }
+  return null;
+}
+
+/** The landing quip for a section — stable for the day (like the character),
+ *  varied across days and sections. */
+export function pageQuip(info: PetPageInfo, dayIso?: string): string {
+  const day = dayIso || new Date().toDateString();
+  return info.quips[hash(day + info.key) % info.quips.length];
+}
+
 /* ---- capture commands --------------------------------------------------- */
 
 // "task …" / "todo …" / "note …" (and Arabic مهمة / ملاحظة) — the input half
@@ -174,11 +252,18 @@ function fmtDay(iso: string, ar: boolean): string {
 /* ---- the brain ---------------------------------------------------------- */
 
 export function petAnswer(question: string, data: PetData, history: string[] = []): string {
-  const q = norm(question);
+  let q = norm(question);
   const ar = isAr(question);
   const a = data.agenda;
   const ch = petCharacter(data.today);
   const flavor = (en: string, arS: string) => (ar ? arS : en);
+
+  // Page context: pointing at "this page" resolves against the section the
+  // asker is looking at — "what's up here?" on Invoices means invoices.
+  if (data.page && /(this page|(^|\s)here(\s|$|[?!.؟])|هون|هالصفحة|هاي الصفحة)/.test(q)) {
+    const info = petPageByKey(data.page);
+    if (info?.hint) q += ` ${info.hint}`;
+  }
 
   let client = findClient(question, data.clients);
   // Follow-ups — "what about their invoices?" — inherit the last client the

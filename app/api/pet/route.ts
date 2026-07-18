@@ -49,12 +49,13 @@ export async function POST(req: Request) {
   if (!user || user.role === "client" || isPartnerOnly(user)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
-  let body: { messages?: { role: string; content: string }[] };
+  let body: { messages?: { role: string; content: string }[]; page?: string };
   try {
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "bad request" }, { status: 400 });
   }
+  const page = typeof body.page === "string" ? body.page.slice(0, 32) : undefined;
   const userMsgs = (body.messages || []).filter((m) => m.role === "user");
   const last = userMsgs.pop();
   const question = String(last?.content || "").slice(0, 500);
@@ -161,6 +162,7 @@ export async function POST(req: Request) {
     })),
     today: agendaToday(),
     hour: studioHour(),
+    page,
   };
 
   return NextResponse.json({ text: petAnswer(question, data, history) });
