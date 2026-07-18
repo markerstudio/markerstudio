@@ -19,20 +19,26 @@ export default async function PetPage() {
       <style>{`
         html, body { background: transparent !important; }
         /* Transparent-window compositing: backdrop-filter has no page backdrop
-           to sample here (the "backdrop" is the real desktop) and layer
-           filters rasterize as rectangles — both paint boxes. Solid panel +
-           box-shadows on the rounded elements themselves instead. */
-        .lq-chrome {
+           to sample here (the "backdrop" is the real desktop), and shadows /
+           filters on composited layers rasterize against RECTANGULAR layer
+           bounds — every one of them can paint a box around the rounded
+           shapes. So: ZERO shadows and filters of any kind in this window.
+           Depth is painted instead — the blob's gradient shading and the
+           .ms-pet__shadow ink-puddle (a radial gradient), plus borders. */
+        *, *::before, *::after {
+          box-shadow: none !important;
+          text-shadow: none !important;
+          filter: none !important;
           -webkit-backdrop-filter: none !important;
           backdrop-filter: none !important;
-          background: #FCFAF6 !important;
-          box-shadow: 0 18px 44px -18px rgba(48, 48, 48, 0.5) !important;
         }
-        .ms-pet { filter: none !important; }
-        .ms-pet__body {
-          box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.55),
-            inset 0 -3px 6px rgba(48, 48, 48, 0.12),
-            0 10px 22px -6px rgba(245, 127, 0, 0.55) !important;
+        .lq-chrome {
+          background: #FCFAF6 !important;
+          border: 1px solid rgba(48, 48, 48, 0.14) !important;
+        }
+        .lq-input {
+          background: #ffffff !important;
+          border: 1px solid rgba(48, 48, 48, 0.14) !important;
         }
       `}</style>
       <PetWindow />

@@ -1,6 +1,6 @@
 [package]
 name = "marker-admin"
-version = "0.6.1"
+version = "0.6.2"
 description = "Marker Studio admin portal — macOS wrapper"
 edition = "2021"
 rust-version = "1.77.2"

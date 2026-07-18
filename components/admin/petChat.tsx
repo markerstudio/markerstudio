@@ -3,7 +3,7 @@
 // Marky's shared chat pieces — used by the in-app corner pet (Pet.tsx) and
 // the desktop floating pet window (PetWindow.tsx). Talks to /api/pet, which
 // answers deterministically from studio data (zero AI credits).
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 export type PetMsg = { role: "user" | "assistant"; content: string };
 
@@ -13,6 +13,9 @@ export const PET_HELLO: PetMsg = {
 };
 
 export type PetMood = "idle" | "thinking" | "happy" | "alert" | "sleepy";
+export type PetQuirk = "wiggle" | "spin" | "stretch" | "look";
+
+const QUIRKS: PetQuirk[] = ["wiggle", "spin", "stretch", "look"];
 
 // What a reply does to Marky's face: fire/overdue → alert shake, good news →
 // happy hop, otherwise back to idle. Momentary moods decay after ~4s.
@@ -27,8 +30,14 @@ export function usePetChat() {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [mood, setMood] = useState<PetMood>("idle");
+  // A random little bit of personality (wiggle / spin / stretch / look-around)
+  // that fires every so often while he's idle; `celebrating` turns on for a
+  // moment when good news lands and drives the confetti burst.
+  const [quirk, setQuirk] = useState<PetQuirk | null>(null);
+  const [celebrating, setCelebrating] = useState(false);
   const moodTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sleepTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const partyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Any interaction wakes him; 90s of nothing and he dozes off.
   const poke = useCallback(() => {
@@ -41,13 +50,42 @@ export function usePetChat() {
     return () => {
       if (sleepTimer.current) clearTimeout(sleepTimer.current);
       if (moodTimer.current) clearTimeout(moodTimer.current);
+      if (partyTimer.current) clearTimeout(partyTimer.current);
     };
   }, [poke]);
+
+  // Quirk clock: every 14–40s, if he's just idling, do something silly.
+  const idleRef = useRef(true);
+  idleRef.current = mood === "idle" && !busy;
+  useEffect(() => {
+    let alive = true;
+    let t: ReturnType<typeof setTimeout>;
+    const loop = () => {
+      t = setTimeout(() => {
+        if (!alive) return;
+        if (idleRef.current) {
+          setQuirk(QUIRKS[Math.floor(Math.random() * QUIRKS.length)]);
+          setTimeout(() => alive && setQuirk(null), 1700);
+        }
+        loop();
+      }, 14_000 + Math.random() * 26_000);
+    };
+    loop();
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, []);
 
   const feel = useCallback((m: PetMood) => {
     setMood(m);
     if (moodTimer.current) clearTimeout(moodTimer.current);
     if (m === "happy" || m === "alert") moodTimer.current = setTimeout(() => setMood("idle"), 4000);
+    if (m === "happy") {
+      setCelebrating(true);
+      if (partyTimer.current) clearTimeout(partyTimer.current);
+      partyTimer.current = setTimeout(() => setCelebrating(false), 2600);
+    }
   }, []);
 
   async function send() {
@@ -83,10 +121,40 @@ export function usePetChat() {
     }
   }
 
-  return { msgs, input, setInput, busy, send, mood, poke };
+  return { msgs, input, setInput, busy, send, mood, quirk, celebrating, poke };
 }
 
-export function PetChatBody({ chat }: { chat: ReturnType<typeof usePetChat> }) {
+// The blob's mood + quirk classes in one place, so the in-app corner pet and
+// the desktop window stay in sync.
+export function petFaceClass(chat: Pick<ReturnType<typeof usePetChat>, "mood" | "quirk">): string {
+  return `${chat.mood !== "idle" ? `is-${chat.mood}` : ""} ${chat.quirk ? `q-${chat.quirk}` : ""}`.trim();
+}
+
+// A one-shot burst of brand-ink confetti (mounted only while celebrating).
+// Pure transforms + opacity — no shadows/filters, so it renders the same in
+// the transparent desktop pet window.
+export function PetConfetti() {
+  const parts = useMemo(
+    () =>
+      Array.from({ length: 16 }, (_, i) => ({
+        x: `${Math.round(-64 + Math.random() * 128)}px`,
+        y: `${Math.round(-84 + Math.random() * 120)}px`,
+        r: `${Math.round(-260 + Math.random() * 520)}deg`,
+        c: ["#F57F00", "#FFA226", "#FFD79A", "#2b2b2b", "#ffffff"][i % 5],
+        d: `${Math.round(Math.random() * 260)}ms`,
+      })),
+    []
+  );
+  return (
+    <span className="ms-confetti" aria-hidden>
+      {parts.map((p, i) => (
+        <i key={i} style={{ "--x": p.x, "--y": p.y, "--r": p.r, "--c": p.c, "--d": p.d } as CSSProperties} />
+      ))}
+    </span>
+  );
+}
+
+export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetChat>; onClose?: () => void }) {
   const endRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -97,6 +165,17 @@ export function PetChatBody({ chat }: { chat: ReturnType<typeof usePetChat> }) {
         <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00]" />
         <span className="font-display font-bold text-[13.5px] text-ink">Marky</span>
         <span className="text-[10.5px] text-charcoal-40">knows today&apos;s studio</span>
+        {onClose && (
+          <button
+            type="button"
+            aria-label="Close chat — Marky stays"
+            title="Close chat (Marky stays)"
+            onClick={onClose}
+            className="ms-auto w-6 h-6 rounded-full grid place-items-center text-charcoal-40 hover:text-ink hover:bg-charcoal/5 text-[13px] leading-none"
+          >
+            ✕
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
         {chat.msgs.map((m, i) => (

@@ -2245,6 +2245,28 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
 .ms-pet.is-alert .ms-pet__mouth { opacity: 1; transform: scaleX(0.5) scaleY(0.6); }
 .ms-pet.is-sleepy .ms-pet__eye { transform: scaleY(0.22); animation: none; }
 .ms-pet.is-sleepy .ms-pet__body { animation-duration: 13s, 7s; }
+/* ---- idle quirks — random little bits of personality (petChat.tsx picks one
+   every so often while he's idle; the class lasts ~1.7s) ---- */
+.ms-pet.q-wiggle { animation: ms-quirk-wiggle 1.2s ease-in-out; }
+.ms-pet.q-spin { animation: ms-quirk-spin 0.9s cubic-bezier(0.5, 0, 0.3, 1.35); }
+.ms-pet.q-stretch { animation: ms-quirk-stretch 1.1s ease-in-out; }
+.ms-pet.q-look .ms-pet__eye { animation: ms-quirk-look 1.6s ease-in-out; }
+/* ---- celebration confetti — brand-ink burst from behind the blob ---- */
+.ms-confetti { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.ms-confetti i {
+  position: absolute; left: 50%; top: 45%; width: 6px; height: 9px;
+  border-radius: 2px; background: var(--c); opacity: 0;
+  animation: ms-confetti-pop 1.5s cubic-bezier(0.16, 0.7, 0.3, 1) var(--d) forwards;
+}
+/* ---- painted ground shadow — the desktop pet window can't use box-shadow or
+   filters (transparent-window layers rasterize them as boxes), so his shadow
+   is this gradient puddle, squashing in time with the bob ---- */
+.ms-pet__shadow {
+  position: absolute; left: 50%; bottom: -11px; width: 76%; height: 14px;
+  transform: translateX(-50%); pointer-events: none;
+  background: radial-gradient(50% 50% at 50% 50%, rgba(120, 60, 0, 0.4) 0%, rgba(120, 60, 0, 0) 70%);
+  animation: ms-shadow-breathe 3.4s ease-in-out infinite;
+}
 /* ---- motion ---- */
 @keyframes ms-ink-morph {
   0%, 100% { border-radius: 46% 54% 58% 42% / 50% 46% 54% 50%; }
@@ -2273,6 +2295,36 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
   25% { transform: translateX(-3px) rotate(-3deg); }
   75% { transform: translateX(3px) rotate(3deg); }
 }
+@keyframes ms-quirk-wiggle {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-10deg); }
+  45% { transform: rotate(9deg); }
+  70% { transform: rotate(-5deg); }
+}
+@keyframes ms-quirk-spin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+@keyframes ms-quirk-stretch {
+  0%, 100% { transform: scale(1, 1); }
+  30% { transform: scale(0.86, 1.18) translateY(-6px); }
+  60% { transform: scale(1.1, 0.9); }
+}
+@keyframes ms-quirk-look {
+  0%, 100% { transform: translateX(0); }
+  25%, 45% { transform: translateX(-4px); }
+  65%, 85% { transform: translateX(4px); }
+}
+@keyframes ms-confetti-pop {
+  0% { transform: translate(-50%, -50%) scale(0.4) rotate(0deg); opacity: 0; }
+  12% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) rotate(var(--r)) scale(1); opacity: 0; }
+}
+@keyframes ms-shadow-breathe {
+  0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
+  50% { transform: translateX(-50%) scaleX(0.8); opacity: 0.7; }
+}
 @media (prefers-reduced-motion: reduce) {
-  .ms-pet, .ms-pet__body, .ms-pet__eye, .ms-pet__body::before, .ms-pet__body::after { animation: none !important; }
+  .ms-pet, .ms-pet__body, .ms-pet__eye, .ms-pet__body::before, .ms-pet__body::after,
+  .ms-confetti i, .ms-pet__shadow { animation: none !important; }
 }

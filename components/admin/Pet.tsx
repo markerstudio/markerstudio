@@ -6,7 +6,7 @@
 // memory only. Hidden on print. The desktop app also runs Marky as a floating
 // desktop creature + menu-bar item (see PetWindow.tsx / the Tauri shell).
 import { useEffect, useState } from "react";
-import { usePetChat, PetChatBody } from "@/components/admin/petChat";
+import { usePetChat, PetChatBody, PetConfetti, petFaceClass } from "@/components/admin/petChat";
 
 export default function Pet() {
   const [open, setOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function Pet() {
         type="button"
         aria-label={open ? "Close Marky" : "Talk to Marky, the studio pet"}
         onClick={() => setOpen((o) => !o)}
-        className={`ms-pet lq-press fixed z-[75] w-14 h-14 rounded-full ${chat.mood !== "idle" ? `is-${chat.mood}` : ""}`}
+        className={`ms-pet lq-press fixed z-[75] w-14 h-14 rounded-full ${petFaceClass(chat)}`}
         style={{ insetInlineEnd: 18, bottom: "calc(84px + env(safe-area-inset-bottom, 0px))" }}
       >
         <span className="ms-pet__body">
@@ -35,6 +35,7 @@ export default function Pet() {
           <span className="ms-pet__eye" />
           <span className="ms-pet__mouth" />
         </span>
+        {chat.celebrating && <PetConfetti />}
       </button>
 
       {open && (
@@ -44,7 +45,7 @@ export default function Pet() {
           role="dialog"
           aria-label="Marky chat"
         >
-          <PetChatBody chat={chat} />
+          <PetChatBody chat={chat} onClose={() => setOpen(false)} />
         </div>
       )}
     </div>
