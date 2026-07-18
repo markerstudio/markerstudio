@@ -33,7 +33,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { EmptyState, Modal, Seg } from "@/components/ui/glass";
-import NoteMarkdown, { escapeHtml, noteBodyToHtml } from "@/components/admin/NoteMarkdown";
+import NoteMarkdown from "@/components/admin/NoteMarkdown";
+import { escapeHtml, notePrintHtml } from "@/lib/noteHtml";
 import {
   checklistProgress,
   continueListOnEnter,
@@ -389,10 +390,27 @@ function LinkChip({ note, clients }: { note: Note; clients: SlimClient[] }) {
 
 /* -------------------------------------------------------------- export */
 
+// The desktop shell (DMG) marks itself on window and bridges to native
+// windows — WKWebView can't open a blank window and write into it, so PDF
+// export goes through the /print/note/[id] route in a native preview there.
+type DesktopBridge = {
+  __MARKER_DESKTOP__?: boolean;
+  __MARKER_NATIVE__?: { openPreview?: (url: string, title?: string) => Promise<void> };
+};
+
 // "Export" in the editor footer: a small pop menu with two ways out —
-// a plain .txt download, or a print-ready window (the user picks
+// a plain .txt download, or a print-ready page (the user picks
 // "Save as PDF" as the destination in the print dialog to get a PDF).
-function ExportMenu({ note, onError }: { note: Note; onError: (m: string) => void }) {
+function ExportMenu({
+  note,
+  onError,
+  flush,
+}: {
+  note: Note;
+  onError: (m: string) => void;
+  /** Push any debounced edits to the server before the print route reads them. */
+  flush?: () => Promise<void>;
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -421,50 +439,43 @@ function ExportMenu({ note, onError }: { note: Note; onError: (m: string) => voi
   };
 
   // Opens a clean, self-contained print document and calls print() once it
-  // loads — the user saves it as a PDF from the print dialog.
+  // loads — the user saves it as a PDF from the print dialog. All user text
+  // goes through escapeHtml / noteBodyToHtml (lib/noteHtml), so nothing from
+  // the note can inject markup.
   const exportPdf = () => {
     setOpen(false);
+    const { title, html } = notePrintHtml(note);
+    const bridge = window as DesktopBridge;
+    if (bridge.__MARKER_DESKTOP__ && bridge.__MARKER_NATIVE__?.openPreview) {
+      // DMG: WKWebView returns null from window.open("") — print from a
+      // native preview window on the server-rendered route instead. Flush the
+      // debounced autosave first so the route prints what's on screen.
+      const openPreview = bridge.__MARKER_NATIVE__.openPreview;
+      void (async () => {
+        try {
+          await flush?.();
+        } catch {
+          /* the route falls back to the last saved version */
+        }
+        openPreview(`${location.origin}/print/note/${note.id}`, title).catch(() =>
+          onError("Couldn’t open the PDF preview window.")
+        );
+      })();
+      return;
+    }
     const w = window.open("", "_blank");
     if (!w) {
       onError("The print window was blocked — allow popups and try again.");
       return;
     }
-    const title = note.title.trim() || firstLine(note.body) || "Note";
-    const dateLine = new Date(note.created_at).toLocaleDateString("en-GB", {
-      weekday: "long",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-    // All user text goes through escapeHtml / noteBodyToHtml (which escapes
-    // before wrapping), so nothing from the note can inject markup here.
     const doc = `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8">
 <title>${escapeHtml(title)}</title>
-<style>
-  body{font-family:'Poppins',-apple-system,'Segoe UI',system-ui,sans-serif;color:#232323;max-width:680px;margin:40px auto;padding:0 24px;line-height:1.55;font-size:14px}
-  h1{font-size:22px;letter-spacing:-.01em;line-height:1.25;margin:0 0 4px}
-  .meta{color:#8a8a8a;font-size:11.5px;margin:0 0 26px}
-  h2{font-size:16px;margin:22px 0 6px}
-  h3{font-size:14px;margin:18px 0 4px}
-  p{margin:0 0 10px}
-  ul,ol{margin:0 0 10px;padding-inline-start:22px}
-  li{margin:2px 0}
-  ul.check{list-style:none;padding-inline-start:2px}
-  ul.check li{display:flex;gap:8px;align-items:flex-start}
-  .box{display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;flex:none;margin-top:3px;border:1.5px solid #b5b5b5;border-radius:4px;font-size:10px;line-height:1;color:#fff}
-  .box.done{background:#F57F00;border-color:#F57F00}
-  li.done .txt{color:#8a8a8a;text-decoration:line-through}
-  @media print{body{margin:0 auto}}
-</style>
 </head>
 <body dir="auto">
-<h1>${escapeHtml(title)}</h1>
-<p class="meta">${escapeHtml(dateLine)} · Marker Studio</p>
-${noteBodyToHtml(note.body)}
-<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},200)})</script>
+${html}
 </body>
 </html>`;
     w.document.open();
@@ -1254,7 +1265,7 @@ export default function NotesApp({
             </div>
             <div className="flex flex-wrap items-center gap-2 pt-3 border-t border-charcoal/5">
               {pinButton(editing, false)}
-              <ExportMenu note={editing} onError={setErr} />
+              <ExportMenu note={editing} onError={setErr} flush={() => persist(editing.id)} />
               <button type="button" className="lq-btn lq-btn--ghost lq-btn--sm lq-press" onClick={() => void archiveEditing()}>
                 <Archive className="w-3.5 h-3.5" />
                 Archive

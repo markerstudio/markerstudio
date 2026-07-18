@@ -25,6 +25,7 @@ pub fn run() {
             set_badge,
             open_external,
             open_preview,
+            print_page,
             save_credentials,
             get_credentials,
             has_credentials,
@@ -128,6 +129,15 @@ fn open_preview(app: tauri::AppHandle, url: String, title: Option<String>) -> Re
         .build()
         .map_err(|e| e.to_string())?;
     Ok(())
+}
+
+// WKWebView implements the page's window.print() as a silent no-op, so every
+// "Save as PDF" button in the app did nothing. The injected bridge reroutes
+// window.print() here instead: the native print panel for whichever window
+// asked (main or a preview), where "Save as PDF" works like any Mac app.
+#[tauri::command]
+fn print_page(webview_window: tauri::WebviewWindow) -> Result<(), String> {
+    webview_window.print().map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------
@@ -285,6 +295,7 @@ const BRIDGE_JS: &str = r#"
     setBadge: function (count) { return inv('set_badge', { count: count || 0 }); },
     openExternal: function (url) { return inv('open_external', { url: url }); },
     openPreview: function (url, title) { return inv('open_preview', { url: url, title: title }); },
+    printPage: function () { return inv('print_page'); },
     saveCredentials: function (email, password) { return inv('save_credentials', { email: email, password: password }); },
     getCredentials: function () { return inv('get_credentials'); },
     hasCredentials: function () { return inv('has_credentials'); },
@@ -333,6 +344,17 @@ const LINKS_JS: &str = r#"
   window.open = function (url) {
     if (url && route(String(url), true)) return null;
     return realOpen ? realOpen.apply(window, arguments) : null;
+  };
+  // WKWebView's window.print() is a silent no-op — route it to the native
+  // print panel so every "Save as PDF" button in the app actually works.
+  var realPrint = typeof window.print === 'function' ? window.print.bind(window) : null;
+  window.print = function () {
+    var p = native().printPage;
+    if (p) {
+      p().catch(function () { if (realPrint) { try { realPrint(); } catch (e) {} } });
+      return;
+    }
+    if (realPrint) realPrint();
   };
 })();
 "#;
