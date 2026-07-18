@@ -173,6 +173,50 @@ export async function listPaymentsForInvoices(ids: number[]): Promise<AppliedPay
   }
 }
 
+// What's still owed on EACH line of an invoice (VAT-inclusive), after every
+// recorded payment. Allocations pool by line identity (label+kind+owner,
+// consumed in line order so duplicate labels behave); payments recorded
+// before allocations existed leave a slack spread proportionally — the lefts
+// always sum to the invoice's true remaining. Shared by the Record-payment
+// form and the invoice page's admin strip.
+export function perLineLeft(
+  items: { label: string; amount: string; kind?: string; owner?: string }[],
+  vatRate: number,
+  pays: { amount: number; applied_amount: number | null; allocation: AllocationLine[] | null }[]
+): number[] {
+  const toNum = (s: unknown) => {
+    const n = parseFloat(String(s ?? "").replace(/[^0-9.]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  const factor = 1 + (Number(vatRate) || 0) / 100;
+  const left = (items || []).map((it) => toNum(it.amount) * factor);
+  const pool = new Map<string, number>();
+  let allocated = 0;
+  let appliedTotal = 0;
+  for (const p of pays) {
+    appliedTotal += Number(p.applied_amount ?? p.amount) || 0;
+    for (const a of p.allocation ?? []) {
+      const key = `${a.label || ""}|${a.kind || ""}|${a.owner || ""}`;
+      const amt = Number(a.amount) || 0;
+      pool.set(key, (pool.get(key) || 0) + amt);
+      allocated += amt;
+    }
+  }
+  (items || []).forEach((it, i) => {
+    const key = `${it.label || ""}|${it.kind || ""}|${it.owner || ""}`;
+    const take = Math.min(pool.get(key) || 0, left[i]);
+    left[i] -= take;
+    pool.set(key, (pool.get(key) || 0) - take);
+  });
+  const slack = Math.max(0, appliedTotal - allocated);
+  const capacity = left.reduce((s, x) => s + x, 0);
+  if (slack > 0 && capacity > 0) {
+    const ratio = Math.min(1, slack / capacity);
+    for (let i = 0; i < left.length; i++) left[i] -= left[i] * ratio;
+  }
+  return left.map((x) => Math.max(0, x));
+}
+
 export async function listInvoicePayments(invoiceId: number): Promise<Payment[]> {
   try {
     await ensurePaymentsTable();

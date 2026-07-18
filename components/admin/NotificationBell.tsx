@@ -105,7 +105,7 @@ export default function NotificationBell({
     try {
       const res = await fetch("/api/notifications", { cache: "no-store" });
       if (!res.ok) return;
-      const data = (await res.json()) as { notices: Notice[] };
+      const data = (await res.json()) as { notices: Notice[]; badge?: number };
       const list = data.notices || [];
       setNotices(list);
       const unread = list.filter((x) => !seen.current.has(x.id));
@@ -113,7 +113,9 @@ export default function NotificationBell({
       if (loaded.current && alertsOn) fireAlerts(unread.filter((x) => !alerted.current.has(x.id)));
       if (!loaded.current) for (const x of unread) alerted.current.add(x.id);
       loaded.current = true;
-      native()?.setBadge?.(unread.length).catch(() => undefined);
+      // Dock badge = the agenda's overdue+today count (same truth as the
+      // agenda page, snoozes respected) — not the bell's unread count.
+      native()?.setBadge?.(data.badge ?? unread.length).catch(() => undefined);
       if (unread.length) {
         setRing(true);
         setTimeout(() => setRing(false), 800);
@@ -147,15 +149,13 @@ export default function NotificationBell({
   const markAllRead = () => {
     for (const x of notices) seen.current.add(x.id);
     persistSeen();
-    setNotices((n) => [...n]); // re-render
-    native()?.setBadge?.(0).catch(() => undefined);
+    setNotices((n) => [...n]); // re-render (Dock badge tracks the agenda, not read-state)
   };
 
   const openItem = (item: Notice) => {
     seen.current.add(item.id);
     persistSeen();
     setOpen(false);
-    native()?.setBadge?.(notices.filter((x) => !seen.current.has(x.id)).length).catch(() => undefined);
     router.push(item.href);
   };
 

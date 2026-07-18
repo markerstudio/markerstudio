@@ -1,8 +1,8 @@
 import { notFound, redirect } from "next/navigation";
 import { getSession } from "@/lib/auth";
 import { getClient } from "@/lib/clients";
-import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal, invoiceRemaining } from "@/lib/invoices";
-import { listInvoicePayments } from "@/lib/payments";
+import { getInvoice, invoiceTotal, invoiceVat, invoiceGrandTotal, invoiceRemaining, invoiceCurrency } from "@/lib/invoices";
+import { listInvoicePayments, perLineLeft } from "@/lib/payments";
 import { deletePaymentAction } from "@/app/admin/invoice-actions";
 import ConfirmButton from "@/components/admin/ConfirmButton";
 import PrintButton from "@/components/PrintButton";
@@ -36,6 +36,10 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
   const remaining = invoiceRemaining(inv.items, rate, paid);
   const payments = await listInvoicePayments(inv.id);
   const isAdmin = s.role !== "client";
+  // Admin-only: what each line still owes (rendered OUTSIDE the printable
+  // document, so exports and the client view stay untouched).
+  const lineLeft = isAdmin ? perLineLeft(inv.items || [], rate, payments) : [];
+  const cur = invoiceCurrency(inv.items);
   const statusTone =
     inv.status === "paid" ? "lq-chip--green" : inv.status === "partial" ? "lq-chip--orange" : inv.status === "due" ? "lq-chip--orange" : "";
 
@@ -166,6 +170,29 @@ export default async function InvoicePage({ params }: { params: { slug: string; 
             Thank you. Marker Studio® · create@marker.ps · www.marker.ps · +970 568 08 14 08
           </p>
         </div>
+
+        {/* Admin-only working view — never printed, never captured (outside
+            [data-doc]), never shown to the client. */}
+        {isAdmin && remaining > 0 && (
+          <div className="print:hidden mt-5 lq-card p-4">
+            <div className="flex items-center justify-between gap-3 mb-2">
+              <h3 className="text-[10px] font-display font-bold uppercase tracking-[0.12em] text-charcoal-60">What&apos;s left per line</h3>
+              <a href={`/admin/payments/new?invoice=${inv.id}`} className="text-xs font-semibold text-charcoal-60 hover:text-orange-deep no-underline">Record a payment →</a>
+            </div>
+            <ul className="divide-y divide-charcoal/5">
+              {(inv.items || []).map((it, i) => (
+                <li key={i} className="flex items-center gap-3 py-1.5 text-sm">
+                  <span className="flex-1 min-w-0 truncate text-charcoal-80">{it.label || "—"}</span>
+                  {(lineLeft[i] ?? 0) > 0.5 ? (
+                    <span className="font-semibold tabular-nums text-ink">{fmt(Math.round(lineLeft[i]))} {cur}</span>
+                  ) : (
+                    <span className="text-xs font-semibold text-emerald-700">✓ paid</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </main>
   );

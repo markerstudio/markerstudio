@@ -111,17 +111,21 @@ function agendaNotice(it: AgendaItem, today: string, now: Date): Notice | null {
   };
 }
 
-export async function getNotices(user: SessionUser): Promise<Notice[]> {
-  if (!isDbEnabled()) return [];
+/** The feed plus the Dock-badge number: how many agenda items need action
+ *  (overdue + today, snoozes respected) — NOT unread count, so the badge is
+ *  the same truth the agenda page shows. */
+export async function getNotices(user: SessionUser): Promise<{ notices: Notice[]; badge: number }> {
+  if (!isDbEnabled()) return { notices: [], badge: 0 };
   const sql = getSql();
   const notices: Notice[] = [];
   const now = new Date();
 
   // Partner-only accounts (Ramzi) are walled into their own area — no feed.
-  if (isPartnerOnly(user)) return [];
+  if (isPartnerOnly(user)) return { notices: [], badge: 0 };
 
   // ---- The agenda's rituals, as pings (2-day horizon ≈ shoots in 48h) ----
   const agenda = await safe(() => getAgenda(2), null);
+  let badge = 0;
   if (agenda) {
     // Photographer-only accounts (Ameer) get shoot reminders only.
     const items = isPhotographerOnly(user) ? agenda.all.filter((i) => i.kind === "shoot") : agenda.all;
@@ -129,8 +133,11 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
       const n = agendaNotice(it, agenda.today, now);
       if (n) notices.push(n);
     }
+    badge = isPhotographerOnly(user)
+      ? items.filter((i) => i.urgency !== "soon").length
+      : agenda.counts.overdue + agenda.counts.today;
   }
-  if (isPhotographerOnly(user)) return sortNotices(notices);
+  if (isPhotographerOnly(user)) return { notices: sortNotices(notices), badge };
 
   // ---- Unread inquiries + applications ----
   const inquiries = await safe(
@@ -193,7 +200,7 @@ export async function getNotices(user: SessionUser): Promise<Notice[]> {
     }
   }
 
-  return sortNotices(notices);
+  return { notices: sortNotices(notices), badge };
 }
 
 function sortNotices(list: Notice[]): Notice[] {
