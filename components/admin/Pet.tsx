@@ -1,7 +1,8 @@
 "use client";
 
-// Marky — the studio's pet: a small orange blob bobbing in the corner of the
-// admin. Click it and it opens a glass chat that answers from the studio's
+// Marky — the studio's pet: a still, marker-drawn ink mark sitting in the
+// corner of the admin (he reacts, he never roams — see the .ms-pet styles).
+// Click it and it opens a glass chat that answers from the studio's
 // own data (via /api/pet — deterministic, zero AI credits) and captures
 // tasks/notes. Session-local memory only. Hidden on print. Opens with a bare
 // “m” keypress (outside inputs) or a "marky:open" event (the ⌘K palette),
