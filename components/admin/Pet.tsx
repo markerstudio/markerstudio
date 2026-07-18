@@ -2,7 +2,8 @@
 
 // Marky — the studio's pet: a small orange blob bobbing in the corner of the
 // admin. Click it and it opens a glass chat that answers from the studio's
-// own data (via /api/pet). Session-local memory only; closing the panel keeps
+// own data (via /api/pet — deterministic, zero AI credits). Session-local
+// memory only; closing the panel keeps
 // the thread, reloading forgets it. Hidden on print.
 import { useEffect, useRef, useState } from "react";
 
@@ -37,9 +38,7 @@ export default function Pet() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ messages: next.filter((m) => m !== HELLO) }),
       });
-      if (res.status === 501) {
-        setMsgs((m) => [...m, { role: "assistant", content: "I can't think yet — the studio needs an ANTHROPIC_API_KEY in its deployment for my brain to switch on. Everything else works without me! 😴" }]);
-      } else if (!res.ok) {
+      if (!res.ok) {
         setMsgs((m) => [...m, { role: "assistant", content: "Hmm, my thought got lost — try me again in a moment." }]);
       } else {
         const data = (await res.json()) as { text?: string };
