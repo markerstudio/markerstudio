@@ -2,31 +2,42 @@
 
 // Marky's shared chat pieces — used by the in-app corner pet (Pet.tsx) and
 // the desktop floating pet window (PetWindow.tsx). Talks to /api/pet, which
-// answers deterministically from studio data (zero AI credits).
+// answers deterministically from studio data (zero AI credits) and executes
+// capture commands ("task …" / "note …"). Marky is a shortcut both ways:
+// quick-ask chips + linkified answers for output, quick capture for input.
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { petCharacter } from "@/lib/petBrain";
 
 export type PetMsg = { role: "user" | "assistant"; content: string };
 
-export const PET_HELLO: PetMsg = {
-  role: "assistant",
-  content: "Hey! I'm Marky 🧡 Ask me things like “what's on fire today?”, “how much does everyone owe us?”, or “what's blocked on approvals?”",
-};
+// The hello is generated at mount (client-only — the chat never renders
+// during SSR) so it can know the time of day and today's character.
+function makeHello(): PetMsg {
+  const ch = petCharacter();
+  const h = new Date().getHours();
+  const tod = h < 5 ? "Up late?" : h < 12 ? "Good morning!" : h < 17 ? "Good afternoon!" : "Good evening!";
+  return {
+    role: "assistant",
+    content: `${tod} ${ch.emoji} ${ch.name} here — ${ch.vibe}\nAsk about money, approvals, shoots or tasks — or capture something with “task …” / “note …”`,
+  };
+}
 
 export type PetMood = "idle" | "thinking" | "happy" | "alert" | "sleepy";
 export type PetQuirk = "wiggle" | "spin" | "stretch" | "look";
 
 const QUIRKS: PetQuirk[] = ["wiggle", "spin", "stretch", "look"];
 
-// What a reply does to Marky's face: fire/overdue → alert shake, good news →
-// happy hop, otherwise back to idle. Momentary moods decay after ~4s.
+// What a reply does to Marky's face: fire/overdue → alert shake, good news
+// (including a successful capture) → happy hop, otherwise back to idle.
+// Momentary moods decay after ~4s.
 function moodOf(text: string): PetMood {
   if (/🔥|overdue|late|متأخر/i.test(text)) return "alert";
-  if (/🎉|✨|🧡|nothing|no open|all caught|هادي|تمام/i.test(text)) return "happy";
+  if (/🎉|✨|🧡|✅|nothing|no open|all caught|noted|added|هادي|تمام/i.test(text)) return "happy";
   return "idle";
 }
 
 export function usePetChat() {
-  const [msgs, setMsgs] = useState<PetMsg[]>([PET_HELLO]);
+  const [msgs, setMsgs] = useState<PetMsg[]>(() => [makeHello()]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [mood, setMood] = useState<PetMood>("idle");
@@ -88,8 +99,9 @@ export function usePetChat() {
     }
   }, []);
 
-  async function send() {
-    const q = input.trim();
+  // `preset` lets the quick-ask chips send without touching the input box.
+  async function send(preset?: string) {
+    const q = (preset ?? input).trim();
     if (!q || busy) return;
     setInput("");
     const next: PetMsg[] = [...msgs, { role: "user", content: q }];
@@ -101,7 +113,8 @@ export function usePetChat() {
       const res = await fetch("/api/pet", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ messages: next.filter((m) => m !== PET_HELLO) }),
+        // msgs[0] is always the local hello — the server never needs it.
+        body: JSON.stringify({ messages: next.slice(1) }),
       });
       if (res.status === 401) {
         setMsgs((m) => [...m, { role: "assistant", content: "I don't recognise you — open Marker Studio and sign in first, then talk to me again 🧡" }]);
@@ -154,16 +167,75 @@ export function PetConfetti() {
   );
 }
 
+// Marky's answers reference admin pages by path — make those paths tappable.
+// In the browser a plain anchor navigates the admin; in the desktop pet
+// window (Tauri, where navigating would kill the pet) the link opens in a
+// native preview window via the shell's open_preview command.
+const PATH_RE = /(\/(?:admin|portal)(?:\/[A-Za-z0-9\-_/]*)?)/g;
+
+function openInDesktop(path: string): boolean {
+  const w = window as {
+    __TAURI__?: { core?: { invoke?: (c: string, a?: unknown) => Promise<unknown> } };
+    __TAURI_INTERNALS__?: { invoke?: (c: string, a?: unknown) => Promise<unknown> };
+  };
+  const fn = w.__TAURI__?.core?.invoke || w.__TAURI_INTERNALS__?.invoke;
+  if (!fn) return false;
+  Promise.resolve(fn("open_preview", { url: new URL(path, location.origin).href, title: "Marker Studio" })).catch(() => undefined);
+  return true;
+}
+
+function AssistantText({ text }: { text: string }) {
+  const parts = text.split(PATH_RE);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 ? (
+          <a
+            key={i}
+            href={p}
+            onClick={(e) => {
+              if (openInDesktop(p)) e.preventDefault();
+            }}
+            className="font-semibold text-[#F57F00] underline decoration-[#F57F00]/40 underline-offset-2 hover:decoration-[#F57F00]"
+          >
+            {p}
+          </a>
+        ) : (
+          p
+        )
+      )}
+    </>
+  );
+}
+
+// Quick-ask chips — the output half of the shortcut, one tap from anywhere.
+// `fill` chips pre-type a capture command instead of sending.
+const SUGGESTIONS: { label: string; q?: string; fill?: string }[] = [
+  { label: "🔥 Today", q: "what's on fire today?" },
+  { label: "💸 Owed", q: "how much does everyone owe?" },
+  { label: "💰 Income", q: "what did we collect this month?" },
+  { label: "🗓️ Week", q: "what's coming this week?" },
+  { label: "⏳ Approvals", q: "what's blocked on approvals?" },
+  { label: "➕ Task", fill: "task " },
+  { label: "🗒️ Note", fill: "note " },
+];
+
 export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetChat>; onClose?: () => void }) {
   const endRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const ch = petCharacter();
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [chat.msgs, chat.busy]);
+  // Land ready to type — but only where a keyboard won't pop over the chat.
+  useEffect(() => {
+    if (typeof matchMedia === "function" && matchMedia("(pointer: fine)").matches) inputRef.current?.focus();
+  }, []);
   return (
     <>
       <div className="px-4 py-2.5 border-b border-charcoal/5 flex items-center gap-2">
         <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-br from-[#FFA226] to-[#F57F00]" />
-        <span className="font-display font-bold text-[13.5px] text-ink">Marky</span>
+        <span className="font-display font-bold text-[13.5px] text-ink">{ch.name} {ch.emoji}</span>
         <span className="text-[10.5px] text-charcoal-40">knows today&apos;s studio</span>
         {onClose && (
           <button
@@ -187,7 +259,7 @@ export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetC
                 : "me-auto bg-white/80 border border-charcoal/5 text-charcoal-80"
             }`}
           >
-            {m.content}
+            {m.role === "assistant" ? <AssistantText text={m.content} /> : m.content}
           </div>
         ))}
         {chat.busy && (
@@ -195,17 +267,38 @@ export function PetChatBody({ chat, onClose }: { chat: ReturnType<typeof usePetC
         )}
         <div ref={endRef} />
       </div>
+      {chat.msgs.length <= 1 && (
+        <div className="px-2 pb-1.5 flex flex-wrap gap-1.5">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => {
+                if (s.q) chat.send(s.q);
+                else if (s.fill) {
+                  chat.setInput(s.fill);
+                  inputRef.current?.focus();
+                }
+              }}
+              className="lq-press rounded-full bg-charcoal/5 hover:bg-charcoal/10 px-2.5 py-1 text-[11.5px] font-display font-semibold text-charcoal-60 hover:text-ink"
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div className="p-2 border-t border-charcoal/5 flex gap-1.5">
         <input
+          ref={inputRef}
           value={chat.input}
           onChange={(e) => chat.setInput(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") chat.send();
           }}
-          placeholder="Ask Marky…"
+          placeholder="Ask — or “task …” / “note …”"
           className="lq-input flex-1 !py-2 !text-[13px]"
         />
-        <button type="button" onClick={chat.send} disabled={chat.busy || !chat.input.trim()} className="lq-btn lq-btn--primary lq-btn--sm disabled:opacity-50">
+        <button type="button" onClick={() => chat.send()} disabled={chat.busy || !chat.input.trim()} className="lq-btn lq-btn--primary lq-btn--sm disabled:opacity-50">
           →
         </button>
       </div>

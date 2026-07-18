@@ -2,9 +2,12 @@
 
 // Marky — the studio's pet: a small orange blob bobbing in the corner of the
 // admin. Click it and it opens a glass chat that answers from the studio's
-// own data (via /api/pet — deterministic, zero AI credits). Session-local
-// memory only. Hidden on print. The desktop app also runs Marky as a floating
-// desktop creature + menu-bar item (see PetWindow.tsx / the Tauri shell).
+// own data (via /api/pet — deterministic, zero AI credits) and captures
+// tasks/notes. Session-local memory only. Hidden on print. Opens with a bare
+// “m” keypress (outside inputs) or a "marky:open" event (the ⌘K palette),
+// so he works as a keyboard shortcut, not just a mascot. The desktop app
+// runs Marky as a floating desktop creature + menu-bar item instead (see
+// PetWindow.tsx / the Tauri shell).
 import { useEffect, useState } from "react";
 import { usePetChat, PetChatBody, PetConfetti, petFaceClass } from "@/components/admin/petChat";
 
@@ -18,6 +21,25 @@ export default function Pet() {
     setShow(!(window as { __MARKER_DESKTOP__?: boolean }).__MARKER_DESKTOP__);
   }, []);
   const chat = usePetChat();
+
+  // “m” toggles Marky from anywhere in the admin (GitHub-style single-key
+  // shortcut — never while typing); the ⌘K palette dispatches "marky:open".
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "m" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
+      e.preventDefault();
+      setOpen((o) => !o);
+    };
+    const onOpen = () => setOpen(true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("marky:open", onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("marky:open", onOpen);
+    };
+  }, []);
   if (!show) return null;
 
   return (
@@ -26,6 +48,7 @@ export default function Pet() {
       <button
         type="button"
         aria-label={open ? "Close Marky" : "Talk to Marky, the studio pet"}
+        title={open ? "Close Marky (M)" : "Talk to Marky (M)"}
         onClick={() => setOpen((o) => !o)}
         className={`ms-pet lq-press fixed z-[75] w-14 h-14 rounded-full ${petFaceClass(chat)}`}
         style={{ insetInlineEnd: 18, bottom: "calc(84px + env(safe-area-inset-bottom, 0px))" }}
