@@ -43,6 +43,7 @@ pub fn run() {
             save_text_file,
             save_file,
             install_update,
+            pet_expand,
             save_credentials,
             get_credentials,
             has_credentials,
@@ -90,6 +91,10 @@ pub fn run() {
 
             builder.build()?;
 
+            // Menu-bar Marky (Siri-style): left-click toggles the floating
+            // desktop pet; right-click opens a small menu.
+            setup_tray(app.handle())?;
+
             // Quietly look for a newer build once the window is up. Dormant
             // until the updater pubkey is set in tauri.conf.json.
             let handle = app.handle().clone();
@@ -101,6 +106,110 @@ pub fn run() {
         })
         .run(tauri::generate_context!())
         .expect("error while running Marker Studio");
+}
+
+// ---------------------------------------------------------------------------
+// Marky on the desktop — menu-bar tray + floating pet window
+// ---------------------------------------------------------------------------
+
+// Collapsed = just the blob + drag handle; expanded = blob + chat panel.
+const PET_SMALL: (f64, f64) = (96.0, 116.0);
+const PET_BIG: (f64, f64) = (344.0, 520.0);
+
+fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
+    use tauri::menu::{Menu, MenuItemBuilder, PredefinedMenuItem};
+    use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
+
+    let menu = Menu::with_items(
+        app,
+        &[
+            &MenuItemBuilder::with_id("tray-marky", "Ask Marky").build(app)?,
+            &MenuItemBuilder::with_id("tray-open", "Open Marker Studio").build(app)?,
+            &PredefinedMenuItem::separator(app)?,
+            &PredefinedMenuItem::quit(app, None)?,
+        ],
+    )?;
+
+    let mut tray = TrayIconBuilder::with_id("marker-tray")
+        .tooltip("Marker Studio — Marky")
+        .menu(&menu)
+        // Left-click is Marky (Siri-style); the menu lives on right-click.
+        .show_menu_on_left_click(false)
+        .on_menu_event(|app, event| match event.id().as_ref() {
+            "tray-marky" => toggle_pet(app),
+            "tray-open" => {
+                if let Some(w) = app.get_webview_window("main") {
+                    let _ = w.show();
+                    let _ = w.set_focus();
+                }
+            }
+            _ => {}
+        })
+        .on_tray_icon_event(|tray, event| {
+            if let TrayIconEvent::Click { button: MouseButton::Left, button_state: MouseButtonState::Up, .. } = event {
+                toggle_pet(tray.app_handle());
+            }
+        });
+    if let Some(icon) = app.default_window_icon().cloned() {
+        // Template mode renders the icon as a monochrome menu-bar glyph on
+        // macOS — the native look next to Siri & friends.
+        tray = tray.icon(icon).icon_as_template(true);
+    }
+    tray.build(app)?;
+    Ok(())
+}
+
+// Show/hide the frameless, transparent, always-on-top pet window; created on
+// first use, parked bottom-right of the primary monitor. The page it loads
+// (marker.ps/pet) renders the blob + chat and drives pet_expand.
+fn toggle_pet(app: &tauri::AppHandle) {
+    use tauri::{WebviewUrl, WebviewWindowBuilder};
+
+    if let Some(w) = app.get_webview_window("pet") {
+        if w.is_visible().unwrap_or(false) {
+            let _ = w.hide();
+        } else {
+            let _ = w.show();
+            let _ = w.set_focus();
+        }
+        return;
+    }
+
+    let Ok(url) = "https://marker.ps/pet".parse() else { return };
+    let mut builder = WebviewWindowBuilder::new(app, "pet", WebviewUrl::External(url))
+        .title("Marky")
+        .inner_size(PET_SMALL.0, PET_SMALL.1)
+        .transparent(true)
+        .decorations(false)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .initialization_script("window.__MARKER_DESKTOP__ = true;");
+    // Park him near the bottom-right of the primary screen (logical units).
+    if let Ok(Some(mon)) = app.primary_monitor() {
+        let scale = mon.scale_factor();
+        let w = mon.size().width as f64 / scale;
+        let h = mon.size().height as f64 / scale;
+        builder = builder.position(w - PET_SMALL.0 - 24.0, h - PET_SMALL.1 - 80.0);
+    }
+    let _ = builder.build();
+}
+
+// The pet page's blob toggles its chat: grow/shrink the window while keeping
+// its bottom-right corner anchored, so the blob never jumps under the cursor.
+#[tauri::command]
+fn pet_expand(webview_window: tauri::WebviewWindow, expanded: bool) -> Result<(), String> {
+    use tauri::{LogicalPosition, LogicalSize};
+    let (tw, th) = if expanded { PET_BIG } else { PET_SMALL };
+    let scale = webview_window.scale_factor().map_err(|e| e.to_string())?;
+    let pos = webview_window.outer_position().map_err(|e| e.to_string())?;
+    let size = webview_window.inner_size().map_err(|e| e.to_string())?;
+    let (x, y) = (pos.x as f64 / scale, pos.y as f64 / scale);
+    let (cw, ch) = (size.width as f64 / scale, size.height as f64 / scale);
+    let _ = webview_window.set_position(LogicalPosition::new(x + (cw - tw), y + (ch - th)));
+    webview_window
+        .set_size(LogicalSize::new(tw, th))
+        .map_err(|e| e.to_string())
 }
 
 // ---------------------------------------------------------------------------

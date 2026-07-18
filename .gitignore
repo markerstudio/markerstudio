@@ -25,3 +25,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+# Claude's temporary in-repo test harnesses (dev-only preview pages)
+/app/dev-*/
