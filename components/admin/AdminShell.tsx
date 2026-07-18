@@ -36,6 +36,7 @@ import {
   NotebookPen,
 } from "lucide-react";
 import NotificationBell from "@/components/admin/NotificationBell";
+import Pet from "@/components/admin/Pet";
 import CommandK, { type PaletteClient } from "@/components/admin/CommandK";
 import { Sheet } from "@/components/ui/glass";
 
@@ -345,6 +346,9 @@ export default function AdminShell({
           </div>
         </div>
       </Sheet>
+
+      {/* ---------- Marky, the studio pet (admins only) ---------- */}
+      {!restricted && <Pet />}
 
       {/* ---------- Page ---------- */}
       <main className="lq-main">
