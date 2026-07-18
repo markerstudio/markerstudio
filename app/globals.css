@@ -2258,6 +2258,57 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
   border-radius: 2px; background: var(--c); opacity: 0;
   animation: ms-confetti-pop 1.5s cubic-bezier(0.16, 0.7, 0.3, 1) var(--d) forwards;
 }
+/* ---- flight — while the shell glides the whole pet window across the
+   desktop it streams heading + speed into --fly-rot / --squish (see
+   PetWindow.tsx). The blob stops being a blob and becomes moving ink: a
+   comet rotated to its heading, stretched by speed, beads of ink strung out
+   behind it, droplets shed into the air. Pure transforms + gradients — no
+   shadows or filters (transparent-window rule). ---- */
+.ms-fly { display: grid; place-items: center; }
+.ms-fly__rot { transform: rotate(var(--fly-rot, 0deg)); transition: transform 0.12s linear; will-change: transform; }
+/* no ground shadow while airborne — animation must stop too, or its animated
+   opacity keeps overriding the 0 */
+.ms-pet.is-flight .ms-pet__shadow { opacity: 0; animation: none; }
+.ms-pet.is-flight .ms-pet__mouth { opacity: 0; }
+.ms-pet.is-flight .ms-pet__eye { height: 5px; margin-top: -4px; animation: none; }
+.ms-pet.is-flight .ms-pet__body {
+  animation: none;
+  /* comet: rounded nose (travel direction = +X of the rotated frame),
+     tapered back */
+  border-radius: 60% 42% 44% 58% / 52% 55% 45% 48%;
+  transform: scaleX(calc(1 + var(--squish, 0) * 0.6)) scaleY(calc(1 - var(--squish, 0) * 0.32));
+  transition: transform 0.12s linear, border-radius 0.35s ease;
+}
+/* the splatter droplets re-form as tail beads strung out behind the comet */
+.ms-pet.is-flight .ms-pet__body::before {
+  width: 13px; height: 13px; top: 50%; margin-top: -7px;
+  inset-inline-end: auto; inset-inline-start: auto; left: -16px;
+  animation: none; transform: scale(calc(0.55 + var(--squish, 0)));
+  transition: transform 0.12s linear;
+}
+.ms-pet.is-flight .ms-pet__body::after {
+  width: 8px; height: 8px; top: 50%; bottom: auto; margin-top: -3px;
+  inset-inline-end: auto; inset-inline-start: auto; left: -29px;
+  animation: none; transform: scale(calc(0.4 + var(--squish, 0)));
+  transition: transform 0.12s linear;
+}
+/* wind-up: he gathers himself — a squat-and-jiggle before takeoff */
+.ms-pet.is-flight.is-wind .ms-pet__body { animation: ms-windup 0.36s ease-in-out infinite; }
+/* landing: overshoot splat, then settle; an ink ripple spreads on the ground */
+.ms-pet.is-land { animation: none; }
+.ms-pet.is-land .ms-pet__body { animation: ms-splat 0.45s cubic-bezier(0.22, 1.2, 0.36, 1); }
+.ms-ripple {
+  position: absolute; left: 50%; top: 82%; width: 64px; height: 20px;
+  margin: -10px 0 0 -32px; border: 2px solid rgba(245, 127, 0, 0.55);
+  border-radius: 999px; pointer-events: none;
+  animation: ms-ripple-out 0.55s ease-out forwards;
+}
+/* ink shed mid-flight, hanging in the air behind him */
+.ms-fly-drop {
+  position: absolute; border-radius: 50%; background: #f57f00; opacity: 0.9;
+  pointer-events: none;
+  animation: ms-drop-fade 0.42s ease-out forwards;
+}
 /* ---- painted ground shadow — the desktop pet window can't use box-shadow or
    filters (transparent-window layers rasterize them as boxes), so his shadow
    is this gradient puddle, squashing in time with the bob ---- */
@@ -2324,7 +2375,23 @@ body.ar .ms-portal .ms-stat__value { font-family: var(--font-arabic-display); }
   0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 1; }
   50% { transform: translateX(-50%) scaleX(0.8); opacity: 0.7; }
 }
+@keyframes ms-windup {
+  0%, 100% { transform: scale(1.1, 0.82) translateY(6px); }
+  50% { transform: scale(1.15, 0.78) translateY(8px); }
+}
+@keyframes ms-splat {
+  0% { transform: scale(1.4, 0.55) translateY(10px); }
+  55% { transform: scale(0.9, 1.12) translateY(-3px); }
+  100% { transform: scale(1, 1) translateY(0); }
+}
+@keyframes ms-ripple-out {
+  from { transform: scale(0.4); opacity: 1; }
+  to { transform: scale(1.5); opacity: 0; }
+}
+@keyframes ms-drop-fade {
+  to { transform: translate(var(--dx, 0px), var(--dy, 0px)) scale(0.2); opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .ms-pet, .ms-pet__body, .ms-pet__eye, .ms-pet__body::before, .ms-pet__body::after,
-  .ms-confetti i, .ms-pet__shadow { animation: none !important; }
+  .ms-confetti i, .ms-pet__shadow, .ms-fly-drop, .ms-ripple { animation: none !important; }
 }
