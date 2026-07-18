@@ -114,16 +114,12 @@ pub fn run() {
 // Marky on the desktop — menu-bar tray + floating pet window
 // ---------------------------------------------------------------------------
 
-// Collapsed = just the blob + drag handle; expanded = blob + chat panel;
-// flight = a roomy square he deforms inside mid-glide (comet stretch + ink
-// trail need space around the blob).
+// Collapsed = just the blob + drag handle; expanded = blob + chat panel.
 const PET_SMALL: (f64, f64) = (96.0, 116.0);
 const PET_BIG: (f64, f64) = (344.0, 520.0);
-const PET_FLY: (f64, f64) = (220.0, 220.0);
 // Where the blob's centre sits inside the small window (p-2 padding, 72px
-// blob anchored bottom-right — see PetWindow.tsx). Takeoff/landing resizes
-// shift the window by the difference to the flight window's centre, so the
-// blob never jumps on screen when the frame swaps.
+// blob anchored bottom-right — see PetWindow.tsx). Flights land the small
+// window so its blob sits exactly where the overlay's blob stopped.
 const BLOB_IN_SMALL: (f64, f64) = (52.0, 72.0);
 
 fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
@@ -176,6 +172,14 @@ fn setup_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
 fn toggle_pet(app: &tauri::AppHandle) {
     use tauri::{WebviewUrl, WebviewWindowBuilder};
 
+    // Mid-flight the small window is hidden and the overlay is on stage; a
+    // toggle would fight the flight thread over visibility. Just cancel —
+    // the thread lands him immediately and the next click toggles normally.
+    if WANDER_ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
+        cancel_wander();
+        return;
+    }
+
     if let Some(w) = app.get_webview_window("pet") {
         if w.is_visible().unwrap_or(false) {
             cancel_wander();
@@ -205,6 +209,39 @@ fn toggle_pet(app: &tauri::AppHandle) {
         builder = builder.position(w - PET_SMALL.0 - 24.0, h - PET_SMALL.1 - 80.0);
     }
     let _ = builder.build();
+    // Warm the flight overlay now (hidden), so its page is long loaded before
+    // the first wander wants to fly.
+    let _ = ensure_flight_overlay(app);
+}
+
+// The flight stage: a full-screen, transparent, click-through, always-hidden-
+// until-needed window loading /pet?fly=1. Flights happen INSIDE this page
+// (compositor-smooth rAF animation — curved paths, velocity stretch, an ink
+// trail that hangs in the air), instead of dragging a tiny window across the
+// screen in choppy IPC steps. Returns (window, was_just_created) — a freshly
+// created overlay is still loading its page, so callers skip one round.
+fn ensure_flight_overlay(app: &tauri::AppHandle) -> Option<(tauri::WebviewWindow, bool)> {
+    use tauri::{WebviewUrl, WebviewWindowBuilder};
+    if let Some(w) = app.get_webview_window("pet-fly") {
+        return Some((w, false));
+    }
+    let url = "https://marker.ps/pet?fly=1".parse().ok()?;
+    let w = WebviewWindowBuilder::new(app, "pet-fly", WebviewUrl::External(url))
+        .title("Marky in flight")
+        .inner_size(800.0, 600.0)
+        .transparent(true)
+        .decorations(false)
+        .shadow(false)
+        .always_on_top(true)
+        .skip_taskbar(true)
+        .visible(false)
+        .focused(false)
+        .initialization_script("window.__MARKER_DESKTOP__ = true;")
+        .build()
+        .ok()?;
+    // The overlay must NEVER swallow a click — it exists purely to draw.
+    let _ = w.set_ignore_cursor_events(true);
+    Some((w, true))
 }
 
 // The pet page's blob toggles its chat: grow/shrink the window while keeping
@@ -241,15 +278,21 @@ fn cancel_wander() {
     WANDER_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
 }
 
-// Marky roams — as LIQUID. The whole window glides on an eased arc while the
-// page inside is fed flight telemetry (`__MARKY_FLY__(phase, angle, speed)`)
-// so the blob melts into an ink comet: wind-up squat, stretch along the
-// heading, droplet trail, splat + ripple on landing. Mid-flight the window
-// swaps to the roomy PET_FLY frame (blob centred) and ignores the cursor, so
-// he never blocks a click while airborne. Destinations are picked ONLY in
-// the screen's margins — the left/right edge bands and the bottom strip —
-// never the middle where real work lives. Runs on a plain thread; window
-// setters and eval proxy to the main loop.
+// Marky roams — as LIQUID, on the flight overlay. The choreography:
+//
+//   1. freeze the small clickable blob (static pose), paint an identical
+//      frozen twin on the full-screen overlay at the same screen point,
+//      show the overlay, hide the small window — the eye can't see the seam
+//   2. the overlay page flies him (rAF: curved bezier path, undulation,
+//      velocity-driven stretch, ink trail hanging in the air, splat + ripple
+//      at the destination) — buttery compositor animation, zero per-frame IPC
+//   3. park the small window under the landing spot, freeze-show it, hide
+//      the overlay, unfreeze — seamless again, and he's clickable
+//
+// Destinations are picked ONLY in the screen's margins (left/right edge
+// bands and the bottom strip) — never the middle where real work lives.
+// The overlay ignores the cursor permanently, so an airborne Marky can
+// never block a click. Timings here mirror WINDUP/SPLAT in FlightOverlay.
 #[tauri::command]
 fn pet_wander(webview_window: tauri::WebviewWindow, zoomy: bool) -> Result<(), String> {
     use std::sync::atomic::Ordering;
@@ -260,34 +303,39 @@ fn pet_wander(webview_window: tauri::WebviewWindow, zoomy: bool) -> Result<(), S
     if size.width as f64 / scale >= PET_BIG.0 - 1.0 {
         return Ok(()); // chat is open — stay put
     }
+    let Some((overlay, just_created)) = ensure_flight_overlay(webview_window.app_handle()) else {
+        return Ok(());
+    };
+    if just_created {
+        return Ok(()); // page still loading — fly next round instead
+    }
     if WANDER_ACTIVE
         .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
         .is_err()
     {
         return Ok(()); // already mid-flight
     }
-    let land = |ok: Result<(), String>| {
+    let bail = |ok: Result<(), String>| {
         WANDER_ACTIVE.store(false, Ordering::SeqCst);
         ok
     };
 
     let Ok(Some(mon)) = webview_window.current_monitor() else {
-        return land(Ok(()));
+        return bail(Ok(()));
     };
     let (mx, my) = (mon.position().x as f64 / scale, mon.position().y as f64 / scale);
     let (mw, mh) = (mon.size().width as f64 / scale, mon.size().height as f64 / scale);
     let pos = match webview_window.outer_position() {
         Ok(p) => p,
-        Err(e) => return land(Err(e.to_string())),
+        Err(e) => return bail(Err(e.to_string())),
     };
-    // Everything below works in blob-CENTRE coordinates.
+    // Everything below works in blob-CENTRE screen coordinates.
     let c0 = (pos.x as f64 / scale + BLOB_IN_SMALL.0, pos.y as f64 / scale + BLOB_IN_SMALL.1);
-    let (hw, hh) = (PET_FLY.0 / 2.0, PET_FLY.1 / 2.0);
-    // Hard bounds the flight window must respect (menu bar / Dock margins).
-    let (min_cx, max_cx) = (mx + hw + 10.0, mx + mw - hw - 10.0);
-    let (min_cy, max_cy) = (my + 44.0 + hh, my + mh - hh - 90.0);
+    // Bounds keep the landed SMALL window clear of the menu bar and Dock.
+    let (min_cx, max_cx) = (mx + 64.0, mx + mw - 56.0);
+    let (min_cy, max_cy) = (my + 112.0, my + mh - 130.0);
     if max_cx <= min_cx || max_cy <= min_cy {
-        return land(Ok(()));
+        return bail(Ok(()));
     }
     let mut seed = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -298,78 +346,62 @@ fn pet_wander(webview_window: tauri::WebviewWindow, zoomy: bool) -> Result<(), S
         seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
         ((seed >> 33) & 0x7fff_ffff) as f64 / (0x8000_0000u64 as f64)
     };
-    // Destination: the screen's non-crucial margins only. A band down the
-    // left edge, a band down the right edge, or the strip along the bottom —
-    // the centre of the screen is where the human works.
+    // Non-crucial margins only: left band, right band, or bottom strip.
     let band = 150.0_f64.min((max_cx - min_cx) / 3.0);
     let (cx1, cy1) = match (rand01() * 3.0) as u32 {
         0 => (min_cx + rand01() * band, min_cy + rand01() * (max_cy - min_cy)), // left edge
         1 => (max_cx - rand01() * band, min_cy + rand01() * (max_cy - min_cy)), // right edge
         _ => (min_cx + rand01() * (max_cx - min_cx), max_cy - rand01() * (band * 0.7)), // bottom strip
     };
+    let dist = ((cx1 - c0.0).powi(2) + (cy1 - c0.1).powi(2)).sqrt();
+    let ms = if zoomy { 800.0 + dist * 0.8 } else { 1500.0 + dist * 2.2 };
+
+    // Stage the overlay over this monitor (main thread — we're in a command).
+    let _ = overlay.set_position(LogicalPosition::new(mx, my));
+    let _ = overlay.set_size(LogicalSize::new(mw, mh));
+    let _ = overlay.set_shadow(false);
+    let _ = overlay.set_ignore_cursor_events(true);
 
     let gen = WANDER_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    let petw = webview_window;
     std::thread::spawn(move || {
-        let fly = |phase: &str, a: f64, s: f64| {
-            let _ = webview_window
-                .eval(format!("window.__MARKY_FLY__&&window.__MARKY_FLY__('{phase}',{a:.1},{s:.2})"));
+        let fx = |w: &tauri::WebviewWindow, ph: &str, a: f64, b: f64, c: f64, d: f64| {
+            let _ = w.eval(format!(
+                "window.__MARKY_FLY__&&window.__MARKY_FLY__('{ph}',{a:.1},{b:.1},{c:.0},{d:.0})"
+            ));
         };
         let sleep = |ms: u64| std::thread::sleep(std::time::Duration::from_millis(ms));
 
-        // 1) Wind-up: page recentres the blob for flight, then the window
-        //    swaps to the flight frame around the same screen point and goes
-        //    ghost to the cursor. The squat animation masks the swap.
-        fly("wind", 0.0, 0.0);
-        sleep(60);
-        let _ = webview_window.set_ignore_cursor_events(true);
-        let _ = webview_window.set_size(LogicalSize::new(PET_FLY.0, PET_FLY.1));
-        let _ = webview_window.set_position(LogicalPosition::new(c0.0 - hw, c0.1 - hh));
-        let _ = webview_window.set_shadow(false);
-        sleep(300);
+        // Hand-off to the stage (identical frozen poses, then swap).
+        fx(&petw, "freeze", 0.0, 0.0, 0.0, 0.0);
+        fx(&overlay, "arm", c0.0 - mx, c0.1 - my, 0.0, 0.0);
+        sleep(90);
+        let _ = overlay.show();
+        sleep(70);
+        let _ = petw.hide();
 
-        // 2) Flight: eased arc; every other frame the page hears the current
-        //    heading + speed and shapes the comet accordingly.
-        let dist = ((cx1 - c0.0).powi(2) + (cy1 - c0.1).powi(2)).sqrt();
-        let ms = if zoomy { 750.0 + dist * 0.85 } else { 1400.0 + dist * 1.9 };
-        let steps = (ms / 16.0).max(1.0) as u32;
-        let hop = if zoomy { 80.0 } else { 34.0 };
-        // Instantaneous px-per-frame that reads as "full stretch".
-        let full_squish = if zoomy { 22.0 } else { 9.0 };
-        let mut centre = c0;
-        let mut last = c0;
-        for i in 0..=steps {
+        // Fly (the overlay page owns the motion from here).
+        fx(&overlay, "fly", cx1 - mx, cy1 - my, ms, if zoomy { 1.0 } else { 0.0 });
+        let total = 420 + ms as u64 + 560; // windup + flight + splat
+        let mut waited = 0u64;
+        while waited < total {
             if WANDER_GEN.load(Ordering::SeqCst) != gen {
-                break;
+                break; // cancelled — land him right now at the destination
             }
-            let p = i as f64 / steps as f64;
-            let e = p * p * (3.0 - 2.0 * p); // smoothstep
-            let x = c0.0 + (cx1 - c0.0) * e;
-            let y = (c0.1 + (cy1 - c0.1) * e - (std::f64::consts::PI * p).sin() * hop)
-                .max(my + 44.0 + hh);
-            centre = (x, y);
-            let _ = webview_window.set_position(LogicalPosition::new(x - hw, y - hh));
-            if i % 2 == 0 {
-                let (dx, dy) = (x - last.0, y - last.1);
-                if dx.abs() + dy.abs() > 0.05 {
-                    let sp = (((dx * dx + dy * dy).sqrt()) / full_squish).min(1.0);
-                    fly("move", dy.atan2(dx).to_degrees(), sp);
-                }
-            }
-            last = centre;
-            sleep(16);
+            sleep(30);
+            waited += 30;
         }
 
-        // 3) Landing (also the abort path — restore wherever he is): swap
-        //    back to the small frame around the blob's current screen point,
-        //    become clickable again, then let the page splat.
-        let _ = webview_window.set_size(LogicalSize::new(PET_SMALL.0, PET_SMALL.1));
-        let _ = webview_window
-            .set_position(LogicalPosition::new(centre.0 - BLOB_IN_SMALL.0, centre.1 - BLOB_IN_SMALL.1));
-        let _ = webview_window.set_shadow(false);
-        let _ = webview_window.set_ignore_cursor_events(false);
-        fly("land", 0.0, 0.0);
-        sleep(450);
-        fly("end", 0.0, 0.0);
+        // Hand-off back at the landing spot.
+        let _ = petw.set_position(LogicalPosition::new(cx1 - BLOB_IN_SMALL.0, cy1 - BLOB_IN_SMALL.1));
+        let _ = petw.set_shadow(false);
+        fx(&petw, "freeze", 0.0, 0.0, 0.0, 0.0);
+        let _ = petw.show();
+        sleep(70);
+        let _ = overlay.hide();
+        fx(&overlay, "off", 0.0, 0.0, 0.0, 0.0);
+        sleep(40);
+        fx(&petw, "end", 0.0, 0.0, 0.0, 0.0);
         WANDER_ACTIVE.store(false, Ordering::SeqCst);
     });
     Ok(())

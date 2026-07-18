@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
 import { getSession, isPartnerOnly, isPhotographerOnly } from "@/lib/auth";
 import PetWindow from "@/components/admin/PetWindow";
+import FlightOverlay from "@/components/admin/FlightOverlay";
 
 // The desktop pet window's page: chromeless and TRANSPARENT — the DMG loads
 // it in a frameless always-on-top window, so the page background must let the
 // desktop show through (macOSPrivateApi transparency). Session-guarded like
 // the admin; signing in happens in the main window (cookies are shared).
+// With ?fly=1 this same page becomes the full-screen flight stage instead
+// (see FlightOverlay) — same transparency rules, no interactive chrome.
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Marky", robots: { index: false, follow: false } };
 
-export default async function PetPage() {
+export default async function PetPage({ searchParams }: { searchParams?: { fly?: string } }) {
   const user = await getSession();
   if (!user) redirect("/login");
   if (isPartnerOnly(user) || isPhotographerOnly(user)) redirect("/admin");
@@ -41,7 +44,7 @@ export default async function PetPage() {
           border: 1px solid rgba(48, 48, 48, 0.14) !important;
         }
       `}</style>
-      <PetWindow />
+      {searchParams?.fly === "1" ? <FlightOverlay /> : <PetWindow />}
     </>
   );
 }
