@@ -16,6 +16,8 @@ fn main() {
             "save_file",
             "install_update",
             "pet_expand",
+            "pet_wander",
+            "pet_rest",
             "save_credentials",
             "get_credentials",
             "has_credentials",

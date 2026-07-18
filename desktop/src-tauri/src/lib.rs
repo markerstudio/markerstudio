@@ -44,6 +44,8 @@ pub fn run() {
             save_file,
             install_update,
             pet_expand,
+            pet_wander,
+            pet_rest,
             save_credentials,
             get_credentials,
             has_credentials,
@@ -168,6 +170,7 @@ fn toggle_pet(app: &tauri::AppHandle) {
 
     if let Some(w) = app.get_webview_window("pet") {
         if w.is_visible().unwrap_or(false) {
+            cancel_wander();
             let _ = w.hide();
         } else {
             let _ = w.show();
@@ -201,6 +204,7 @@ fn toggle_pet(app: &tauri::AppHandle) {
 #[tauri::command]
 fn pet_expand(webview_window: tauri::WebviewWindow, expanded: bool) -> Result<(), String> {
     use tauri::{LogicalPosition, LogicalSize};
+    cancel_wander();
     let (tw, th) = if expanded { PET_BIG } else { PET_SMALL };
     let scale = webview_window.scale_factor().map_err(|e| e.to_string())?;
     let pos = webview_window.outer_position().map_err(|e| e.to_string())?;
@@ -210,7 +214,85 @@ fn pet_expand(webview_window: tauri::WebviewWindow, expanded: bool) -> Result<()
     let _ = webview_window.set_position(LogicalPosition::new(x + (cw - tw), y + (ch - th)));
     webview_window
         .set_size(LogicalSize::new(tw, th))
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+    // macOS can re-apply a system window shadow on resize; keep it off — with
+    // a transparent window it draws as a rectangle around the whole frame.
+    let _ = webview_window.set_shadow(false);
+    Ok(())
+}
+
+// In-flight glides watch this generation number and abort the moment anything
+// bumps it (a new glide, expanding the chat, hiding the window, or the user
+// grabbing the drag handle).
+static WANDER_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+fn cancel_wander() {
+    WANDER_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+}
+
+// Marky roams: glide the whole pet window to a random spot on the current
+// monitor with an eased arc — a slow drift normally, a fast swoop when
+// `zoomy` (celebrations). Runs on a plain thread; window setters proxy to the
+// main loop. Refuses to move while the chat is expanded.
+#[tauri::command]
+fn pet_wander(webview_window: tauri::WebviewWindow, zoomy: bool) -> Result<(), String> {
+    use std::sync::atomic::Ordering;
+    use tauri::LogicalPosition;
+
+    let scale = webview_window.scale_factor().map_err(|e| e.to_string())?;
+    let size = webview_window.inner_size().map_err(|e| e.to_string())?;
+    if size.width as f64 / scale > PET_SMALL.0 + 1.0 {
+        return Ok(()); // chat is open — stay put
+    }
+    let Ok(Some(mon)) = webview_window.current_monitor() else { return Ok(()) };
+    let (mx, my) = (mon.position().x as f64 / scale, mon.position().y as f64 / scale);
+    let (mw, mh) = (mon.size().width as f64 / scale, mon.size().height as f64 / scale);
+    let pos = webview_window.outer_position().map_err(|e| e.to_string())?;
+    let (x0, y0) = (pos.x as f64 / scale, pos.y as f64 / scale);
+
+    // Roam the whole screen, but stay clear of the menu bar and the Dock.
+    let (min_x, max_x) = (mx + 16.0, mx + mw - PET_SMALL.0 - 16.0);
+    let (min_y, max_y) = (my + 44.0, my + mh - PET_SMALL.1 - 90.0);
+    if max_x <= min_x || max_y <= min_y {
+        return Ok(());
+    }
+    let mut seed = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.subsec_nanos() as u64 ^ d.as_secs())
+        .unwrap_or(42)
+        | 1;
+    let mut rand01 = move || {
+        seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+        ((seed >> 33) & 0x7fff_ffff) as f64 / (0x8000_0000u64 as f64)
+    };
+    let (x1, y1) = (min_x + rand01() * (max_x - min_x), min_y + rand01() * (max_y - min_y));
+
+    let gen = WANDER_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let dist = ((x1 - x0).powi(2) + (y1 - y0).powi(2)).sqrt();
+        let ms = if zoomy { 700.0 + dist * 0.9 } else { 1200.0 + dist * 1.9 };
+        let steps = (ms / 16.0).max(1.0) as u32;
+        let hop = if zoomy { 64.0 } else { 26.0 };
+        for i in 0..=steps {
+            if WANDER_GEN.load(Ordering::SeqCst) != gen {
+                return;
+            }
+            let p = i as f64 / steps as f64;
+            let e = p * p * (3.0 - 2.0 * p); // smoothstep
+            let x = x0 + (x1 - x0) * e;
+            let y = (y0 + (y1 - y0) * e - (std::f64::consts::PI * p).sin() * hop).max(my + 8.0);
+            let _ = webview_window.set_position(LogicalPosition::new(x, y));
+            std::thread::sleep(std::time::Duration::from_millis(16));
+        }
+    });
+    Ok(())
+}
+
+// The page calls this when the user grabs the drag handle, so a glide never
+// fights the hand.
+#[tauri::command]
+fn pet_rest() {
+    cancel_wander();
 }
 
 // ---------------------------------------------------------------------------
