@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Marker Studio windows (main + previews), including the hosted marker.ps pages, may reach the IPC bridge (__MARKER_NATIVE__: notifications, badge, links, saved sign-in).",
+  "description": "Marker Studio windows (main + previews), including the hosted marker.ps pages, may reach the IPC bridge (__MARKER_NATIVE__: notifications, badge, links, printing, native saves, updates, saved sign-in). The allow-* entries are the app's own commands, declared in build.rs — remote content gets nothing without them.",
   "windows": ["main", "preview-*"],
   "remote": {
     "urls": [
@@ -14,6 +14,18 @@
   "permissions": [
     "core:default",
     "notification:default",
-    "opener:default"
+    "opener:default",
+    "allow-notify",
+    "allow-set-badge",
+    "allow-open-external",
+    "allow-open-preview",
+    "allow-print-page",
+    "allow-save-text-file",
+    "allow-save-file",
+    "allow-install-update",
+    "allow-save-credentials",
+    "allow-get-credentials",
+    "allow-has-credentials",
+    "allow-clear-credentials"
   ]
 }
