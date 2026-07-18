@@ -8,58 +8,9 @@
 
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
-
-/* ------------------------------------------------------------- parsing */
-
-export type NoteBlock =
-  | { type: "h1"; text: string }
-  | { type: "h2"; text: string }
-  | { type: "p"; lines: string[] }
-  | { type: "ul"; items: string[] }
-  | { type: "ol"; items: string[] }
-  | { type: "check"; items: { checked: boolean; text: string; line: number }[] };
-
-// Line-oriented parse. `line` on checklist items is the index into
-// body.split("\n") so a click can flip exactly that line in the source.
-export function parseNoteBlocks(body: string): NoteBlock[] {
-  const lines = (body || "").split("\n");
-  const blocks: NoteBlock[] = [];
-  let broke = true; // a blank line (or the start) breaks list/paragraph grouping
-  const last = () => blocks[blocks.length - 1];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (!line.trim()) {
-      broke = true;
-      continue;
-    }
-    let m: RegExpExecArray | null;
-    if ((m = /^# (.*)$/.exec(line))) {
-      blocks.push({ type: "h1", text: m[1] });
-    } else if ((m = /^## (.*)$/.exec(line))) {
-      blocks.push({ type: "h2", text: m[1] });
-    } else if ((m = /^- \[( |x|X)\] ?(.*)$/.exec(line))) {
-      const item = { checked: m[1].toLowerCase() === "x", text: m[2], line: i };
-      const l = last();
-      if (!broke && l?.type === "check") l.items.push(item);
-      else blocks.push({ type: "check", items: [item] });
-    } else if ((m = /^- (.*)$/.exec(line))) {
-      const l = last();
-      if (!broke && l?.type === "ul") l.items.push(m[1]);
-      else blocks.push({ type: "ul", items: [m[1]] });
-    } else if ((m = /^\d+\. (.*)$/.exec(line))) {
-      const l = last();
-      if (!broke && l?.type === "ol") l.items.push(m[1]);
-      else blocks.push({ type: "ol", items: [m[1]] });
-    } else {
-      const l = last();
-      if (!broke && l?.type === "p") l.lines.push(line);
-      else blocks.push({ type: "p", lines: [line] });
-    }
-    broke = false;
-  }
-  return blocks;
-}
+// Parsing + the escaped md→HTML print path live in lib/noteHtml — server-safe,
+// shared with the /print/note/[id] route.
+import { parseNoteBlocks, type NoteBlock } from "@/lib/noteHtml";
 
 /* -------------------------------------------------------------- inline */
 
@@ -235,46 +186,4 @@ export default function NoteMarkdown({
       {truncated && <p className="text-charcoal-40 !mt-0.5">…</p>}
     </div>
   );
-}
-
-/* -------------------------------------------------- print / PDF export */
-
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
-// Inline markdown → HTML, escaping FIRST so user text can never smuggle
-// markup into the print document; only our own <strong>/<em> tags survive.
-function inlineHtml(text: string): string {
-  return escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/\*([^*]+)\*/g, "<em>$1</em>");
-}
-
-// The same subset rendered to simple HTML for the print window. Every piece
-// of user text passes through escapeHtml before being wrapped in tags.
-export function noteBodyToHtml(body: string): string {
-  return parseNoteBlocks(body)
-    .map((b) => {
-      if (b.type === "h1") return `<h2>${inlineHtml(b.text)}</h2>`;
-      if (b.type === "h2") return `<h3>${inlineHtml(b.text)}</h3>`;
-      if (b.type === "ul" || b.type === "ol") {
-        const tag = b.type === "ul" ? "ul" : "ol";
-        return `<${tag}>${b.items.map((t) => `<li>${inlineHtml(t)}</li>`).join("")}</${tag}>`;
-      }
-      if (b.type === "check") {
-        const items = b.items
-          .map(
-            (it) =>
-              `<li${it.checked ? ' class="done"' : ""}><span class="box${it.checked ? " done" : ""}">${it.checked ? "✓" : ""}</span><span class="txt">${inlineHtml(it.text)}</span></li>`
-          )
-          .join("");
-        return `<ul class="check">${items}</ul>`;
-      }
-      return `<p>${b.lines.map(inlineHtml).join("<br>")}</p>`;
-    })
-    .join("\n");
 }

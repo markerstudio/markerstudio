@@ -33,6 +33,11 @@ The shell injects a small bridge (`window.__MARKER_NATIVE__`, see
   pages (invoice PDFs, portal previews) open in a **native preview window**
   (WKWebView renders PDFs inline), and external links open in your **default
   browser**.
+- **Printing & "Save as PDF".** WKWebView also implements the page's
+  `window.print()` as a silent no-op — that was the "can't export a PDF" bug.
+  The bridge reroutes `window.print()` to the **native macOS print panel**
+  (with its Save as PDF destination), so every print/export button — invoices,
+  proposals, statements, receipts, note exports — works in the app.
 - **Remembered sign-in (Touch ID where it counts).** On the login page the app
   offers *Remember password in this Mac's Keychain*. Next time, one button —
   **Sign in with Touch ID** — asks macOS to confirm the owner, fills the saved
