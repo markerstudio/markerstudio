@@ -380,7 +380,13 @@ function noteItems(notes: Note[], bySlug: Map<string, Client>, today: string): A
 
 const URGENCY_ORDER: Record<AgendaUrgency, number> = { overdue: 0, today: 1, soon: 2 };
 
-export async function getAgenda(daysAhead = 7): Promise<Agenda> {
+// `preloaded.clients` lets callers that already hold the client rows (the
+// notifications feed, the pet route) share them instead of pulling every
+// client's full data blob from the database a second time in the same
+// request — the clients table is by far the heaviest read in the app, and
+// double-pulling it on every notification poll is what burned through the
+// database's monthly network-transfer allowance.
+export async function getAgenda(daysAhead = 7, preloaded?: { clients?: Client[] }): Promise<Agenda> {
   const today = iso(new Date());
   const empty: Agenda = { clients: [], studio: [], all: [], counts: { overdue: 0, today: 0, soon: 0 }, snoozed: 0, today };
   if (!isDbEnabled()) return empty;
@@ -388,7 +394,7 @@ export async function getAgenda(daysAhead = 7): Promise<Agenda> {
   const horizon = addDays(today, daysAhead);
 
   const [clients, invoices, studioTasks, notes, snoozes] = await Promise.all([
-    getClients().catch(() => [] as Client[]),
+    preloaded?.clients ? Promise.resolve(preloaded.clients) : getClients().catch(() => [] as Client[]),
     listInvoices().catch(() => [] as Invoice[]),
     getStudioDeliverables().catch(() => [] as Deliverable[]),
     listNotes().catch(() => [] as Note[]),

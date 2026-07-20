@@ -118,9 +118,12 @@ export async function POST(req: Request) {
   }
 
   // ---- questions: Marky as an output shortcut ----------------------------
-  const [agenda, clients, invoices, payments, studioItems] = await Promise.all([
-    getAgenda(7).catch(() => null),
-    getClients().catch(() => []),
+  // Clients are fetched once and shared with the agenda engine — the clients
+  // table is the heaviest read in the app, and this route used to pull it
+  // twice per chat message.
+  const clients = await getClients().catch(() => []);
+  const [agenda, invoices, payments, studioItems] = await Promise.all([
+    getAgenda(7, { clients }).catch(() => null),
     listInvoices().catch(() => []),
     listAllPayments(300).catch(() => []),
     getStudioDeliverables().catch(() => []),

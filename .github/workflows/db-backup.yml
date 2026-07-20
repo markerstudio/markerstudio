@@ -1,0 +1,60 @@
+# Nightly database backup — the "never held hostage" guarantee.
+#
+# Every night this dumps the entire Postgres database, encrypts it, and stores
+# it as a workflow artifact (kept 30 days). If the database provider ever cuts
+# access again, yesterday's data is right here and can be restored to any
+# Postgres in minutes. Restore instructions: docs/BACKUPS.md.
+#
+# Requires two repository secrets (Settings → Secrets and variables → Actions):
+#   DATABASE_URL       — the Neon connection string (the UNPOOLED/direct one)
+#   BACKUP_PASSPHRASE  — any long random string; encrypts the dump. The repo is
+#                        public, so artifacts MUST be encrypted. Losing this
+#                        passphrase makes backups unreadable — store it in a
+#                        password manager.
+name: DB backup (nightly)
+
+on:
+  schedule:
+    - cron: "20 1 * * *" # 01:20 UTC nightly (04:20 studio time)
+  workflow_dispatch: {} # run on demand from the Actions tab
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Install matching Postgres client
+        run: |
+          sudo apt-get update -qq
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-17
+
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::error::Set the DATABASE_URL and BACKUP_PASSPHRASE repository secrets first (see docs/BACKUPS.md)."
+            exit 1
+          fi
+          stamp=$(date -u +%Y-%m-%d)
+          pg_dump "$DATABASE_URL" --no-owner --no-privileges --format=custom --file="marker-$stamp.dump"
+          # AES-256, key derived with PBKDF2 — decryptable anywhere openssl exists.
+          openssl enc -aes-256-cbc -pbkdf2 -salt \
+            -pass env:BACKUP_PASSPHRASE \
+            -in "marker-$stamp.dump" -out "marker-$stamp.dump.enc"
+          rm "marker-$stamp.dump"
+          ls -lh "marker-$stamp.dump.enc"
+
+      - name: Store artifact (30 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: db-backup-${{ github.run_id }}
+          path: marker-*.dump.enc
+          retention-days: 30
+          if-no-files-found: error

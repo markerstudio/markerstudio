@@ -4,7 +4,7 @@ import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
 import AdminShell from "@/components/admin/AdminShell";
 import { ToastProvider } from "@/components/ui/glass";
-import { getClients } from "@/lib/clients";
+import { getClientsPalette } from "@/lib/clients";
 import { logout } from "./actions";
 
 export const metadata = { title: "Marker Admin", robots: { index: false, follow: false } };
@@ -17,12 +17,14 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       ? await Promise.all([
           countUnreadInquiries(),
           countUnreadApplications(),
-          restricted ? Promise.resolve([]) : getClients().catch(() => []),
+          restricted ? Promise.resolve([]) : getClientsPalette().catch(() => []),
         ])
       : [0, 0, []];
-  // Slim list for the ⌘K palette — names only, no client data leaves the layout.
+  // Slim list for the ⌘K palette — names only. This runs on every admin
+  // navigation, so it uses the palette query (slug/name/color) instead of
+  // pulling every client's full data blob just to read three fields.
   const paletteClients = clientRows
-    .filter((c) => !c.data?.archived)
+    .filter((c) => !c.archived)
     .map((c) => ({ slug: c.slug, name: c.name || c.slug, color: c.color || "#FF9100" }));
 
   if (!user) {

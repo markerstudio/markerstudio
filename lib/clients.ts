@@ -3,6 +3,7 @@
 // Each client has a private portal (/portal/[slug]). Bilingual rich content
 // lives in a JSONB `data` column shaped like ClientData below. Reads tolerate a
 // missing table (pre-migration) by returning empty/undefined.
+import { cache } from "react";
 import { getSql, isDbEnabled } from "@/lib/db";
 import type { AgreementDoc, ProposalDoc, ProposalSelection } from "@/lib/docs";
 import { createNotionClientWithSource } from "@/lib/notion";
@@ -525,12 +526,33 @@ async function retry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   return fallback;
 }
 
-export async function getClients(): Promise<Client[]> {
+// cache() = one query per request no matter how many callers (layout, page,
+// agenda engine, notifications) ask during the same render. This is the
+// heaviest read in the app — every client's full data blob — so request-level
+// dedupe is a straight network-transfer saving with zero staleness: the cache
+// dies with the request.
+export const getClients = cache(async function getClients(): Promise<Client[]> {
   if (!isDbEnabled()) return [];
   return retry(async () => {
     return (await getSql()`
       SELECT id, slug, name, logo, color, data FROM clients ORDER BY created_at ASC
     `) as unknown as ClientRow[];
+  }, []);
+});
+
+export type ClientPaletteRow = { slug: string; name: string; color: string; archived: boolean };
+
+// The ⌘K palette needs names only, but the admin layout was pulling every
+// client's full data blob on EVERY admin navigation to get them. This slim
+// select fetches just the columns the palette shows.
+export async function getClientsPalette(): Promise<ClientPaletteRow[]> {
+  if (!isDbEnabled()) return [];
+  return retry(async () => {
+    const rows = (await getSql()`
+      SELECT slug, name, color, COALESCE((data->>'archived')::boolean, false) AS archived
+      FROM clients ORDER BY created_at ASC
+    `) as unknown as ClientPaletteRow[];
+    return rows;
   }, []);
 }
 
