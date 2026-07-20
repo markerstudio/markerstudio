@@ -7,6 +7,7 @@
 // looks like a connection string.
 import { NextResponse } from "next/server";
 import { getSql, isDbEnabled } from "@/lib/db";
+import { snapshotStatus } from "@/lib/snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -36,17 +37,21 @@ export async function GET() {
   }
 
   const ok = db.ok && env.AUTH_SECRET;
+  const snapshot = await snapshotStatus().catch(() => ({ available: false as const }));
   return NextResponse.json(
     {
       ok,
       db,
       env,
+      // The outage fallback: while db.ok is false but a snapshot exists, the
+      // admin and portal keep serving the last saved copy (read-only mode).
+      snapshot,
       hint: ok
         ? undefined
         : !env.DATABASE_URL
           ? "Set DATABASE_URL in Vercel → Project → Settings → Environment Variables, then redeploy."
           : !db.ok
-            ? "The database did not answer — check the Neon console (compute suspended? quota? outage?) and Vercel's runtime logs."
+            ? `The database did not answer — check the Neon console (compute suspended? quota? outage?) and Vercel's runtime logs.${snapshot.available ? " The app is serving the last saved snapshot meanwhile (read-only)." : ""}`
             : "Set AUTH_SECRET in Vercel → Project → Settings → Environment Variables, then redeploy.",
       at: new Date().toISOString(),
     },

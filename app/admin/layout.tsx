@@ -3,6 +3,7 @@ import { isDbEnabled } from "@/lib/db";
 import { countUnreadInquiries } from "@/lib/inquiries";
 import { countUnreadApplications } from "@/lib/applications";
 import AdminShell from "@/components/admin/AdminShell";
+import DegradedBanner from "@/components/DegradedBanner";
 import { ToastProvider } from "@/components/ui/glass";
 import { getClientsPalette } from "@/lib/clients";
 import { logout } from "./actions";
@@ -34,6 +35,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div dir="ltr" className="lq-app font-sans text-neutral-900">
+      {/* Announces read-only snapshot mode whenever the live DB is down. */}
+      <DegradedBanner />
       {/* Toasts finally have a mount — useToast() was a silent no-op before. */}
       <ToastProvider>
       <AdminShell

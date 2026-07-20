@@ -5,6 +5,7 @@
 // missing table (pre-migration) by returning empty/undefined.
 import { cache } from "react";
 import { getSql, isDbEnabled } from "@/lib/db";
+import { readSnapshot, isOutageError } from "@/lib/snapshot";
 import type { AgreementDoc, ProposalDoc, ProposalSelection } from "@/lib/docs";
 import { createNotionClientWithSource } from "@/lib/notion";
 import { amountLabelToIls } from "@/lib/money";
@@ -526,18 +527,41 @@ async function retry<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
   return fallback;
 }
 
+// Like retry(), but the second failure propagates so the caller can decide
+// (e.g. fall back to the studio snapshot instead of an empty result).
+async function retryOrThrow<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch {
+    return await fn();
+  }
+}
+
 // cache() = one query per request no matter how many callers (layout, page,
 // agenda engine, notifications) ask during the same render. This is the
 // heaviest read in the app — every client's full data blob — so request-level
 // dedupe is a straight network-transfer saving with zero staleness: the cache
 // dies with the request.
+//
+// When the database is unreachable (suspended, quota, outage) the read falls
+// back to the encrypted studio snapshot (lib/snapshot) — the portal and the
+// admin keep showing the last saved copy instead of erroring.
 export const getClients = cache(async function getClients(): Promise<Client[]> {
   if (!isDbEnabled()) return [];
-  return retry(async () => {
-    return (await getSql()`
-      SELECT id, slug, name, logo, color, data FROM clients ORDER BY created_at ASC
-    `) as unknown as ClientRow[];
-  }, []);
+  try {
+    return await retryOrThrow(async () => {
+      return (await getSql()`
+        SELECT id, slug, name, logo, color, data FROM clients ORDER BY created_at ASC
+      `) as unknown as ClientRow[];
+    });
+  } catch (e) {
+    console.error("[clients] DB read failed:", e);
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      if (snap) return snap.clients as Client[];
+    }
+    return [];
+  }
 });
 
 export type ClientPaletteRow = { slug: string; name: string; color: string; archived: boolean };
@@ -558,12 +582,22 @@ export async function getClientsPalette(): Promise<ClientPaletteRow[]> {
 
 export async function getClient(slug: string): Promise<Client | undefined> {
   if (!isDbEnabled()) return undefined;
-  return retry(async () => {
-    const rows = (await getSql()`
-      SELECT id, slug, name, logo, color, data FROM clients WHERE slug = ${slug} LIMIT 1
-    `) as unknown as ClientRow[];
-    return rows[0];
-  }, undefined);
+  try {
+    return await retryOrThrow(async () => {
+      const rows = (await getSql()`
+        SELECT id, slug, name, logo, color, data FROM clients WHERE slug = ${slug} LIMIT 1
+      `) as unknown as ClientRow[];
+      return rows[0];
+    });
+  } catch (e) {
+    console.error("[clients] DB read failed:", e);
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      const hit = (snap?.clients as Client[] | undefined)?.find((c) => c.slug === slug);
+      if (hit) return hit;
+    }
+    return undefined;
+  }
 }
 
 export async function getClientById(id: number): Promise<Client | undefined> {
