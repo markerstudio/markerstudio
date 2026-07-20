@@ -28,9 +28,12 @@ export function isDbEnabled(): boolean {
 }
 
 // Lazily create the SQL tag so importing this module never throws when the
-// connection string is absent.
+// connection string is absent. `cache: "no-store"` matters: Next patches the
+// global fetch the driver uses, and without it query responses can be served
+// from Next's fetch cache — stale reads, and a dead database that still
+// "answers".
 export function getSql() {
   const url = connectionString();
   if (!url) throw new Error("No database connection string is set (DATABASE_URL / POSTGRES_URL)");
-  return neon(url);
+  return neon(url, { fetchOptions: { cache: "no-store" } });
 }

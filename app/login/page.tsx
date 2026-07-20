@@ -16,10 +16,20 @@ export default async function LoginPage({ searchParams }: { searchParams: { erro
   if (user && !searchParams.error) {
     redirect(user.role === "client" ? "/portal" : "/admin");
   }
+  // Named failure modes so an outage never masquerades as a wrong password
+  // (see the login action: error=db / error=config come from caught
+  // infrastructure failures; anything else is a bad credential).
+  const errorMessage = !searchParams.error
+    ? undefined
+    : searchParams.error === "db"
+      ? "We can't reach the studio database right now — this is an outage, not a wrong password. Status: /api/health"
+      : searchParams.error === "config"
+        ? "The server is missing its session configuration (AUTH_SECRET). Status: /api/health"
+        : "Invalid email or password.";
   return (
     <SignInPage
       action={login}
-      error={searchParams.error ? "Invalid email or password." : undefined}
+      error={errorMessage}
       notice={
         searchParams.reset
           ? "Password updated — sign in with your new password."
