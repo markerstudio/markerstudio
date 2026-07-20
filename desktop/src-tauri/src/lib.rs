@@ -58,12 +58,14 @@ pub fn run() {
         .setup(|app| {
             use tauri::{WebviewUrl, WebviewWindowBuilder};
 
-            // Shared entry point: /login routes admins to /admin and clients to
-            // /portal after sign-in, so one app works for the studio and clients.
-            let url = "https://marker.ps/login".parse().expect("valid url");
-
+            // The window boots on the BUNDLED launcher page (dist/index.html),
+            // which probes marker.ps and hops to /login the moment it answers
+            // — offline launches get a branded "you're offline, retrying"
+            // screen instead of the webview's raw error page. /login then
+            // routes admins to /admin and clients to /portal, so one app
+            // works for the studio and clients.
             #[allow(unused_mut)]
-            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url))
+            let mut builder = WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Marker Studio")
                 .inner_size(1280.0, 832.0)
                 .min_inner_size(960.0, 600.0)
@@ -191,8 +193,10 @@ fn toggle_pet(app: &tauri::AppHandle) {
         return;
     }
 
-    let Ok(url) = "https://marker.ps/pet".parse() else { return };
-    let mut builder = WebviewWindowBuilder::new(app, "pet", WebviewUrl::External(url))
+    // Boots on the bundled pet launcher (dist/pet.html — a sleeping blob),
+    // which moves to the live /pet page once marker.ps is reachable, so an
+    // offline corner shows a napping Marky instead of a webview error box.
+    let mut builder = WebviewWindowBuilder::new(app, "pet", WebviewUrl::App("pet.html".into()))
         .title("Marky")
         .inner_size(PET_SMALL.0, PET_SMALL.1)
         .transparent(true)
