@@ -114,25 +114,41 @@ export async function login(formData: FormData) {
   } catch {
     /* ignore */
   }
-  const rows = (await sql`
-    SELECT id, email, name, password_hash, role, client_id FROM users WHERE email = ${email} LIMIT 1
-  `) as unknown as UserRow[];
+  // An unreachable database (Neon down, DATABASE_URL missing) used to escape
+  // as a bare server exception — the user saw only "Application error … Digest:
+  // …" and read it as a wrong password. Turn it into a named outage message,
+  // and keep the full error in the server logs for the real diagnosis.
+  let rows: UserRow[];
+  try {
+    rows = (await sql`
+      SELECT id, email, name, password_hash, role, client_id FROM users WHERE email = ${email} LIMIT 1
+    `) as unknown as UserRow[];
+  } catch (err) {
+    console.error("[login] database unreachable:", err);
+    redirect("/login?error=db");
+  }
   const u = rows[0];
   if (!u || !(await bcrypt.compare(password, u.password_hash))) {
     redirect("/login?error=1");
   }
-  await createSession(
-    {
-      id: u.id,
-      email: u.email,
-      name: u.name,
-      role: (u.role as Role) || "admin",
-      clientId: u.client_id ?? null,
-    },
-    // "Keep me signed in" — previously ignored (the session was always 30
-    // days); now unticking it really does end the session with the browser.
-    { persist: formData.get("rememberMe") != null }
-  );
+  try {
+    await createSession(
+      {
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: (u.role as Role) || "admin",
+        clientId: u.client_id ?? null,
+      },
+      // "Keep me signed in" — previously ignored (the session was always 30
+      // days); now unticking it really does end the session with the browser.
+      { persist: formData.get("rememberMe") != null }
+    );
+  } catch (err) {
+    // createSession only throws on misconfiguration (AUTH_SECRET unset).
+    console.error("[login] could not create session:", err);
+    redirect("/login?error=config");
+  }
   redirect(u.role === "client" ? "/portal" : "/admin");
 }
 
