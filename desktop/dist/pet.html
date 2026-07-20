@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Marky</title>
+    <style>
+      html, body {
+        margin: 0; height: 100%;
+        background: transparent;
+        display: flex; align-items: flex-end; justify-content: flex-end;
+        -webkit-user-select: none; user-select: none;
+        overflow: hidden;
+      }
+      /* A sleeping ink blob: Marky with no internet is napping, not broken. */
+      .blob {
+        width: 72px; height: 72px; margin: 0 8px 8px 0;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #ffa226, #f57f00 70%);
+        position: relative;
+        animation: breathe 3.2s ease-in-out infinite;
+      }
+      @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.04); } }
+      .eye {
+        position: absolute; top: 30px; width: 12px; height: 3px;
+        border-radius: 2px; background: #303030;
+      }
+      .eye.l { left: 18px; } .eye.r { right: 18px; }
+      .zzz {
+        position: absolute; top: -6px; right: -4px;
+        font: 700 13px -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #30303099;
+        animation: floatz 2.4s ease-in-out infinite;
+      }
+      @keyframes floatz { 0%,100% { transform: translateY(0); opacity: .55; } 50% { transform: translateY(-4px); opacity: 1; } }
+    </style>
+  </head>
+  <body>
+    <!--
+      Marky's offline nap. The pet window boots here (local bundle) and moves
+      to the live /pet page the moment marker.ps answers — so with no internet
+      the corner shows a sleeping blob instead of a webview error box.
+    -->
+    <div class="blob" data-tauri-drag-region title="Marky is offline — he'll wake up when the studio is reachable">
+      <span class="eye l" data-tauri-drag-region></span><span class="eye r" data-tauri-drag-region></span>
+      <span class="zzz" data-tauri-drag-region>z<small>z</small></span>
+    </div>
+    <script>
+      function probe() {
+        fetch("https://marker.ps/api/health", { mode: "no-cors", cache: "no-store" })
+          .then(function () { location.replace("https://marker.ps/pet"); })
+          .catch(function () {});
+      }
+      window.addEventListener("online", probe);
+      setInterval(probe, 8000);
+      probe();
+    </script>
+  </body>
+</html>
