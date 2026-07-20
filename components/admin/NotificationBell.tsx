@@ -125,7 +125,15 @@ export default function NotificationBell({
 
   useEffect(() => {
     refresh();
-    const iv = setInterval(refresh, 60_000);
+    // Every poll recomputes the whole feed server-side (agenda + clients), so
+    // the cadence is deliberately gentle: 5 minutes, and only while the tab
+    // is actually visible — a bell that polled every 60s from every open tab
+    // (and the always-on desktop app) is what exhausted the database's
+    // monthly network-transfer allowance. Coming back to the tab refreshes
+    // immediately, so the bell never *feels* 5 minutes stale.
+    const iv = setInterval(() => {
+      if (document.visibilityState === "visible") refresh();
+    }, 300_000);
     const onVis = () => document.visibilityState === "visible" && refresh();
     document.addEventListener("visibilitychange", onVis);
     return () => {

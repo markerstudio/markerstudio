@@ -124,7 +124,12 @@ export async function getNotices(user: SessionUser): Promise<{ notices: Notice[]
   if (isPartnerOnly(user)) return { notices: [], badge: 0 };
 
   // ---- The agenda's rituals, as pings (2-day horizon ≈ shoots in 48h) ----
-  const agenda = await safe(() => getAgenda(2), null);
+  // One clients pull for the whole feed: this function runs on every
+  // notification-bell poll, and it used to fetch every client's full data
+  // blob twice (once here via the agenda engine, once below for task
+  // requests) — the single biggest driver of database network transfer.
+  const allClients = await safe(() => getClients(), []);
+  const agenda = await safe(() => getAgenda(2, { clients: allClients }), null);
   let badge = 0;
   if (agenda) {
     // Photographer-only accounts (Ameer) get shoot reminders only.
@@ -177,8 +182,7 @@ export async function getNotices(user: SessionUser): Promise<{ notices: Notice[]
 
   // ---- Client task requests (pending approval — the agenda skips these on
   // purpose, so they're queried here as inbox events) ----
-  const clients = await safe(() => getClients(), []);
-  const live = clients.filter((c) => !c.data?.archived);
+  const live = allClients.filter((c) => !c.data?.archived);
   const taskLists: { slug: string; name: string; items: Deliverable[] }[] = [];
   for (const c of live) {
     const items = c.data?.deliverables?.items;

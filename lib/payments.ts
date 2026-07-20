@@ -3,6 +3,7 @@
 // view/print. The invoice's cached paid_amount is still the running total; this
 // ledger is the itemised history behind it.
 import { getSql, isDbEnabled } from "@/lib/db";
+import { readSnapshot, isOutageError } from "@/lib/snapshot";
 
 export type PaymentMethod = "cash" | "bank" | "card" | "other";
 
@@ -239,7 +240,13 @@ export async function listClientPayments(slug: string, limit = 1000): Promise<Pa
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments WHERE client_slug = ${slug} ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
-  } catch {
+  } catch (e) {
+    // Database unreachable → serve the last studio snapshot (read-only mode)
+    // so the client portal's payment history stays visible through an outage.
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      if (snap) return (snap.payments as Payment[]).filter((p) => p.client_slug === slug).slice(0, limit);
+    }
     return [];
   }
 }
@@ -253,7 +260,12 @@ export async function listAllPayments(limit = 1000): Promise<Payment[]> {
              notion_synced_at::text AS notion_synced_at, notion_page_ids, notion_error, notion_sync_attempts
       FROM invoice_payments ORDER BY paid_on DESC, id DESC LIMIT ${limit}
     `) as unknown as Payment[];
-  } catch {
+  } catch (e) {
+    // Database unreachable → serve the last studio snapshot (read-only mode).
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      if (snap) return (snap.payments as Payment[]).slice(0, limit);
+    }
     return [];
   }
 }

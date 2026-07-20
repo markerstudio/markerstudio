@@ -3,6 +3,7 @@
 // trivial to extend with other studio-wide settings later. Mirrors the best-effort,
 // ensure-on-write pattern used elsewhere (lib/clients ensureClientSchema).
 import { getSql, isDbEnabled } from "@/lib/db";
+import { readSnapshot, isOutageError } from "@/lib/snapshot";
 import type { Deliverable } from "@/lib/clients";
 
 export const STUDIO_SLUG = "__studio__"; // sentinel used by actions to target this store
@@ -26,8 +27,14 @@ export async function getStudioDeliverables(): Promise<Deliverable[]> {
   try {
     const rows = (await sql`SELECT data FROM studio_state WHERE id = 1 LIMIT 1`) as unknown as { data: StudioState }[];
     return rows[0]?.data?.deliverables ?? [];
-  } catch {
-    return []; // table not created yet — first write will create it
+  } catch (e) {
+    // Missing table (fresh install) stays a quiet empty list; an unreachable
+    // database falls back to the last studio snapshot (read-only mode).
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      if (snap) return (snap.studio.deliverables ?? []) as Deliverable[];
+    }
+    return [];
   }
 }
 
@@ -57,7 +64,11 @@ export async function getAgendaSnoozes(): Promise<Record<string, string>> {
   try {
     const rows = (await sql`SELECT data FROM studio_state WHERE id = 1 LIMIT 1`) as unknown as { data: StudioState }[];
     return rows[0]?.data?.agendaSnoozes ?? {};
-  } catch {
+  } catch (e) {
+    if (isOutageError(e)) {
+      const snap = await readSnapshot();
+      if (snap) return snap.studio.agendaSnoozes ?? {};
+    }
     return {}; // table not created yet — first write will create it
   }
 }
